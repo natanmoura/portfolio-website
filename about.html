@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — Natan Moura</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme-2-swiss.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <header class="site-header">
+    <div class="logo-group">
+      <a href="/" class="logo">Natan Moura</a>
+      <span class="logo-tagline"><span class="tagline-textbox"><span id="taglineText"></span><span class="tagline-highlight" id="taglineHighlight"></span></span><span class="tagline-cursor">_</span></span>
+    </div>
+    <nav>
+      <a href="/"><span class="nav-emoji">🪄</span> Projects</a>
+      <a href="about.html"><span class="nav-emoji">🧙</span> About</a>
+      <a href="contact.html"><span class="nav-emoji">🔮</span> Contact</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Toggle menu" id="navToggle">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- FULLSCREEN NAV OVERLAY -->
+  <div class="nav-overlay" id="navOverlay">
+    <a href="/"            class="nav-overlay-link">Projects</a>
+    <a href="about.html"   class="nav-overlay-link">About</a>
+    <a href="contact.html" class="nav-overlay-link">Contact</a>
+  </div>
+
+  <!-- ABOUT -->
+  <main>
+    <section class="section section--alt" style="padding-top: 8rem;">
+      <div class="about">
+        <div class="about-image">
+          <img src="assets/images/profile.jpg" alt="Natan Moura" />
+        </div>
+        <div class="about-text">
+          <h2>Nice to meet you! <span id="waveHand">✊</span></h2>
+          <p>
+            I'm an Emmy award-winning 2D/3D Animator and Designer with over a decade of experience and a passion for innovative projects with a lot of heart. I enjoy working at the cutting edge of animation and interactive experiences where I can combine my creative and technical sides.
+          </p>
+          <p>
+            I've most recently helped grow a very early-stage startup as a creative lead.
+          </p>
+          <p>
+            I've delivered projects with small and larger teams for games, apps, series, short films, feature film and ads. I've worked with studios such as Chromosphere, Nickelodeon, Baobab and Jibjab for clients including Netflix, Epic Games, Google, Cartoon Network, Warner Bros., Discord, Supercell, Airbnb and Panic.
+          </p>
+          <a href="contact.html" class="btn">Get in touch</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Website vibe coded by me with Claude <span class="footer-emoji-anim"><span class="fea-face">🙃</span></span></p>
+    <p>&copy; <span id="year"></span> Natan Moura</p>
+  </footer>
+
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script src="js/main-nav.js"></script>
+  <script src="js/about-animation.js?v=5"></script>
+  <script src="js/tagline.js?v=16"></script>
+</body>
+</html>

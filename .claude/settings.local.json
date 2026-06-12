@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"D:/Dropbox/Projects/website/.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where node *)",
+      "Bash(where npx *)",
+      "Bash(where python *)",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(cd /d \"D:\\\\Dropbox\\\\Projects\\\\website\")",
+      "Bash(start \"\" python -m http.server 3000)",
+      "WebSearch",
+      "Bash(mkdir -p \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\\\\.claude\")",
+      "Bash(npx --yes serve \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\" -p 3457 -l 3457)",
+      "PowerShell($npx = Get-Command npx -ErrorAction SilentlyContinue; $py = Get-Command python -ErrorAction SilentlyContinue; \"npx: $\\($npx.Source\\)\"; \"python: $\\($py.Source\\)\")",
+      "WebFetch(domain:models.spriters-resource.com)",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/\" -o /tmp/oot3d.html -w \"%{http_code}\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/\" -o /tmp/oot3d.html -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/asset/351771/\" -o /tmp/asset.html -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" -e \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/asset/351771/\" \"https://models.spriters-resource.com/download/351771/\" -o /tmp/test.zip -w \"%{http_code} %{content_type} %{size_download}\\\\n\")",
+      "PowerShell(python \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\\\\tools\\\\fetch_assets.py\")"
+    ]
+  }
+}

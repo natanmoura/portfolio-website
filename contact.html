@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Natan Moura</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme-2-swiss.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <header class="site-header">
+    <div class="logo-group">
+      <a href="/" class="logo">Natan Moura</a>
+      <span class="logo-tagline"><span class="tagline-textbox"><span id="taglineText"></span><span class="tagline-highlight" id="taglineHighlight"></span></span><span class="tagline-cursor">_</span></span>
+    </div>
+    <nav>
+      <a href="/"><span class="nav-emoji">🪄</span> Projects</a>
+      <a href="about.html"><span class="nav-emoji">🧙</span> About</a>
+      <a href="contact.html"><span class="nav-emoji">🔮</span> Contact</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Toggle menu" id="navToggle">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- FULLSCREEN NAV OVERLAY -->
+  <div class="nav-overlay" id="navOverlay">
+    <a href="/"            class="nav-overlay-link">Projects</a>
+    <a href="about.html"   class="nav-overlay-link">About</a>
+    <a href="contact.html" class="nav-overlay-link">Contact</a>
+  </div>
+
+  <!-- CONTACT -->
+  <main>
+    <section class="section" style="padding-top: 8rem;">
+      <div class="contact">
+        <h2 class="section-title">Contact</h2>
+        <p>Currently open for full-time and freelance work</p>
+        <p>Let's slay some projects together!</p>
+
+        <!-- Slay animation stage -->
+        <div class="slay-stage" id="slayStage">
+          <span class="slay-exclaim-1" id="slayExclaim1">❗</span>
+          <span class="slay-exclaim-2" id="slayExclaim2">❗</span>
+          <span class="slay-wizard"    id="slayWizard">🧙</span>
+          <span class="slay-elf"       id="slayElf">🧝</span>
+          <span class="slay-weapon-wrap" id="slayWeaponWrap"><span id="slayWeapon"></span></span>
+          <span class="slay-monster"   id="slayMonster"></span>
+        </div>
+
+        <a href="mailto:natanmoura@gmail.com" class="btn">natanmoura@gmail.com</a>
+        <div class="social-links">
+          <a href="https://www.instagram.com/natandoodles/" target="_blank" rel="noopener">Instagram</a>
+          <a href="https://ca.linkedin.com/in/natan-moura-8152a117a" target="_blank" rel="noopener">LinkedIn</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Website vibe coded by me with Claude <span class="footer-emoji-anim"><span class="fea-face">🙃</span></span></p>
+    <p>&copy; <span id="year"></span> Natan Moura</p>
+  </footer>
+
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script src="js/main-nav.js"></script>
+  <script src="js/tagline.js?v=16"></script>
+  <script src="js/slay-animation.js"></script>
+</body>
+</html>

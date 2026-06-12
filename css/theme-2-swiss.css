@@ -1,0 +1,97 @@
+/* Theme 2 — Swiss/Geometric
+   Space Grotesk throughout
+   Feeling: modern, structured, Bauhaus poster */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:ital@0;1&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --fg: #0a0a0a;
+  --muted: #777;
+  --border: #ddd;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+
+body { font-family: var(--font-body); background: var(--bg); color: var(--fg); }
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-header nav a {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hero-text h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  font-size: clamp(3.5rem, 12vw, 9rem);
+  text-transform: uppercase;
+}
+
+.hero-text p {
+  font-family: var(--font-mono);
+  font-style: italic;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-width: 2px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.about-text h2 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--fg);
+  margin-bottom: 1.5rem;
+}
+
+.about-text p {
+  font-size: 1rem;
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+.contact h2 {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.gallery-item-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
