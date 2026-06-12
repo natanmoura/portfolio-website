@@ -21,7 +21,9 @@
       "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/\" -o /tmp/oot3d.html -w \"%{http_code}\\\\n\")",
       "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/asset/351771/\" -o /tmp/asset.html -w \"%{http_code}\\\\n\")",
       "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" -e \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/asset/351771/\" \"https://models.spriters-resource.com/download/351771/\" -o /tmp/test.zip -w \"%{http_code} %{content_type} %{size_download}\\\\n\")",
-      "PowerShell(python \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\\\\tools\\\\fetch_assets.py\")"
+      "PowerShell(python \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\\\\tools\\\\fetch_assets.py\")",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
     ]
   }
 }
