@@ -2,15 +2,15 @@
    Space Grotesk throughout
    Feeling: modern, structured, Bauhaus poster */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=Lato:wght@300;400;700&family=Space+Mono:ital@0;1&display=swap');
 
 :root {
   --bg: #ffffff;
   --fg: #0a0a0a;
   --muted: #777;
   --border: #ddd;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Space Grotesk', sans-serif;
+  --font-display: 'Arvo', serif;
+  --font-body: 'Lato', sans-serif;
   --font-mono: 'Space Mono', monospace;
 }
 
