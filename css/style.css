@@ -468,6 +468,40 @@ a { color: inherit; text-decoration: none; }
 
 .fea-face { animation: fea-face 3.2s infinite; }
 
+/* Hammer: pivot at bottom-right corner, head pointing top-left.
+   Swings down 45° and back, ping-pong style. */
+.fea-hammer {
+  display: inline-block;
+  transform-origin: 72% 80%; /* bottom of the hilt, so the swing pivots from the grip end */
+  animation: fea-hammer 2.9s infinite;
+}
+
+/* Invisible mirror of the hammer: balances the trailing hammer's width so the
+   sentence text stays centered (matches whatever width the emoji renders at). */
+.fea-hammer-spacer {
+  visibility: hidden;
+}
+
+/*
+  3 taps, 0.3s each (slow out from the top, fast snap at the bottom hit,
+  ease back up), then hold at rest for 2s before looping.
+  Tap span = 0.3s / 2.9s = 10.345%; each downstroke/upstroke = 5.172%.
+*/
+@keyframes fea-hammer {
+  /* Tap 1 */
+  0%      { transform: rotate(0deg);   animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+  5.172%  { transform: rotate(-45deg); animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
+  10.345% { transform: rotate(0deg);   animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+  /* Tap 2 */
+  15.517% { transform: rotate(-45deg); animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
+  20.690% { transform: rotate(0deg);   animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+  /* Tap 3 */
+  25.862% { transform: rotate(-45deg); animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
+  31.034% { transform: rotate(0deg); }
+  /* Hold at rest for ~2s */
+  100%    { transform: rotate(0deg); }
+}
+
 /* ── Footer ── */
 .site-footer {
   text-align: center;
