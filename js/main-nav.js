@@ -12,11 +12,13 @@ const navOverlay = document.getElementById('navOverlay');
 function openNav() {
   navToggle.classList.add('is-open');
   navOverlay.classList.add('is-open');
+  document.body.classList.add('nav-open');
 }
 
 function closeNav() {
   navToggle.classList.remove('is-open');
   navOverlay.classList.remove('is-open');
+  document.body.classList.remove('nav-open');
 }
 
 navToggle.addEventListener('click', () => {

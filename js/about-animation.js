@@ -24,18 +24,26 @@
 
     const frag      = document.createDocumentFragment();
     const letterEls = [];
+    let word = null; // current word wrapper, so words never break mid-letter
+    const flushWord = () => { if (word) { frag.appendChild(word); word = null; } };
 
     [...text].forEach((ch, i) => {
       if (ch === ' ') {
-        frag.appendChild(document.createTextNode(' '));
+        flushWord();                                     // close word at the space
+        frag.appendChild(document.createTextNode(' '));  // breakable gap between words
       } else {
+        if (!word) {
+          word = document.createElement('span');
+          word.style.whiteSpace = 'nowrap';              // keep the whole word on one line
+        }
         const s = document.createElement('span');
         s.style.display = 'inline-block';
         s.textContent   = ch;
         letterEls.push({ el: s, idx: i });
-        frag.appendChild(s);
+        word.appendChild(s);
       }
     });
+    flushWord();                                         // flush the final word
     frag.appendChild(document.createTextNode(' ')); // gap before hand span
     textNode.replaceWith(frag);
 

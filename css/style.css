@@ -171,18 +171,31 @@ a { color: inherit; text-decoration: none; }
 .nav-toggle.is-open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
 .nav-toggle.is-open span:nth-child(3) { transform: translateY(0) rotate(-45deg); }
 
+/* When the mobile nav overlay is open, dissolve the top bar into it:
+   drop the header background/border and hide the logo, leaving only the X. */
+body.nav-open .site-header {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+body.nav-open .logo-group {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── Fullscreen nav overlay ── */
 .nav-overlay {
   position: fixed;
   inset: 0;
-  padding-top: 4rem;
   z-index: 150;
   background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2.5rem;
+  gap: 4.5rem;
+  /* sit slightly above true center — optically more natural */
+  transform: translateY(-3.5rem);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1);
@@ -391,6 +404,154 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
   max-width: 560px;
   margin: 0 auto;
+}
+
+/* ── Contact form modal ── */
+.form-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.form-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.form-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.45);
+}
+
+.form-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1.5px solid var(--fg);
+  padding: 2.5rem;
+  transform: translateY(12px);
+  transition: transform 0.2s ease;
+}
+
+.form-modal.is-open .form-modal-card {
+  transform: translateY(0);
+}
+
+.form-modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.form-modal-title {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  text-align: left;
+}
+
+.form-group-label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 1rem;
+  color: var(--fg);
+}
+
+.form-name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+.form-label .req {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.contact-form input[type="text"],
+.contact-form input[type="email"],
+.contact-form textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1.5px solid var(--fg);
+  padding: 0.65rem 0.75rem;
+}
+
+.contact-form textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--fg);
+}
+
+.form-submit {
+  align-self: center;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.form-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.form-status {
+  text-align: center;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  margin: 0;
+}
+
+.form-status.is-success { color: var(--fg); }
+.form-status.is-error { color: #c0392b; }
+.form-status.is-pending { color: var(--muted); }
+
+@media (max-width: 480px) {
+  .form-name-row { grid-template-columns: 1fr; }
+  .form-modal-card { padding: 1.75rem 1.25rem; }
 }
 
 .contact h2 { margin-bottom: 0.75rem; }

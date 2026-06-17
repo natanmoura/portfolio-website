@@ -36,10 +36,6 @@
   <main>
     <section class="section" style="padding-top: 8rem;">
       <div class="contact">
-        <h2 class="section-title">Contact</h2>
-        <p>Currently open for full-time and freelance work</p>
-        <p>Let's slay some projects together!</p>
-
         <!-- Slay animation stage -->
         <div class="slay-stage" id="slayStage">
           <span class="slay-exclaim-1" id="slayExclaim1">❗</span>
@@ -50,7 +46,10 @@
           <span class="slay-monster"   id="slayMonster"></span>
         </div>
 
-        <a href="mailto:natanmoura@gmail.com" class="btn">natanmoura@gmail.com</a>
+        <p>Currently open for full-time and freelance work.</p>
+        <p>Let's slay some projects together!</p>
+
+        <a href="mailto:natanmoura@gmail.com" class="btn" id="contactOpen">natanmoura@gmail.com</a>
         <div class="social-links">
           <a href="https://www.instagram.com/natandoodles/" target="_blank" rel="noopener">Instagram</a>
           <a href="https://ca.linkedin.com/in/natan-moura-8152a117a" target="_blank" rel="noopener">LinkedIn</a>
@@ -58,6 +57,55 @@
       </div>
     </section>
   </main>
+
+  <!-- CONTACT FORM MODAL -->
+  <div class="form-modal" id="contactModal" aria-hidden="true">
+    <div class="form-modal-backdrop" data-close></div>
+    <div class="form-modal-card" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
+      <button type="button" class="form-modal-close" data-close aria-label="Close">&times;</button>
+      <h2 class="section-title form-modal-title" id="contactModalTitle">Contact</h2>
+
+      <form class="contact-form" id="contactForm">
+        <!-- Replace with your free key from https://web3forms.com (enter your email, it's emailed to you) -->
+        <input type="hidden" name="access_key" value="eda089e6-9d05-4e83-92e1-e6ec7d0280f7" />
+        <input type="hidden" name="from_name" value="Portfolio contact form" />
+        <!-- Honeypot spam trap (leave empty) -->
+        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none !important" />
+
+        <div class="form-group">
+          <span class="form-group-label">Name</span>
+          <div class="form-name-row">
+            <label class="form-field">
+              <span class="form-label">First Name <span class="req">(required)</span></span>
+              <input type="text" name="first_name" autocomplete="given-name" required />
+            </label>
+            <label class="form-field">
+              <span class="form-label">Last Name <span class="req">(required)</span></span>
+              <input type="text" name="last_name" autocomplete="family-name" required />
+            </label>
+          </div>
+        </div>
+
+        <label class="form-field">
+          <span class="form-label">Email <span class="req">(required)</span></span>
+          <input type="email" name="email" autocomplete="email" required />
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">Subject <span class="req">(required)</span></span>
+          <input type="text" name="subject" required />
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">Message <span class="req">(required)</span></span>
+          <textarea name="message" rows="5" required></textarea>
+        </label>
+
+        <button type="submit" class="btn form-submit">Send</button>
+        <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
 
   <footer class="site-footer">
     <p><span class="fea-hammer-spacer" aria-hidden="true">🔨 </span>Website vibe coded by me with Claude <span class="fea-hammer">🔨</span></p>
@@ -68,5 +116,6 @@
   <script src="js/main-nav.js"></script>
   <script src="js/tagline.js?v=16"></script>
   <script src="js/slay-animation.js"></script>
+  <script src="js/contact-form.js"></script>
 </body>
 </html>
