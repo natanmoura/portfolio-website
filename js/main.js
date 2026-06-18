@@ -19,11 +19,13 @@ const projectContent = document.getElementById('projectContent');
 function openNav() {
   navToggle.classList.add('is-open');
   navOverlay.classList.add('is-open');
+  document.body.classList.add('nav-open');
 }
 
 function closeNav() {
   navToggle.classList.remove('is-open');
   navOverlay.classList.remove('is-open');
+  document.body.classList.remove('nav-open');
 }
 
 navToggle.addEventListener('click', () => {
@@ -62,8 +64,11 @@ projects.forEach((p, i) => {
   const item = document.createElement('div');
   item.className = 'gallery-item';
   item.dataset.index = i;
+  const scaleVar = p.thumbnailScale ? ` style="--thumb-scale:${p.thumbnailScale}"` : '';
   item.innerHTML = `
-    <img src="${p.thumbnail}" alt="${p.title}" loading="lazy" />
+    <div class="gallery-item-thumb">
+      <img src="${p.thumbnail}" alt="${p.title}" loading="lazy"${scaleVar} />
+    </div>
     <div class="gallery-item-label">${p.title}</div>
   `;
   item.addEventListener('click', () => openProject(i));
@@ -120,7 +125,7 @@ function buildProjectHTML(i) {
 
 function openProject(i) {
   const p = projects[i];
-  history.pushState({ projectIndex: i }, '', '/' + (p.slug || i));
+  history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
   projectContent.innerHTML = buildProjectHTML(i);
   mainContent.style.display = 'none';
   projectView.style.display = 'block';
@@ -128,7 +133,7 @@ function openProject(i) {
 }
 
 function closeProject(pushHistory = true) {
-  if (pushHistory) history.pushState(null, '', '/');
+  if (pushHistory) history.pushState(null, '', 'projects.html');
   projectView.style.display = 'none';
   projectContent.querySelectorAll('iframe').forEach(f => f.src = f.src);
   projectContent.innerHTML = '';
@@ -150,9 +155,9 @@ window.addEventListener('popstate', e => {
   }
 });
 
-// Deep-link: open project if URL matches a slug on page load
+// Deep-link: open project if URL hash matches a slug on page load
 (() => {
-  const slug = window.location.pathname.replace(/^\//, '');
+  const slug = window.location.hash.replace(/^#/, '');
   if (slug) {
     const i = projects.findIndex(p => p.slug === slug);
     if (i !== -1) openProject(i);

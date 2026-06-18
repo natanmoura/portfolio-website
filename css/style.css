@@ -34,8 +34,9 @@ a { color: inherit; text-decoration: none; }
 /* ── Logo group + tagline ── */
 .logo-group {
   display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
@@ -49,8 +50,8 @@ a { color: inherit; text-decoration: none; }
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
-  overflow: hidden;
-  line-height: 1;
+  overflow: visible;
+  line-height: 1.3;
 }
 
 .tagline-textbox {
@@ -62,13 +63,20 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   top: -1px; right: 0; bottom: -1px;
   width: 0;
-  backdrop-filter: invert(1);
+  background: #111;
   pointer-events: none;
 }
 
 /* Hide cursor while text is being "selected" */
 .logo-tagline.is-selecting .tagline-cursor {
   visibility: hidden;
+}
+
+/* Lift text above the highlight so it shows yellow on black */
+.logo-tagline.is-selecting #taglineText {
+  position: relative;
+  z-index: 1;
+  color: #fde104;
 }
 
 .tagline-cursor {
@@ -83,6 +91,7 @@ a { color: inherit; text-decoration: none; }
   50%       { opacity: 0; }
 }
 
+
 /* ── Header ── */
 .site-header {
   position: fixed;
@@ -92,8 +101,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 2rem;
-  background: #ffffff;
-  border-bottom: 1px solid var(--border);
+  background: #fde104;
 }
 
 .logo {
@@ -110,17 +118,22 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  background: #ffffff;
+  background: #fde104;
   padding-left: 1.5rem;
 }
 
 .site-header nav a {
   font-size: 0.875rem;
-  color: var(--muted);
-  transition: color 0.2s;
+  font-weight: 400;
+  color: var(--fg);
 }
 
-.site-header nav a:hover { color: var(--fg); }
+.site-header nav a:hover { font-weight: 500; }
+
+.site-header nav a.nav-active,
+.site-header nav a.nav-active:hover { color: white; }
+
+.site-header .logo-tagline { color: var(--fg); }
 
 @keyframes emoji-bounce {
   0%   { transform: translateY(0);     animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
@@ -188,14 +201,15 @@ body.nav-open .logo-group {
   position: fixed;
   inset: 0;
   z-index: 150;
-  background: var(--bg);
+  background: #fde104;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4.5rem;
-  /* sit slightly above true center — optically more natural */
-  transform: translateY(-3.5rem);
+  /* sit slightly above true center — optically more natural.
+     Use padding (not transform) so the background still covers the full screen. */
+  padding-bottom: 7rem;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1);
@@ -214,7 +228,7 @@ body.nav-open .logo-group {
   text-decoration: none;
   line-height: 1;
   position: relative;
-  transition: opacity 0.2s;
+  transition: color 0.2s;
   /* stagger in */
   opacity: 0;
   transform: translateY(16px);
@@ -231,7 +245,7 @@ body.nav-open .logo-group {
 .nav-overlay.is-open a:nth-child(3) { transition-delay: 0.20s; }
 .nav-overlay.is-open a:nth-child(4) { transition-delay: 0.26s; }
 
-.nav-overlay a:hover { opacity: 0.35; }
+.nav-overlay a:hover { color: white; }
 
 /* ── Hero ── */
 .hero {
@@ -334,56 +348,78 @@ body.nav-open .logo-group {
 /* ── Gallery ── */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--gap);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem 1rem;
 }
 
 .gallery-item {
   cursor: pointer;
-  overflow: hidden;
-  background: #f0f0f0;
-  position: relative;
 }
 
-.gallery-item img,
-.gallery-item video {
+.gallery-item-thumb {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.gallery-item-thumb img,
+.gallery-item-thumb video {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
+  transform: scale(var(--thumb-scale, 1));
   transition: transform 0.4s ease;
 }
 
-.gallery-item:hover img,
-.gallery-item:hover video {
-  transform: scale(1.04);
+.gallery-item:hover .gallery-item-thumb img,
+.gallery-item:hover .gallery-item-thumb video {
+  transform: scale(calc(var(--thumb-scale, 1) * 1.08));
 }
 
 .gallery-item-label {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 1rem;
-  background: linear-gradient(transparent, rgba(0,0,0,0.55));
-  color: #fff;
-  font-size: 0.875rem;
-  opacity: 0;
-  transition: opacity 0.3s;
+  padding: 0.6rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--fg);
+  text-align: center;
 }
-
-.gallery-item:hover .gallery-item-label { opacity: 1; }
 
 /* ── About ── */
 .about {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
-  gap: 4rem;
-  align-items: center;
+  gap: 2rem;
+  align-items: start;
+}
+
+.about-image {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .about-image img {
   width: 100%;
   aspect-ratio: 3/4;
   object-fit: cover;
+}
+
+.rive-wrap {
+  width: 75%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.rive-wrap iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  transform: scale(1.2);
+  transform-origin: center center;
 }
 
 .about-text h2 {
@@ -428,7 +464,7 @@ body.nav-open .logo-group {
 .form-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 10, 0.45);
+  background: rgba(255, 255, 255, 0.75);
 }
 
 .form-modal-card {
@@ -437,8 +473,7 @@ body.nav-open .logo-group {
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--bg);
-  border: 1.5px solid var(--fg);
+  background: #fde104;
   padding: 2.5rem;
   transform: translateY(12px);
   transition: transform 0.2s ease;
@@ -509,8 +544,8 @@ body.nav-open .logo-group {
   font: inherit;
   font-size: 0.95rem;
   color: var(--fg);
-  background: var(--bg);
-  border: 1.5px solid var(--fg);
+  background: white;
+  border: none;
   padding: 0.65rem 0.75rem;
 }
 
@@ -522,15 +557,16 @@ body.nav-open .logo-group {
 .contact-form input:focus,
 .contact-form textarea:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--fg);
+  box-shadow: none;
 }
 
 .form-submit {
   align-self: center;
   margin-top: 0.5rem;
   cursor: pointer;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--fg);
+  color: white;
+  border: none;
 }
 
 .form-submit:disabled {
@@ -678,6 +714,28 @@ body.nav-open .logo-group {
 /* ── Main content pushed below fixed header ── */
 #main-content {
   padding-top: var(--header-h, 72px);
+}
+
+/* ── Home page: hero fills the full viewport, behind the fixed header ── */
+body.home #main-content {
+  padding-top: 0;
+}
+
+body.home .hero {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+@media (max-width: 540px) {
+  body.home .hero {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
+
+/* ── Projects page: section handles its own offset from header ── */
+body.projects #main-content {
+  padding-top: 0;
 }
 
 /* ── Project view ── */
@@ -878,28 +936,40 @@ body.nav-open .logo-group {
 }
 
 /* ── Mobile ── */
+/* Switch to the hamburger before the longest tagline snippet (~266px) would
+   collide with the nav (~325px) — keeps every snippet fully visible. */
+@media (max-width: 720px) {
+  .site-header nav { display: none; }
+  .nav-toggle { display: flex; }
+}
+
 @media (max-width: 540px) {
   .hero {
     height: 36dvh;
     min-height: 200px;
   }
 
-  .site-header nav { display: none; }
-  /* .logo-tagline visibility handled by JS (shows when space allows) */
-
-  .nav-toggle { display: flex; }
-
   .about {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1rem;
+  }
+
+  .about-image {
+    justify-content: flex-start;
   }
 
   .about-image img {
     aspect-ratio: 4/3;
   }
 
+  .rive-wrap {
+    max-height: 300px;
+    max-width: 300px;
+  }
+
   .gallery {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
   .section, .section--alt {

@@ -5,59 +5,23 @@
     "Curious tinkerer 🧠",
     "Born Brazilian, raised Canadian 🌎",
     "Boy dad ❤️",
-    "Will mention being vegetarian 🌿",
+    "Violently vegetarian 🌱",
     "Dungeon crawler 🎲",
-    "Sunset-walking romantic 🌅",
+    "Sunset walker 🌅",
     "Weak for mangos 🥭",
-    "Critiques horror movie victims 💀",
+    "Judging horror movie victims 💀",
     "Bike lane violator 🚲",
   ];
 
   const textEl    = document.getElementById('taglineText');
   const highlight = document.getElementById('taglineHighlight');
   const taglineEl = document.querySelector('.logo-tagline');
-  const logoEl    = document.querySelector('.logo');
-  const logoGroup = document.querySelector('.logo-group');
 
   if (!textEl || !highlight || !taglineEl) return;
 
-  // ── Measure widest snippet ──────────────────────────────────────────────
-  // Create a hidden probe element styled like the tagline text
-  const probe = document.createElement('span');
-  probe.style.cssText = [
-    'position:absolute',
-    'top:-9999px',
-    'left:-9999px',
-    'visibility:hidden',
-    'white-space:nowrap',
-    'font-size:0.75rem',
-    'font-weight:400',
-    'font-style:normal',
-    'font-family:inherit',
-  ].join(';');
-  document.body.appendChild(probe);
-
-  let maxSnippetW = 0;
-  for (const s of snippets) {
-    probe.textContent = s;
-    maxSnippetW = Math.max(maxSnippetW, probe.offsetWidth);
-  }
-  probe.remove();
-
-  // ── Show / hide tagline based on available space ────────────────────────
-  // "available" = logo-group width minus logo width minus gap (~10px)
-  function updateTaglineVisibility() {
-    if (!logoGroup || !logoEl) return;
-    const available = logoGroup.offsetWidth - logoEl.offsetWidth - 10;
-    taglineEl.style.visibility = available >= maxSnippetW ? 'visible' : 'hidden';
-  }
-
-  // Start hidden, reveal once measured
-  taglineEl.style.visibility = 'hidden';
-  updateTaglineVisibility();
-
-  const ro = new ResizeObserver(updateTaglineVisibility);
-  ro.observe(logoGroup || document.querySelector('.site-header'));
+  // Tagline now sits on its own line below the name, so it always has room —
+  // keep it visible at every width (it clips gracefully if a snippet is wide).
+  taglineEl.style.visibility = 'visible';
 
   // ── Typewriter ──────────────────────────────────────────────────────────
   const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact — Natan Moura</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/theme-2-swiss.css" />
+  <link rel="stylesheet" href="css/style.css?v=25" />
+  <link rel="stylesheet" href="css/theme-2-swiss.css?v=3" />
 </head>
 <body>
 
@@ -16,7 +16,7 @@
       <span class="logo-tagline"><span class="tagline-textbox"><span id="taglineText"></span><span class="tagline-highlight" id="taglineHighlight"></span></span><span class="tagline-cursor">_</span></span>
     </div>
     <nav>
-      <a href="/"><span class="nav-emoji">🪄</span> Projects</a>
+      <a href="projects.html"><span class="nav-emoji">🪄</span> Projects</a>
       <a href="about.html"><span class="nav-emoji">🧙</span> About</a>
       <a href="contact.html"><span class="nav-emoji">🔮</span> Contact</a>
     </nav>
@@ -27,7 +27,7 @@
 
   <!-- FULLSCREEN NAV OVERLAY -->
   <div class="nav-overlay" id="navOverlay">
-    <a href="/"            class="nav-overlay-link">Projects</a>
+    <a href="projects.html" class="nav-overlay-link">Projects</a>
     <a href="about.html"   class="nav-overlay-link">About</a>
     <a href="contact.html" class="nav-overlay-link">Contact</a>
   </div>
@@ -36,6 +36,9 @@
   <main>
     <section class="section" style="padding-top: 8rem;">
       <div class="contact">
+        <p>Currently open for full-time and freelance work.</p>
+        <p>Let's slay some projects together!</p>
+
         <!-- Slay animation stage -->
         <div class="slay-stage" id="slayStage">
           <span class="slay-exclaim-1" id="slayExclaim1">❗</span>
@@ -45,9 +48,6 @@
           <span class="slay-weapon-wrap" id="slayWeaponWrap"><span id="slayWeapon"></span></span>
           <span class="slay-monster"   id="slayMonster"></span>
         </div>
-
-        <p>Currently open for full-time and freelance work.</p>
-        <p>Let's slay some projects together!</p>
 
         <a href="mailto:natanmoura@gmail.com" class="btn" id="contactOpen">Email Me</a>
         <div class="social-links">
@@ -73,31 +73,30 @@
         <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none !important" />
 
         <div class="form-group">
-          <span class="form-group-label">Name</span>
           <div class="form-name-row">
             <label class="form-field">
-              <span class="form-label">First Name <span class="req">(required)</span></span>
+              <span class="form-label">First Name</span>
               <input type="text" name="first_name" autocomplete="given-name" required />
             </label>
             <label class="form-field">
-              <span class="form-label">Last Name <span class="req">(required)</span></span>
+              <span class="form-label">Last Name</span>
               <input type="text" name="last_name" autocomplete="family-name" required />
             </label>
           </div>
         </div>
 
         <label class="form-field">
-          <span class="form-label">Email <span class="req">(required)</span></span>
+          <span class="form-label">Email</span>
           <input type="email" name="email" autocomplete="email" required />
         </label>
 
         <label class="form-field">
-          <span class="form-label">Subject <span class="req">(required)</span></span>
+          <span class="form-label">Subject</span>
           <input type="text" name="subject" required />
         </label>
 
         <label class="form-field">
-          <span class="form-label">Message <span class="req">(required)</span></span>
+          <span class="form-label">Message</span>
           <textarea name="message" rows="5" required></textarea>
         </label>
 
@@ -113,8 +112,9 @@
   </footer>
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
-  <script src="js/main-nav.js"></script>
-  <script src="js/tagline.js?v=16"></script>
+  <script src="js/main-nav.js?v=1"></script>
+  <script src="js/tagline.js?v=19"></script>
+  <script src="js/nav-indicator.js?v=4"></script>
   <script src="js/slay-animation.js"></script>
   <script src="js/contact-form.js"></script>
 </body>

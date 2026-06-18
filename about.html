@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>About — Natan Moura</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/theme-2-swiss.css" />
+  <link rel="stylesheet" href="css/style.css?v=35" />
+  <link rel="stylesheet" href="css/theme-2-swiss.css?v=4" />
 </head>
 <body>
 
@@ -16,7 +16,7 @@
       <span class="logo-tagline"><span class="tagline-textbox"><span id="taglineText"></span><span class="tagline-highlight" id="taglineHighlight"></span></span><span class="tagline-cursor">_</span></span>
     </div>
     <nav>
-      <a href="/"><span class="nav-emoji">🪄</span> Projects</a>
+      <a href="projects.html"><span class="nav-emoji">🪄</span> Projects</a>
       <a href="about.html"><span class="nav-emoji">🧙</span> About</a>
       <a href="contact.html"><span class="nav-emoji">🔮</span> Contact</a>
     </nav>
@@ -27,7 +27,7 @@
 
   <!-- FULLSCREEN NAV OVERLAY -->
   <div class="nav-overlay" id="navOverlay">
-    <a href="/"            class="nav-overlay-link">Projects</a>
+    <a href="projects.html" class="nav-overlay-link">Projects</a>
     <a href="about.html"   class="nav-overlay-link">About</a>
     <a href="contact.html" class="nav-overlay-link">Contact</a>
   </div>
@@ -37,7 +37,9 @@
     <section class="section section--alt" style="padding-top: 8rem;">
       <div class="about">
         <div class="about-image">
-          <img src="assets/images/profile.jpg" alt="Natan Moura" />
+          <div class="rive-wrap">
+            <iframe src="https://rive.app/s/SLAEvplVL0eHfeI1eLuSSg/embed?runtime=rive-renderer" allowfullscreen allow="autoplay" scrolling="no"></iframe>
+          </div>
         </div>
         <div class="about-text">
           <h2>Nice to meet you! <span id="waveHand">✊</span></h2>
@@ -62,8 +64,9 @@
   </footer>
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
-  <script src="js/main-nav.js"></script>
+  <script src="js/main-nav.js?v=1"></script>
   <script src="js/about-animation.js?v=5"></script>
-  <script src="js/tagline.js?v=16"></script>
+  <script src="js/tagline.js?v=19"></script>
+  <script src="js/nav-indicator.js?v=4"></script>
 </body>
 </html>

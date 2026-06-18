@@ -8,19 +8,12 @@
 
 const projects = [
   {
-    title: "Project One",
-    slug: "project-one",
-    thumbnail: "https://image.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y/animated.gif?width=320&start=5&end=15&height=320&fps=15",
+    title: "Playdate",
+    slug: "playdate",
+    thumbnailScale: 1.4,
+    thumbnail: "https://image.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y/animated.gif?start=28.3&end=35&fps=15&width=576",
     page: {
-      description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.
-
-Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet consectetur adipisci velit.
-
-At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.
-
-Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus.`,
+      description: ``,
       media: [
         {
           type: "mux",
@@ -31,51 +24,102 @@ Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et d
     },
   },
   {
-    title: "Project Two",
-    slug: "project-two",
-    thumbnail: "assets/images/thumb-project2.jpg",
+    title: "Yuki 7",
+    slug: "yuki-7",
+    thumbnail: "assets/images/yuki-7.jpg",
     page: {
-      description: "Description of this project.",
+      description: ``,
       media: [],
       links: [],
     },
   },
   {
-    title: "Project Three",
-    slug: "project-three",
-    thumbnail: "assets/images/project3.jpg",
+    title: "Mall Stories",
+    slug: "mall-stories",
+    thumbnail: "https://image.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg/animated.gif?start=141.4&end=144.8&fps=15&width=480",
     page: {
-      description: "Description of this project.",
+      description: ``,
       media: [],
       links: [],
     },
   },
   {
-    title: "Project Four",
-    slug: "project-four",
-    thumbnail: "assets/images/thumb-project4.jpg",
+    title: "City of Ghosts",
+    slug: "city-of-ghosts",
+    thumbnailScale: 1.1,
+    thumbnail: "https://image.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY/animated.gif?start=74.5&end=76.4&fps=15&width=480",
     page: {
-      description: "Description of this project.",
+      description: ``,
       media: [],
       links: [],
     },
   },
   {
-    title: "Project Five",
-    slug: "project-five",
-    thumbnail: "assets/images/project5.jpg",
+    title: "My Moon",
+    slug: "my-moon",
+    thumbnail: "assets/images/my-moon.jpg",
     page: {
-      description: "Description of this project.",
+      description: ``,
       media: [],
       links: [],
     },
   },
   {
-    title: "Project Six",
-    slug: "project-six",
-    thumbnail: "assets/gifs/project6.gif",
+    title: "Namoo 2D",
+    slug: "namoo-2d",
+    thumbnail: "assets/images/namoo-2d.gif",
     page: {
-      description: "Description of this project.",
+      description: ``,
+      media: [],
+      links: [],
+    },
+  },
+  {
+    title: "Airbnb Japan",
+    slug: "airbnb-japan",
+    thumbnail: "assets/images/airbnb-japan.jpg",
+    page: {
+      description: ``,
+      media: [],
+      links: [],
+    },
+  },
+  {
+    title: "Storybots",
+    slug: "storybots",
+    thumbnail: "assets/images/storybots.jpg",
+    page: {
+      description: ``,
+      media: [],
+      links: [],
+    },
+  },
+  {
+    title: "Steven Universe: The Movie - Opening Titles",
+    slug: "steven-universe-movie-titles",
+    thumbnail: "assets/images/steven-universe-movie-titles.jpg",
+    page: {
+      description: ``,
+      media: [],
+      links: [],
+    },
+  },
+  {
+    title: "Eden and the Army of Paradise",
+    slug: "eden-army-of-paradise",
+    thumbnail: "assets/images/eden-army-of-paradise.jpg",
+    page: {
+      description: ``,
+      media: [],
+      links: [],
+    },
+  },
+  {
+    title: "Sinclair Snake",
+    slug: "sinclair-snake",
+    thumbnail: "assets/images/sinclair-snake.jpg",
+    page: {
+      description: ``,
       media: [],
       links: [],
     },
