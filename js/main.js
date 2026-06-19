@@ -79,21 +79,37 @@ projects.forEach((p, i) => {
 function buildProjectHTML(i) {
   const p = projects[i];
   const pg = p.page;
-  const mediaHTML = (pg.media || []).map(m => {
-    if (m.type === 'mux' || m.type === 'video-embed') {
-      return `<iframe src="${m.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
-    } else if (m.type === 'video') {
-      return `<video src="${m.src}" controls playsinline></video>`;
-    } else {
+
+  let bodyHTML;
+  if (pg.content) {
+    bodyHTML = pg.content.map(item => {
+      if (item.type === 'text')    return `<p class="project-page-description">${item.html}</p>`;
+      if (item.type === 'heading') return `<h3 class="project-page-subheading">${item.text}</h3>`;
+      if (item.type === 'bracket') return `<div class="project-page-bracket">[${item.label}]</div>`;
+      if (item.type === 'mux' || item.type === 'video-embed')
+        return `<div class="project-page-media-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe></div>`;
+      if (item.type === 'video')
+        return `<div class="project-page-media-item"><video src="${item.src}" controls playsinline></video></div>`;
+      if (item.type === 'image' || item.type === 'gif')
+        return `<div class="project-page-media-item"><img src="${item.src}" alt="${p.title}" /></div>`;
+      return '';
+    }).join('\n');
+  } else {
+    const mediaHTML = (pg.media || []).map(m => {
+      if (m.type === 'mux' || m.type === 'video-embed')
+        return `<iframe src="${m.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+      if (m.type === 'video') return `<video src="${m.src}" controls playsinline></video>`;
       return `<img src="${m.src}" alt="${p.title}" />`;
-    }
-  }).join('');
+    }).join('');
+    const descHTML = pg.description
+      ? pg.description.trim().split(/\n\n+/).map(b => `<p class="project-page-description">${b.trim()}</p>`).join('')
+      : '';
+    bodyHTML = descHTML + (mediaHTML ? `<div class="project-page-media">${mediaHTML}</div>` : '');
+  }
+
   const linksHTML = (pg.links || []).map(l =>
     `<a href="${l.url}" class="btn" target="_blank" rel="noopener">${l.label}</a>`
   ).join('');
-  const descHTML = pg.description
-    ? pg.description.trim().split(/\n\n+/).map(p => `<p class="project-page-description">${p.trim()}</p>`).join('')
-    : '';
   const prev = projects[i - 1] || null;
   const next = projects[i + 1] || null;
   const prevHTML = prev
@@ -112,8 +128,7 @@ function buildProjectHTML(i) {
   return `
     <div class="project-page">
       <h1 class="project-page-title">${p.title}</h1>
-      ${descHTML}
-      ${mediaHTML ? `<div class="project-page-media">${mediaHTML}</div>` : ''}
+      ${bodyHTML}
       ${linksHTML ? `<div class="project-page-links">${linksHTML}</div>` : ''}
       <nav class="project-nav">
         ${prevHTML}
