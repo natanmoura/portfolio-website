@@ -23,7 +23,13 @@
       "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/125.0 Safari/537.36\" -e \"https://models.spriters-resource.com/3ds/thelegendofzeldaocarinaoftime3d/asset/351771/\" \"https://models.spriters-resource.com/download/351771/\" -o /tmp/test.zip -w \"%{http_code} %{content_type} %{size_download}\\\\n\")",
       "PowerShell(python \"D:\\\\Dropbox\\\\Projects\\\\zelda-horror\\\\tools\\\\fetch_assets.py\")",
       "Skill(claude-api)",
-      "Skill(claude-api:*)"
+      "Skill(claude-api:*)",
+      "Bash(/c/Users/User/AppData/Local/Microsoft/WindowsApps/python3 --version)",
+      "Bash(where php *)",
+      "Bash(where ruby *)",
+      "PowerShell(@\\('node','npx','python','python3','php','ruby','py'\\) | ForEach-Object { $p = \\(Get-Command $_ -ErrorAction SilentlyContinue\\); if \\($p\\) { \"$_ -> $\\($p.Source\\)\" } })",
+      "PowerShell(py --version 2>&1)",
+      "PowerShell(\\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source)"
     ]
   }
 }
