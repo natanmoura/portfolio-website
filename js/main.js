@@ -84,6 +84,7 @@ function buildProjectHTML(i) {
   if (pg.content) {
     bodyHTML = pg.content.map(item => {
       if (item.type === 'text')    return `<p class="project-page-description">${item.html}</p>`;
+      if (item.type === 'caption') return `<p class="project-page-caption">${item.html}</p>`;
       if (item.type === 'heading') return `<h3 class="project-page-subheading">${item.text}</h3>`;
       if (item.type === 'bracket') return `<div class="project-page-bracket">[${item.label}]</div>`;
       if (item.type === 'mux' || item.type === 'video-embed')

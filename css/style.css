@@ -31,6 +31,12 @@ img, video { display: block; max-width: 100%; }
 
 a { color: inherit; text-decoration: none; }
 
+a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.gallery-item):not(.social-links a):not(.project-nav-link) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: inherit;
+}
+
 /* ── Logo group + tagline ── */
 .logo-group {
   display: flex;
@@ -171,8 +177,10 @@ a { color: inherit; text-decoration: none; }
   background: var(--fg);
   position: absolute;
   transform-origin: center;
+  will-change: transform, opacity;
+  transform: translateZ(0);
   transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
-              opacity 0.2s ease;
+              opacity 0.35s ease;
 }
 
 .nav-toggle span:nth-child(1) { transform: translateY(-6px); }
@@ -746,7 +754,7 @@ body.projects #main-content {
 .project-page {
   max-width: 860px;
   margin: 0 auto;
-  padding: 5rem 2rem 6rem;
+  padding: 2.5rem 2rem 6rem;
 }
 
 .project-page-title {
@@ -754,7 +762,7 @@ body.projects #main-content {
   font-weight: 700;
   letter-spacing: -0.03em;
   text-transform: uppercase;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
   line-height: 1;
 }
 
@@ -762,8 +770,27 @@ body.projects #main-content {
   font-size: 1rem;
   line-height: 1.75;
   color: var(--muted);
-  max-width: 560px;
-  margin: 0 auto 1.5rem;
+  max-width: 860px;
+  margin: 0 auto 2.5rem;
+}
+
+.project-page-caption {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--muted);
+  max-width: 860px;
+  margin: 0.5rem auto 2.5rem;
+  text-align: right;
+}
+
+.project-page-media-item {
+  margin: 0 auto 0;
+  max-width: 860px;
+}
+
+.project-page-media-item + .project-page-media-item {
+  margin-top: 2rem;
 }
 
 .project-page-description a {
@@ -791,10 +818,6 @@ body.projects #main-content {
   opacity: 0.6;
 }
 
-.project-page-media-item {
-  margin: 0 auto 1.5rem;
-  max-width: 860px;
-}
 
 .project-page-media-item img,
 .project-page-media-item video {
@@ -977,6 +1000,30 @@ body.projects #main-content {
 @keyframes slay-celebrate {
   0%, 100% { transform: translateY(0);     animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
   50%      { transform: translateY(-14px); animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+}
+
+@media (max-width: 540px) {
+  .project-page {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .project-page-title,
+  .project-page-description,
+  .project-page-caption,
+  .project-page-subheading,
+  .project-page-bracket,
+  .project-page-links,
+  .project-nav {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .project-page-media-item {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 /* ── Mobile ── */

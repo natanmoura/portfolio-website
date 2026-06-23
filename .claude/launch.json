@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["D:/Dropbox/Projects/zelda-horror/serve.py"],
       "port": 3457
+    },
+    {
+      "name": "emoji-life",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/User/Documents/projects/emoji-life", "--", "--port", "5173"],
+      "port": 5173
     }
   ]
 }
