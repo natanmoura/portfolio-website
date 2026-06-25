@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/User/Documents/projects/emoji-life", "--", "--port", "5173"],
       "port": 5173
+    },
+    {
+      "name": "multidoku",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/User/Documents/projects/multidoku", "--", "--port", "5174"],
+      "port": 5174
     }
   ]
 }
