@@ -68,6 +68,7 @@ projects.forEach((p, i) => {
   item.innerHTML = `
     <div class="gallery-item-thumb">
       <img src="${p.thumbnail}" alt="${p.title}" loading="lazy"${scaleVar} />
+      <div class="gallery-item-overlay"><span>${p.title}</span></div>
     </div>
     <div class="gallery-item-label">${p.title}</div>
   `;
@@ -82,17 +83,53 @@ function buildProjectHTML(i) {
 
   let bodyHTML;
   if (pg.content) {
-    bodyHTML = pg.content.map(item => {
-      if (item.type === 'text')    return `<p class="project-page-description">${item.html}</p>`;
-      if (item.type === 'caption') return `<p class="project-page-caption">${item.html}</p>`;
-      if (item.type === 'heading') return `<h3 class="project-page-subheading">${item.text}</h3>`;
-      if (item.type === 'bracket') return `<div class="project-page-bracket">[${item.label}]</div>`;
+    // Group consecutive beforeafter items into ba-grid wrappers
+    const chunks = [];
+    let i = 0;
+    while (i < pg.content.length) {
+      if (pg.content[i].type === 'beforeafter') {
+        const group = [];
+        while (i < pg.content.length && pg.content[i].type === 'beforeafter') {
+          group.push(pg.content[i]);
+          i++;
+        }
+        chunks.push({ type: 'beforeafter-group', items: group });
+      } else {
+        chunks.push(pg.content[i]);
+        i++;
+      }
+    }
+
+    bodyHTML = chunks.map(item => {
+      if (item.type === 'text')    return `<p class="project-page-description fade-in-item">${item.html}</p>`;
+      if (item.type === 'caption') return `<p class="project-page-caption fade-in-item">${item.html}</p>`;
+      if (item.type === 'heading') return `<h3 class="project-page-subheading fade-in-item">${item.text}</h3>`;
+      if (item.type === 'bracket') return `<div class="project-page-bracket fade-in-item">[${item.label}]</div>`;
       if (item.type === 'mux' || item.type === 'video-embed')
-        return `<div class="project-page-media-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe></div>`;
+        return `<div class="project-page-media-item fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe></div>`;
       if (item.type === 'video')
-        return `<div class="project-page-media-item"><video src="${item.src}" controls playsinline></video></div>`;
+        return `<div class="project-page-media-item fade-in-item"><video src="${item.src}" controls playsinline></video></div>`;
       if (item.type === 'image' || item.type === 'gif')
-        return `<div class="project-page-media-item"><img src="${item.src}" alt="${p.title}" /></div>`;
+        return `<div class="project-page-media-item fade-in-item"><img src="${item.src}" alt="${p.title}" /></div>`;
+      if (item.type === 'beforeafter-group')
+        return `<div class="ba-grid fade-in-item">${item.items.map(it =>
+          `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">before</span></div>`
+        ).join('')}</div>`;
+      if (item.type === 'media-grid') {
+        const cols = item.cols || 2;
+        const cells = item.items.map(it => {
+          let media = '';
+          if (it.type === 'mux' || it.type === 'video-embed')
+            media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+          else if (it.type === 'video')
+            media = `<video src="${it.src}" controls playsinline></video>`;
+          else if (it.type === 'image' || it.type === 'gif')
+            media = `<img src="${it.src}" alt="${p.title}" />`;
+          const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
+          return `<div class="project-media-grid-item">${media}${cap}</div>`;
+        }).join('');
+        return `<div class="project-media-grid fade-in-item" style="--cols:${cols}">${cells}</div>`;
+      }
       return '';
     }).join('\n');
   } else {
@@ -146,7 +183,35 @@ function openProject(i) {
   mainContent.style.display = 'none';
   projectView.style.display = 'block';
   window.scrollTo(0, 0);
+  requestAnimationFrame(() => {
+    const page = projectContent.querySelector('.project-page');
+    if (page) {
+      page.classList.add('project-page--enter');
+      requestAnimationFrame(() => page.classList.add('project-page--enter-active'));
+    }
+    if (typeof observeFadeItems === 'function') observeFadeItems(projectContent);
+    projectContent.querySelectorAll('.ba-compare').forEach(el => {
+      el.addEventListener('click', () => el.classList.toggle('is-before'));
+    });
+  });
 }
+
+// ── Gallery staggered fade-in ──
+(function () {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('gallery-item--visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.gallery-item').forEach((item, i) => {
+    item.style.transitionDelay = `${i * 60}ms`;
+    observer.observe(item);
+  });
+}());
 
 function closeProject(pushHistory = true) {
   if (pushHistory) history.pushState(null, '', 'projects.html');

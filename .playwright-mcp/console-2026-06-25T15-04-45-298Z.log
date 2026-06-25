@@ -1,0 +1,28 @@
+[     821ms] [WARNING] yui: NOT loaded: squarespace-visitor_site_error_reporter @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-219c33e5378d8300-min.en-US.js:7
+[     821ms] [WARNING] yui: NOT loaded: squarespace-cldr_resource_pack @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-219c33e5378d8300-min.en-US.js:7
+[     821ms] [WARNING] yui: NOT loaded: squarespace-common_vendors_stable @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-219c33e5378d8300-min.en-US.js:7
+[     821ms] [WARNING] yui: NOT loaded: squarespace-common_vendors @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-219c33e5378d8300-min.en-US.js:7
+[     824ms] [WARNING] yui: NOT loaded: squarespace-performance @ https://assets.squarespace.com/universal/scripts-compressed/common-vendors-stable-219c33e5378d8300-min.en-US.js:7
+[     931ms] [WARNING] Allow attribute will take precedence over 'allowfullscreen'. @ https://definitions.sqspcdn.com/website-component-definition/static-assets/website.components.video/dcd8214b-a11e-465e-8264-800380af5e82_439/website.components.video.visitor.js:1
+[    1428ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://www.youtube.com') does not match the recipient window's origin ('https://cdn.embedly.com'). @ https://www.youtube.com/s/player/5b27766f/www-widgetapi.vflset/www-widgetapi.js:162
+[  138096ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[  138096ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[  208752ms] [LOG] [Visitor Sentry] Initialized and sending events @ https://assets.squarespace.com/universal/scripts-compressed/2155-fd348447341bf7e8-min.en-US.js:484
+[  383224ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[  383224ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[  386957ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[  386957ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[  455874ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[  455875ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[  560359ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[  560359ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[ 1238709ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[ 1238709ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[ 1240290ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[ 1240290ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[ 1244031ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[ 1244031ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[ 1312436ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[ 1312436ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0
+[ 1349998ms] [ERROR] Access to fetch at 'https://tracing.squarespace.com/v1/logs' from origin 'https://natanmoura.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://natanmoura.com/projects/namoo-2d:0
+[ 1349998ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://tracing.squarespace.com/v1/logs:0

@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/style.css?v=37" />
   <link rel="stylesheet" href="css/theme-2-swiss.css?v=4" />
 </head>
-<body>
+<body class="page-about">
 
   <!-- NAV -->
   <header class="site-header">
@@ -36,12 +36,12 @@
   <main>
     <section class="section section--alt" style="padding-top: 8rem;">
       <div class="about">
-        <div class="about-image">
+        <div class="about-image fade-in-item">
           <div class="rive-wrap">
             <iframe src="https://rive.app/s/SLAEvplVL0eHfeI1eLuSSg/embed?runtime=rive-renderer" allowfullscreen allow="autoplay" scrolling="no"></iframe>
           </div>
         </div>
-        <div class="about-text">
+        <div class="about-text fade-in-item">
           <h2>Nice to meet you! <span id="waveHand">✊</span></h2>
           <p>
             I'm an Emmy award-winning animator and designer with over a decade of experience and a passion for innovative projects with a lot of heart. I enjoy working at the cutting edge of animation and interactive experiences where I can combine my creative and technical sides.
@@ -59,11 +59,12 @@
   </main>
 
   <footer class="site-footer">
-    <p><span class="fea-hammer-spacer" aria-hidden="true">🔨 </span>Website vibe coded by me with Claude <span class="fea-hammer">🔨</span></p>
+    <p><span class="fea-hammer-spacer" aria-hidden="true">🔨 </span>Website vibe-coded by me <span class="fea-hammer">🔨</span></p>
     <p>&copy; <span id="year"></span> Natan Moura</p>
   </footer>
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script src="js/fade.js?v=1"></script>
   <script src="js/main-nav.js?v=1"></script>
   <script src="js/about-animation.js?v=5"></script>
   <script src="js/tagline.js?v=19"></script>
