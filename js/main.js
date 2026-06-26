@@ -115,6 +115,21 @@ function buildProjectHTML(i) {
         return `<div class="ba-grid fade-in-item">${item.items.map(it =>
           `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">before</span></div>`
         ).join('')}</div>`;
+      if (item.type === 'text-media-row') {
+        const textHTML = `<div class="project-text-media-row__text"><p class="project-page-description">${item.text}</p></div>`;
+        const mediaHTML = item.media.map(it => {
+          let el = '';
+          if (it.type === 'mux' || it.type === 'video-embed')
+            el = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+          else if (it.type === 'video')
+            el = `<video src="${it.src}" controls playsinline></video>`;
+          else if (it.type === 'image' || it.type === 'gif')
+            el = `<img src="${it.src}" alt="${p.title}" />`;
+          const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
+          return el + cap;
+        }).join('');
+        return `<div class="project-text-media-row fade-in-item">${textHTML}<div class="project-text-media-row__media">${mediaHTML}</div></div>`;
+      }
       if (item.type === 'media-grid') {
         const cols = item.cols || 2;
         const cells = item.items.map(it => {

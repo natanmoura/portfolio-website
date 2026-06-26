@@ -21,12 +21,14 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y?metadata-video-title=Playdate+Intro+Sequence+-+Device&video-title=Playdate+Intro+Sequence+-+Device&autoplay&muted" },
         { type: "caption", html: `Video courtesy of <a href="https://www.youtube.com/@RetroDodo">Retro Dodo</a>.` },
-        { type: "text", html: `I animated and composited the intro sequence for the Playdate handheld — a quirky little device from <a href="https://panic.com">Panic</a>, made with <a href="http://chromosphere-la.com">Chromosphere</a>. The sequence runs in two versions: a full-colour promotional cut and a black &amp; white version designed for the Playdate's 1-bit screen.` },
-        { type: "media-grid", cols: 2, items: [
-          { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?autoplay&muted", caption: "Colour promotional version — 800×480 pixels" },
-          { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?autoplay&muted", caption: "Interactive version as seen on the Playdate — 400×240 pixels" },
-        ]},
-        { type: "text", html: `I also animated some UI elements and transitions for the Playdate's menu and lock screen.` },
+        { type: "text-media-row",
+          text: `I animated and composited the intro sequence for the Playdate handheld — a quirky little device from <a href="https://panic.com">Panic</a>, made with <a href="http://chromosphere-la.com">Chromosphere</a>. The sequence runs in two versions: a full-colour promotional cut and a black &amp; white version designed for the Playdate's 1-bit screen.`,
+          media: [
+            { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?autoplay&muted", caption: "Colour promotional version — 800×480 pixels" },
+            { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?autoplay&muted", caption: "Interactive version as seen on the Playdate — 400×240 pixels" },
+          ],
+        },
+        { type: "text", html: `UI elements and transitions for the Playdate's menu and lock screen.` },
         { type: "media-grid", cols: 2, items: [
           { type: "gif", src: "assets/gifs/playdate-present.gif" },
           { type: "gif", src: "assets/gifs/playdate-catalog.gif" },
@@ -63,9 +65,9 @@ const projects = [
     thumbnail: "https://image.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg/animated.gif?start=141.4&end=144.8&fps=15&width=480",
     page: {
       content: [
+        { type: "mux", src: "https://player.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg?autoplay&muted" },
         { type: "text", html: `Mall Stories is a slice-of-life short film directed by Elizabeth Ito about staff at a mall eatery. Produced at <a href="http://chromosphere-la.com">Chromosphere</a> with an Epic MegaGrant, exploring animation production in Unreal Engine.` },
         { type: "text", html: `I created character animations in Maya that were brought into Unreal Engine for the final render.` },
-        { type: "mux", src: "https://player.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg?autoplay&muted" },
       ],
       links: [],
     },
@@ -77,8 +79,8 @@ const projects = [
     thumbnail: "https://image.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY/animated.gif?start=74.5&end=76.4&fps=15&width=480",
     page: {
       content: [
-        { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> to work on the Netflix series City of Ghosts to animate flashback sequences in which wooden toys are used to tell the story. I animated the characters and camera to capture the charm and feel of home-videos made by kids.` },
         { type: "mux", src: "https://player.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY?autoplay&muted" },
+        { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> to work on the Netflix series City of Ghosts to animate flashback sequences in which wooden toys are used to tell the story. I animated the characters and camera to capture the charm and feel of home-videos made by kids.` },
         { type: "heading", text: "Water FX." },
         { type: "text", html: `I also animated the water fx in the fourth episode using After Effects.` },
         { type: "bracket", label: "gif: water effects 1" },
@@ -142,8 +144,8 @@ const projects = [
     thumbnail: "assets/images/airbnb-japan.jpg",
     page: {
       content: [
-        { type: "text", html: `Collaborating alongside the team of animators and compositors at <a href="http://chromosphere-la.com">Chromosphere</a>, I helped create many of the paper-folding animations for this Airbnb public service campaign for the 2020 Olympics in Japan.` },
         { type: "mux", src: "https://player.mux.com/eh1rpxFbD6ZmhHB5h00us2gpeG01UOohznvbopngMlIeI?autoplay&muted" },
+        { type: "text", html: `Collaborating alongside the team of animators and compositors at <a href="http://chromosphere-la.com">Chromosphere</a>, I helped create many of the paper-folding animations for this Airbnb public service campaign for the 2020 Olympics in Japan.` },
         { type: "text", html: `Here you can see some examples of the paper-folding animations I made!` },
         { type: "bracket", label: "gif: paper-folding animation 1" },
         { type: "bracket", label: "gif: paper-folding animation 2" },

@@ -894,12 +894,10 @@ body.projects #main-content {
   font-weight: 700;
   letter-spacing: -0.05em;
   text-transform: uppercase;
-  margin-bottom: 4rem;
+  margin: 0 0 4rem;
+  margin-left: max(0px, calc(50% - 645px));
   line-height: 1;
   color: #fde104;
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* Project page slide-up entrance */
@@ -920,42 +918,54 @@ body.projects #main-content {
   color: rgba(255,255,255,0.75);
   max-width: 680px;
   margin: 0 auto 1rem;
+  margin-left: max(0px, calc(50% - 645px));
 }
 
+/* ── Project page spacing system ── */
+
+/* Consecutive paragraphs: tight */
 .project-page-description + .project-page-description {
-  margin-top: 0;
+  margin-top: 1rem;
 }
 
+/* Media blocks always breathe above */
 .project-page-media-item,
-.project-media-grid {
-  margin-top: 3.5rem;
+.project-media-grid,
+.project-text-media-row {
+  margin-top: 4.5rem;
 }
 
-.project-page-description + .project-page-subheading,
-.project-page-description:last-of-type {
-  margin-top: 2rem;
+/* After media or caption → text/subheading: full breath */
+.project-page-media-item + .project-page-description,
+.project-page-media-item + .project-page-subheading,
+.project-media-grid + .project-page-description,
+.project-media-grid + .project-page-subheading,
+.project-page-caption + .project-page-description,
+.project-page-caption + .project-page-subheading,
+.project-page-caption + .project-media-grid,
+.project-page-caption + .project-page-media-item,
+.project-page-caption + .project-text-media-row,
+.project-text-media-row + .project-page-description,
+.project-text-media-row + .project-page-subheading,
+.project-text-media-row + .project-media-grid {
+  margin-top: 4.5rem;
 }
 
+/* Caption hugs tight under its media */
 .project-page-caption {
   font-size: 0.75rem;
   line-height: 1.5;
   font-style: italic;
   color: rgba(255,255,255,0.45);
   max-width: 680px;
-  margin: 0.5rem auto 0;
+  margin: 0 auto 0;
   text-align: right;
-}
-
-.project-page-caption + .project-page-description,
-.project-page-caption + .project-page-subheading,
-.project-page-caption + .project-media-grid,
-.project-page-caption + .project-page-media-item {
-  margin-top: 3.5rem;
 }
 
 .project-page-media-item + .project-page-caption,
 .project-media-grid + .project-page-caption {
   margin-top: 0.5rem;
+  max-width: 1290px;
 }
 
 /* ── Before/After compare ── */
@@ -1064,6 +1074,58 @@ body.projects #main-content {
   }
 }
 
+/* ── Text + stacked media split row ── */
+.project-text-media-row {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 3rem;
+  max-width: 1290px;
+  margin: 4.5rem auto 0;
+  align-items: start;
+}
+
+.project-text-media-row__text {
+  position: sticky;
+  top: calc(var(--header-h, 60px) + 2rem);
+}
+
+.project-text-media-row__text .project-page-description {
+  max-width: none;
+  margin: 0;
+}
+
+.project-text-media-row__media {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.project-text-media-row__media iframe {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border: none;
+  display: block;
+}
+
+.project-text-media-row__media .project-page-caption {
+  max-width: none;
+  margin: 0.5rem 0 1.5rem;
+  text-align: right;
+}
+
+.project-text-media-row__media .project-page-caption:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 860px) {
+  .project-text-media-row {
+    grid-template-columns: 1fr;
+  }
+  .project-text-media-row__text {
+    position: static;
+  }
+}
+
 #project-view a:not(.btn):not(.project-nav-link) {
   color: inherit;
   text-decoration: underline;
@@ -1075,9 +1137,33 @@ body.projects #main-content {
   font-weight: 700;
   letter-spacing: -0.01em;
   max-width: 680px;
-  margin: 3rem auto 0.75rem;
+  margin: 4.5rem 0 0.5rem;
+  margin-left: max(0px, calc(50% - 645px));
   color: #fde104;
   text-align: left;
+}
+
+/* Subheading directly after text: less gap */
+.project-page-description + .project-page-subheading {
+  margin-top: 3rem;
+}
+
+/* Subheading directly after media/caption: already 4.5rem from above rule */
+
+/* Bracket spacing */
+.project-page-description + .project-page-bracket,
+.project-page-subheading + .project-page-bracket {
+  margin-top: 1.5rem;
+}
+
+.project-page-bracket + .project-page-description,
+.project-page-bracket + .project-page-subheading {
+  margin-top: 2rem;
+}
+
+.project-page-bracket + .project-page-media-item,
+.project-page-bracket + .project-media-grid {
+  margin-top: 4.5rem;
 }
 
 .project-page-bracket {
@@ -1087,6 +1173,7 @@ body.projects #main-content {
   border: 1px dashed rgba(255,255,255,0.2);
   padding: 1rem 1.25rem;
   margin: 0 auto 1.5rem;
+  margin-left: max(0px, calc(50% - 645px));
   max-width: 680px;
 }
 
@@ -1131,9 +1218,8 @@ body.projects #main-content {
   gap: 1rem;
   flex-wrap: wrap;
   max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
   margin-top: 3.5rem;
+  margin-left: max(0px, calc(50% - 645px));
 }
 
 /* ── Project prev/next nav ── */
