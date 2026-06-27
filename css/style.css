@@ -717,6 +717,22 @@ body.page-contact > .site-footer {
 .form-status.is-error { color: #c0392b; }
 .form-status.is-pending { color: var(--muted); }
 
+/* Thank-you completion state: box shrinks to show only the message */
+.form-modal-done {
+  display: none;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--fg);
+}
+.form-modal-done p { margin: 0; }
+
+.form-modal-card.is-complete { overflow: hidden; }
+.form-modal-card.is-complete .form-modal-close,
+.form-modal-card.is-complete .form-modal-title,
+.form-modal-card.is-complete .contact-form { display: none; }
+.form-modal-card.is-complete .form-modal-done { display: block; }
+
 @media (max-width: 480px) {
   .form-name-row { grid-template-columns: 1fr; }
   .form-modal-card { padding: 1.75rem 1.25rem; }
@@ -1437,4 +1453,89 @@ body.projects #main-content {
   .section, .section--alt {
     padding: 4rem 1.25rem;
   }
+}
+
+/* ── Fluent emoji images (replace native emoji site-wide) ── */
+.emoji-img {
+  height: 1em;
+  width: 1em;
+  vertical-align: -0.15em;
+  display: inline-block;
+  object-fit: contain;
+}
+
+/* ── Intro "hello" animation ── */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #fde104;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  opacity: 1;
+  will-change: opacity;
+  transition: opacity 2s ease;
+  --intro-emoji: clamp(1.75rem, 5.5vw, 2.75rem);
+}
+
+.intro-overlay.intro-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  margin-top: 28vh;
+}
+
+.intro-text {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-size: clamp(1rem, 3vw, 1.4rem);
+  color: #0a0a0a;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-line;
+  min-height: 3.2em;
+}
+
+.intro-text-ghost { visibility: hidden; }
+
+.intro-text-live {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: pre-line;
+}
+
+.intro-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  animation: tagline-blink 0.7s step-end infinite;
+}
+
+.intro-wizard {
+  font-size: var(--intro-emoji);
+  line-height: 1;
+  will-change: transform;
+}
+
+.intro-trail-sparkle {
+  position: absolute;
+  font-size: var(--intro-emoji);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: intro-sparkle-fade 0.9s ease-out forwards;
+}
+
+@keyframes intro-sparkle-fade {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
 }

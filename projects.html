@@ -4,11 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Projects — Natan Moura</title>
-  <link rel="stylesheet" href="css/style.css?v=34" />
+  <link rel="stylesheet" href="css/style.css?v=48" />
   <script type="module" src="https://cdn.jsdelivr.net/npm/@mux/mux-player@3/dist/mux-player.mjs"></script>
   <link rel="stylesheet" href="css/theme-2-swiss.css?v=3" />
 </head>
 <body class="projects">
+
+  <!-- INTRO HELLO ANIMATION -->
+  <div id="introOverlay" class="intro-overlay" aria-hidden="true">
+    <div class="intro-stage">
+      <div class="intro-text" id="introText"></div>
+      <div class="intro-wizard" id="introWizard">🧙</div>
+    </div>
+    <div class="intro-particles" id="introParticles"></div>
+  </div>
 
   <!-- NAV -->
   <header class="site-header">
@@ -54,8 +63,10 @@
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
   <script src="js/fade.js?v=1"></script>
+  <script src="js/emoji-fluent.js?v=5"></script>
   <script src="js/projects.js?v=54"></script>
   <script src="js/main.js?v=19"></script>
+  <script src="js/intro.js?v=16"></script>
   <script src="js/tagline.js?v=19"></script>
   <script src="js/nav-indicator.js?v=4"></script>
 </body>
