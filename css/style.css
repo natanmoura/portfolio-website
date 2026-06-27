@@ -377,7 +377,7 @@ body.nav-open .logo-group {
 .gallery {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2rem 1rem;
+  gap: 1rem;
 }
 
 .gallery-item {
@@ -559,7 +559,7 @@ body.page-contact > .site-footer {
 }
 
 .about-text p {
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
   font-size: 1.0625rem;
   line-height: 1.75;
   color: #333;
@@ -725,8 +725,10 @@ body.page-contact > .site-footer {
 .contact h2 { margin-bottom: 0.75rem; }
 
 .contact p {
-  color: var(--muted);
+  color: #333;
   margin-bottom: 2rem;
+  font-size: 1.0625rem;
+  line-height: 1.75;
 }
 
 .social-links {
@@ -894,7 +896,7 @@ body.projects #main-content {
   font-weight: 700;
   letter-spacing: -0.05em;
   text-transform: uppercase;
-  margin: 0 0 4rem;
+  margin: 0;
   margin-left: max(0px, calc(50% - 645px));
   line-height: 1;
   color: #fde104;
@@ -917,55 +919,79 @@ body.projects #main-content {
   line-height: 1.75;
   color: rgba(255,255,255,0.75);
   max-width: 680px;
-  margin: 0 auto 1rem;
-  margin-left: max(0px, calc(50% - 645px));
+  margin-inline: auto;
 }
 
-/* ── Project page spacing system ── */
-
-/* Consecutive paragraphs: tight */
-.project-page-description + .project-page-description {
-  margin-top: 1rem;
+/* ── Project page spacing system ──────────────────────────────────────
+   Every content block is a direct child of .project-page, so one owl
+   selector sets the default rhythm and the rules under it are the named
+   exceptions. Spacing is driven by margin-TOP only (block bottoms are
+   zeroed) so changing a token here propagates to every project page. */
+.project-page {
+  --space-section: 4.5rem;   /* media ↔ copy, and any unlisted break   */
+  --space-para: 2rem;        /* paragraph → paragraph                  */
+  --space-head: 3rem;        /* copy → subheading (new subsection)     */
+  --space-head-body: 0.5rem; /* subheading → its first copy            */
+  --space-caption: 0.5rem;   /* media → its caption (caption hugs up)  */
+  --space-stack: 2rem;       /* media → media, bracket → bracket       */
 }
 
-/* Media blocks always breathe above */
-.project-page-media-item,
-.project-media-grid,
-.project-text-media-row {
-  margin-top: 4.5rem;
-}
+/* Default: full section breath between any two adjacent blocks */
+.project-page > * + * { margin-top: var(--space-section); }
 
-/* After media or caption → text/subheading: full breath */
-.project-page-media-item + .project-page-description,
-.project-page-media-item + .project-page-subheading,
-.project-media-grid + .project-page-description,
-.project-media-grid + .project-page-subheading,
-.project-page-caption + .project-page-description,
-.project-page-caption + .project-page-subheading,
-.project-page-caption + .project-media-grid,
-.project-page-caption + .project-page-media-item,
-.project-page-caption + .project-text-media-row,
-.project-text-media-row + .project-page-description,
-.project-text-media-row + .project-page-subheading,
-.project-text-media-row + .project-media-grid {
-  margin-top: 4.5rem;
-}
+/* Consecutive paragraphs sit tight */
+.project-page-description + .project-page-description { margin-top: var(--space-para); }
 
-/* Caption hugs tight under its media */
+/* Copy → subheading: open a new subsection */
+.project-page-description + .project-page-subheading,
+.project-page-instruction + .project-page-subheading,
+.project-page-bracket + .project-page-subheading { margin-top: var(--space-head); }
+
+/* Subheading → its body copy */
+.project-page-subheading + .project-page-description,
+.project-page-subheading + .project-page-instruction { margin-top: var(--space-head-body); }
+
+/* Instruction sits tight above its grid */
+.project-page-instruction + .ba-grid,
+.project-page-instruction + .project-media-grid { margin-top: var(--space-para); }
+
+/* Caption hugs the media directly above it */
+.project-page-media-item + .project-page-caption,
+.project-media-grid + .project-page-caption,
+.ba-grid + .project-page-caption { margin-top: var(--space-caption); }
+
+/* Stacked media / consecutive placeholders sit closer than a section */
+.project-page-media-item + .project-page-media-item,
+.project-page-bracket + .project-page-bracket { margin-top: var(--space-stack); }
+
+/* Placeholder brackets keep tight to neighbouring copy */
+.project-page-description + .project-page-bracket,
+.project-page-subheading + .project-page-bracket { margin-top: 1.5rem; }
+.project-page-bracket + .project-page-description { margin-top: 2rem; }
+
+/* ── Caption ── */
 .project-page-caption {
   font-size: 0.75rem;
   line-height: 1.5;
   font-style: italic;
   color: rgba(255,255,255,0.45);
   max-width: 680px;
-  margin: 0 auto 0;
+  margin-inline: auto;
   text-align: right;
 }
-
+/* Caption under full-width media aligns to the media's right edge */
 .project-page-media-item + .project-page-caption,
-.project-media-grid + .project-page-caption {
-  margin-top: 0.5rem;
+.project-media-grid + .project-page-caption { max-width: 1290px; }
+
+/* ── Instruction line — left-aligned to the media block edge ── */
+.project-page-instruction {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  font-style: italic;
+  color: rgba(255,255,255,0.75);
   max-width: 1290px;
+  margin-inline: auto;
+  text-align: left;
 }
 
 /* ── Before/After compare ── */
@@ -973,8 +999,8 @@ body.projects #main-content {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
-  max-width: 860px;
-  margin: 0 auto 2rem;
+  max-width: 1290px;
+  margin-inline: auto;
 }
 
 .ba-compare {
@@ -999,11 +1025,11 @@ body.projects #main-content {
 
 .ba-compare .ba-label {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  top: 0;
+  left: 0;
   padding: 4px 10px;
-  font-size: 0.65rem;
-  font-style: italic;
+  font-size: 1.1rem;
+  font-style: normal;
   color: white;
   text-shadow: 0 0 4px rgba(0,0,0,0.8);
   opacity: 0;
@@ -1027,12 +1053,8 @@ body.projects #main-content {
 }
 
 .project-page-media-item {
-  margin: 0 auto 0;
+  margin-inline: auto;
   max-width: 1290px;
-}
-
-.project-page-media-item + .project-page-media-item {
-  margin-top: 2rem;
 }
 
 /* ── Multi-column media grid ── */
@@ -1041,7 +1063,7 @@ body.projects #main-content {
   grid-template-columns: repeat(var(--cols, 2), 1fr);
   gap: 1rem;
   max-width: 1290px;
-  margin: 2rem auto 0;
+  margin-inline: auto;
 }
 
 .project-media-grid-item {
@@ -1072,15 +1094,22 @@ body.projects #main-content {
   .project-media-grid {
     grid-template-columns: 1fr;
   }
+  .project-media-grid[style*="--cols:4"],
+  .project-media-grid[style*="--cols:5"],
+  .project-media-grid[style*="--cols: 4"],
+  .project-media-grid[style*="--cols: 5"] {
+    grid-template-columns: repeat(2, 1fr);
+    padding-inline: 1rem;
+  }
 }
 
 /* ── Text + stacked media split row ── */
 .project-text-media-row {
   display: grid;
-  grid-template-columns: 1fr 1.6fr;
+  grid-template-columns: var(--tmr-cols, 1fr 1.6fr);
   gap: 3rem;
   max-width: 1290px;
-  margin: 4.5rem auto 0;
+  margin-inline: auto;
   align-items: start;
 }
 
@@ -1137,33 +1166,9 @@ body.projects #main-content {
   font-weight: 700;
   letter-spacing: -0.01em;
   max-width: 680px;
-  margin: 4.5rem 0 0.5rem;
-  margin-left: max(0px, calc(50% - 645px));
+  margin-inline: auto;
   color: #fde104;
   text-align: left;
-}
-
-/* Subheading directly after text: less gap */
-.project-page-description + .project-page-subheading {
-  margin-top: 3rem;
-}
-
-/* Subheading directly after media/caption: already 4.5rem from above rule */
-
-/* Bracket spacing */
-.project-page-description + .project-page-bracket,
-.project-page-subheading + .project-page-bracket {
-  margin-top: 1.5rem;
-}
-
-.project-page-bracket + .project-page-description,
-.project-page-bracket + .project-page-subheading {
-  margin-top: 2rem;
-}
-
-.project-page-bracket + .project-page-media-item,
-.project-page-bracket + .project-media-grid {
-  margin-top: 4.5rem;
 }
 
 .project-page-bracket {
@@ -1172,8 +1177,7 @@ body.projects #main-content {
   color: rgba(255,255,255,0.4);
   border: 1px dashed rgba(255,255,255,0.2);
   padding: 1rem 1.25rem;
-  margin: 0 auto 1.5rem;
-  margin-left: max(0px, calc(50% - 645px));
+  margin-inline: auto;
   max-width: 680px;
 }
 
@@ -1218,8 +1222,7 @@ body.projects #main-content {
   gap: 1rem;
   flex-wrap: wrap;
   max-width: 680px;
-  margin-top: 3.5rem;
-  margin-left: max(0px, calc(50% - 645px));
+  margin: 3.5rem auto 0;
 }
 
 /* ── Project prev/next nav ── */
@@ -1378,6 +1381,7 @@ body.projects #main-content {
   .project-page-caption,
   .project-page-subheading,
   .project-page-bracket,
+  .project-page-instruction,
   .project-page-links,
   .project-nav {
     padding-left: 1.25rem;
@@ -1385,7 +1389,8 @@ body.projects #main-content {
   }
 
   .project-page-media-item,
-  .project-media-grid {
+  .project-media-grid,
+  .ba-grid {
     max-width: 100%;
     margin-left: 0;
     margin-right: 0;

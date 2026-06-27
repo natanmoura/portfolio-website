@@ -5,7 +5,7 @@
     "Curious tinkerer 🧠",
     "Born Brazilian, raised Canadian 🌎",
     "Boy dad ❤️",
-    "Violently vegetarian 🌱",
+    "Vegetarian 🌱",
     "Dungeon crawler 🎲",
     "Sunset walker 🌅",
     "Weak for mangos 🥭",

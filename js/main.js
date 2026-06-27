@@ -103,20 +103,28 @@ function buildProjectHTML(i) {
     bodyHTML = chunks.map(item => {
       if (item.type === 'text')    return `<p class="project-page-description fade-in-item">${item.html}</p>`;
       if (item.type === 'caption') return `<p class="project-page-caption fade-in-item">${item.html}</p>`;
+      if (item.type === 'instruction') return `<p class="project-page-instruction fade-in-item">${item.html}</p>`;
       if (item.type === 'heading') return `<h3 class="project-page-subheading fade-in-item">${item.text}</h3>`;
       if (item.type === 'bracket') return `<div class="project-page-bracket fade-in-item">[${item.label}]</div>`;
-      if (item.type === 'mux' || item.type === 'video-embed')
-        return `<div class="project-page-media-item fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe></div>`;
+      if (item.type === 'mux' || item.type === 'video-embed') {
+        const arStyle = item.aspectRatio ? ` style="aspect-ratio:${item.aspectRatio}"` : '';
+        if (item.endTime != null) {
+          const playbackId = item.src.replace(/^https?:\/\/player\.mux\.com\//, '').split('?')[0];
+          return `<div class="project-page-media-item fade-in-item" data-end-time="${item.endTime}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" end-time="${item.endTime}" thumbnail-time="0" autoplay muted style="width:100%;height:100%"></mux-player></div>`;
+        }
+        return `<div class="project-page-media-item fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe></div>`;
+      }
       if (item.type === 'video')
         return `<div class="project-page-media-item fade-in-item"><video src="${item.src}" controls playsinline></video></div>`;
       if (item.type === 'image' || item.type === 'gif')
         return `<div class="project-page-media-item fade-in-item"><img src="${item.src}" alt="${p.title}" /></div>`;
       if (item.type === 'beforeafter-group')
         return `<div class="ba-grid fade-in-item">${item.items.map(it =>
-          `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">before</span></div>`
+          `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">Before</span></div>`
         ).join('')}</div>`;
       if (item.type === 'text-media-row') {
-        const textHTML = `<div class="project-text-media-row__text"><p class="project-page-description">${item.text}</p></div>`;
+        const rowStyle = item.gridCols ? ` style="--tmr-cols:${item.gridCols}"` : '';
+        const textHTML = `<div class="project-text-media-row__text">${item.heading ? `<h3 class="project-page-subheading">${item.heading}</h3>` : ''}<p class="project-page-description">${item.text}</p></div>`;
         const mediaHTML = item.media.map(it => {
           let el = '';
           if (it.type === 'mux' || it.type === 'video-embed')
@@ -128,20 +136,23 @@ function buildProjectHTML(i) {
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
           return el + cap;
         }).join('');
-        return `<div class="project-text-media-row fade-in-item">${textHTML}<div class="project-text-media-row__media">${mediaHTML}</div></div>`;
+        return `<div class="project-text-media-row fade-in-item"${rowStyle}>${textHTML}<div class="project-text-media-row__media">${mediaHTML}</div></div>`;
       }
       if (item.type === 'media-grid') {
         const cols = item.cols || 2;
         const cells = item.items.map(it => {
           let media = '';
-          if (it.type === 'mux' || it.type === 'video-embed')
-            media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+          if (it.type === 'mux' || it.type === 'video-embed') {
+            const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
+            media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe>`;
+          }
           else if (it.type === 'video')
             media = `<video src="${it.src}" controls playsinline></video>`;
           else if (it.type === 'image' || it.type === 'gif')
             media = `<img src="${it.src}" alt="${p.title}" />`;
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
-          return `<div class="project-media-grid-item">${media}${cap}</div>`;
+          const spanStyle = it.span ? ` style="grid-column:span ${it.span}"` : '';
+          return `<div class="project-media-grid-item"${spanStyle}>${media}${cap}</div>`;
         }).join('');
         return `<div class="project-media-grid fade-in-item" style="--cols:${cols}">${cells}</div>`;
       }
@@ -191,6 +202,21 @@ function buildProjectHTML(i) {
   `;
 }
 
+function setupMuxEndTimes(container) {
+  container.querySelectorAll('[data-end-time]').forEach(function(wrapper) {
+    const end = parseFloat(wrapper.dataset.endTime);
+    const player = wrapper.querySelector('mux-player');
+    if (!player) return;
+    const timer = setInterval(function() {
+      if (player.currentTime >= end) {
+        player.pause();
+        clearInterval(timer);
+      }
+    }, 100);
+    wrapper._muxCleanup = function() { clearInterval(timer); };
+  });
+}
+
 function openProject(i) {
   const p = projects[i];
   history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
@@ -198,6 +224,7 @@ function openProject(i) {
   mainContent.style.display = 'none';
   projectView.style.display = 'block';
   window.scrollTo(0, 0);
+  setupMuxEndTimes(projectContent);
   requestAnimationFrame(() => {
     const page = projectContent.querySelector('.project-page');
     if (page) {
@@ -230,6 +257,9 @@ function openProject(i) {
 
 function closeProject(pushHistory = true) {
   if (pushHistory) history.pushState(null, '', 'projects.html');
+  projectContent.querySelectorAll('[data-end-time]').forEach(function(w) {
+    if (w._muxCleanup) { w._muxCleanup(); delete w._muxCleanup; }
+  });
   projectView.style.display = 'none';
   projectContent.querySelectorAll('iframe').forEach(f => f.src = f.src);
   projectContent.innerHTML = '';
