@@ -10,10 +10,11 @@
   const wizard = document.getElementById('introWizard');
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion || window.location.hash) {
+  if (reduceMotion || window.location.hash || sessionStorage.getItem('introPlayed')) {
     overlay.remove();
     return;
   }
+  sessionStorage.setItem('introPlayed', '1');
 
   document.body.style.overflow = 'hidden';
 
