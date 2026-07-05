@@ -12,6 +12,7 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduceMotion || window.location.hash || sessionStorage.getItem('introPlayed')) {
     overlay.remove();
+    document.dispatchEvent(new CustomEvent('introDone'));
     return;
   }
   sessionStorage.setItem('introPlayed', '1');
@@ -126,6 +127,7 @@
     await Promise.all([trailDone, fadeDone]);
     document.body.style.overflow = '';
     overlay.remove();
+    document.dispatchEvent(new CustomEvent('introDone'));
   }
 
   run();

@@ -69,5 +69,13 @@
     }
   }
 
-  setTimeout(run, 800);
+  // If the intro takeover animation is still on screen, wait for it to
+  // finish (and fade away) before the first snippet starts typing —
+  // otherwise the wizard overlay hides it.
+  const introOverlay = document.getElementById('introOverlay');
+  if (introOverlay) {
+    document.addEventListener('introDone', () => setTimeout(run, 800), { once: true });
+  } else {
+    setTimeout(run, 800);
+  }
 })();

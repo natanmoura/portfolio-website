@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "portfolio",
-      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["C:\\Users\\User\\Documents\\projects\\portfolio-website\\.claude\\serve.js"],
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3000", "--directory", "D:\\Dropbox\\Projects\\website"],
       "port": 3000
     },
     {
