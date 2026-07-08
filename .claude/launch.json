@@ -24,6 +24,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/User/Documents/projects/multidoku", "--", "--port", "5174"],
       "port": 5174
+    },
+    {
+      "name": "resume",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],
+      "port": 8123
+    },
+    {
+      "name": "mosey",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3010", "--directory", "D:\\Dropbox\\Projects\\mosey"],
+      "port": 3010
     }
   ]
 }

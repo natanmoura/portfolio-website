@@ -1,0 +1,287 @@
+:root {
+  --ink: #0f141f;
+  --slate: #7a8599;
+  --rule: #d0d3d9;
+  --sans: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --display: "Oswald", "Arial Narrow", "Segoe UI", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #e8e8e8;
+  font-family: var(--sans);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.38;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- page sheets (A4) ---------- */
+.sheet {
+  width: 794px;               /* 210mm @ 96dpi */
+  min-height: 1123px;         /* 297mm @ 96dpi */
+  margin: 24px auto;
+  background: #ffffff;
+  padding: 42px 48px;
+  box-shadow: 0 2px 18px rgba(0,0,0,0.14);
+}
+
+/* ---------- header ---------- */
+.header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+/* Name: the one dominant element on the page, but regular weight (not bold) per direction */
+.name {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 0 0 4px 0;
+  color: var(--ink);
+  line-height: 1;
+}
+
+/* Subtitle: original sets this in the body font (not the display font), small, non-bold, just tracked caps */
+.subtitle {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subtitle .mini-icon {
+  width: 10px;
+  height: 10px;
+  fill: var(--ink);
+  margin-right: -2px;
+}
+
+.dot-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--slate);
+  display: inline-block;
+}
+
+/* ---------- sheet 1 two-column body ---------- */
+.sheet1-body {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 18px;
+}
+
+/* ---------- sidebar ---------- */
+.sidebar { text-align: center; }
+
+.side-sec { margin-bottom: 24px; }
+
+.side-head {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ring {
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+.sidebar p {
+  margin: 0 0 3px 0;
+  font-size: 12px;
+}
+
+.sidebar a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* skills — clean list, no bars */
+.skill { margin-bottom: 4px; }
+
+.skill span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* ---------- main column / timeline ---------- */
+.main {
+  position: relative;
+  padding-left: 28px;
+}
+
+/* rail center sits at 9px from .main's left edge */
+.main::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--ink);
+}
+
+/* page 2 has no sidebar column, so offset it by the same amount the grid (150px sidebar + 18px gap)
+   shifts .main on page 1 — keeps the rail in the same horizontal spot on both pages */
+.main-full { padding-left: 28px; margin-left: 168px; }
+
+.sec { margin-bottom: 9px; }
+
+.sec-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+/* icon centered on the rail: left = railCenter(9) - mainPadding(28) - width/2(10) */
+.sec-icon {
+  position: absolute;
+  left: -29px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.sec-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--ink);
+}
+
+.sec-head h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--ink);
+}
+
+/* entries with timeline node */
+.entry, .award {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+/* dot centered on the rail: left = railCenter(9) - mainPadding(28) - dot/2(3) */
+.entry::before, .award::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 3px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.role {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 12.5px;
+  margin: 0 0 1px 0;
+  color: var(--ink);
+}
+
+.org {
+  margin: 0 0 1px 0;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.dates {
+  margin: 0 0 3px 0;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+  color: var(--slate);
+}
+
+.sec-body ul {
+  margin: 0;
+  padding-left: 15px;
+}
+
+.sec-body li {
+  font-size: 12px;
+  margin-bottom: 1px;
+  line-height: 1.33;
+}
+
+.profile {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.36;
+  color: #23282f;
+}
+
+/* awards — date sits inline at the end of the line, not on its own row */
+.award p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.award strong { font-weight: 700; }
+
+.award .year {
+  color: var(--slate);
+  font-size: 10.5px;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+/* ---------- print ---------- */
+@media print {
+  body { background: #fff; }
+  .sheet {
+    box-shadow: none;
+    margin: 0;
+    width: 100%;
+    min-height: 0;
+    padding: 0.4in 0.5in;
+    page-break-after: always;
+  }
+  .sheet:last-child { page-break-after: auto; }
+  .entry, .award, .sec, .side-sec { break-inside: avoid; }
+  @page { size: A4; margin: 0; }
+}
