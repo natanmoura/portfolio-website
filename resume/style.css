@@ -32,7 +32,7 @@ body {
 /* ---------- header ---------- */
 .header {
   text-align: center;
-  margin-bottom: 14px;
+  margin-bottom: 24px;
 }
 
 /* Name: the one dominant element on the page, but regular weight (not bold) per direction */
@@ -42,40 +42,21 @@ body {
   font-size: 28px;
   letter-spacing: 3px;
   text-transform: uppercase;
-  margin: 0 0 4px 0;
+  margin: 0 0 10px 0;
   color: var(--ink);
   line-height: 1;
 }
 
-/* Subtitle: original sets this in the body font (not the display font), small, non-bold, just tracked caps */
+/* Subtitle: original sets this in the body font (Source Sans), small, non-bold, tracked caps. */
 .subtitle {
   font-family: var(--sans);
   font-weight: 400;
-  font-size: 10px;
-  letter-spacing: 1.2px;
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--ink);
   margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.subtitle .mini-icon {
-  width: 10px;
-  height: 10px;
-  fill: var(--ink);
-  margin-right: -2px;
-}
-
-.dot-sep {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--slate);
-  display: inline-block;
+  text-align: center;
 }
 
 /* ---------- sheet 1 two-column body ---------- */
@@ -88,20 +69,20 @@ body {
 /* ---------- sidebar ---------- */
 .sidebar { text-align: center; }
 
-.side-sec { margin-bottom: 24px; }
+.side-sec { margin-bottom: 30px; }
 
 .side-head {
   font-family: var(--display);
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 1px;
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--ink);
-  margin: 0 0 8px 0;
+  margin: 0 0 9px 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
 }
 
 .ring {
@@ -114,7 +95,7 @@ body {
 }
 
 .sidebar p {
-  margin: 0 0 3px 0;
+  margin: 0 0 6px 0;
   font-size: 12px;
 }
 
@@ -139,116 +120,129 @@ body {
   padding-left: 28px;
 }
 
-/* rail center sits at 9px from .main's left edge */
-.main::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  background: var(--ink);
-}
+/* No global rail: each section draws its own connector (see .entry/.award/.profile ::after
+   below) so the line only ever runs between two dots, never above a section's first dot
+   or below its last. */
 
 /* page 2 has no sidebar column, so offset it by the same amount the grid (150px sidebar + 18px gap)
    shifts .main on page 1 — keeps the rail in the same horizontal spot on both pages */
 .main-full { padding-left: 28px; margin-left: 168px; }
 
-.sec { margin-bottom: 9px; }
+.sec { margin-bottom: 20px; }
 
 .sec-head {
   position: relative;
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
-/* icon centered on the rail: left = railCenter(9) - mainPadding(28) - width/2(10) */
+/* icon box centered on the rail (masks the line): left = railCenter(9) - mainPadding(28) - width/2(9) */
 .sec-icon {
   position: absolute;
-  left: -29px;
+  left: -28px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 0;
 }
 
-.sec-icon svg {
-  width: 15px;
-  height: 15px;
-  fill: var(--ink);
+.sec-icon img {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
 }
 
 .sec-head h2 {
   font-family: var(--display);
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 1px;
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   margin: 0;
   color: var(--ink);
 }
 
 /* entries with timeline node */
-.entry, .award {
+.entry {
   position: relative;
-  margin-bottom: 6px;
+  margin-bottom: 16px;
 }
 
-/* dot centered on the rail: left = railCenter(9) - mainPadding(28) - dot/2(3) */
-.entry::before, .award::before {
+.entry:last-child { margin-bottom: 0; }
+
+.award {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+/* dot centered on the rail: left = railCenter(9) - mainPadding(28) - dot/2(3);
+   top aligned to the vertical center of the role/profile line's cap-height */
+.entry::before, .award::before, .profile::before {
   content: "";
   position: absolute;
   left: -22px;
-  top: 3px;
+  top: 6px;
   width: 6px;
   height: 6px;
   border: 1.5px solid var(--ink);
   border-radius: 50%;
   background: #ffffff;
   box-sizing: border-box;
+  z-index: 1;
 }
+
+/* connector: a segment from THIS item's dot down through its own text. By default
+   (last item in a section, or a standalone item like Profile) it runs to the bottom
+   of its own content so the line never ends bare right after the dot. When there is
+   a next item in the same section, it's extended further through the margin gap to
+   reach that next dot instead. Either way, nothing is ever drawn above a dot, so a
+   section's first dot always starts clean. */
+.entry::after, .award::after, .profile::after {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 9px;
+  width: 2px;
+  background: var(--ink);
+  bottom: 0;
+}
+
+.entry:not(:last-child)::after { bottom: -25px; }
+.award:not(:last-child)::after { bottom: -13px; }
 
 .role {
   font-family: var(--sans);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 12.5px;
   margin: 0 0 1px 0;
   color: var(--ink);
 }
 
-.org {
-  margin: 0 0 1px 0;
-  font-size: 12px;
-  color: var(--ink);
-}
-
 .dates {
-  margin: 0 0 3px 0;
-  font-size: 10px;
+  margin: 0 0 2px 0;
+  font-size: 12.5px;
   letter-spacing: 0.2px;
   color: var(--slate);
 }
 
-.sec-body ul {
-  margin: 0;
-  padding-left: 15px;
+.desc {
+  margin: 0 0 2px 0;
+  font-size: 12.5px;
+  line-height: 1.28;
+  color: var(--ink);
 }
 
-.sec-body li {
-  font-size: 12px;
-  margin-bottom: 1px;
-  line-height: 1.33;
-}
+.desc:last-child { margin-bottom: 0; }
 
 .profile {
+  position: relative;
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   font-style: italic;
   line-height: 1.36;
   color: #23282f;
@@ -258,10 +252,10 @@ body {
 .award p {
   margin: 0;
   font-size: 12px;
-  line-height: 1.38;
+  line-height: 1.3;
 }
 
-.award strong { font-weight: 700; }
+.award strong { font-weight: 600; }
 
 .award .year {
   color: var(--slate);
@@ -279,9 +273,15 @@ body {
     width: 100%;
     min-height: 0;
     padding: 0.4in 0.5in;
-    page-break-after: always;
   }
-  .sheet:last-child { page-break-after: auto; }
-  .entry, .award, .sec, .side-sec { break-inside: avoid; }
+  /* No forced break between sheets — let Annie Awards flow immediately after
+     wherever Emmy Awards naturally ends, so the page break lands wherever the
+     real content runs out rather than always starting Annie on a fresh page
+     (which left a near-empty page behind whenever Emmy spilled over). */
+  /* Only individual entries/awards are atomic — NOT the whole .sec — so a long
+     section (e.g. Emmy Awards) can split across the page boundary instead of the
+     entire section jumping to the next page as one block. */
+  .entry, .award, .side-sec { break-inside: avoid; }
+  .sec-head { break-after: avoid; }
   @page { size: A4; margin: 0; }
 }
