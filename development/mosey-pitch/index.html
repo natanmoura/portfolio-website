@@ -25,18 +25,18 @@ body{
 a{color:var(--accent-ink)}
 
 /* ---------- masthead ---------- */
-.mast{padding:74px 0 26px; border-bottom:1.5px solid var(--ink); position:relative}
+.mast{padding:74px 0 40px; border-bottom:1.5px solid var(--ink); position:relative}
 .kicker{font-size:12px; letter-spacing:.34em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
 .wordmark{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(58px,11vw,128px); line-height:.9; margin:0; letter-spacing:-.01em}
 .mast-row{display:flex; justify-content:space-between; align-items:flex-end; gap:30px; flex-wrap:wrap}
-.tagline{min-height:3.5em; line-height:1.7; font-size:clamp(15px,2vw,19px); margin:20px 0 0; max-width:22ch}
+.tagline{min-height:3.5em; line-height:1.7; font-size:clamp(15px,2vw,19px); margin:30px 0 0; max-width:22ch}
 .heart{color:var(--accent)}
 .mast-dog{width:196px; flex:0 0 auto; display:block; mix-blend-mode:multiply}
 .mosey-img{display:block; mix-blend-mode:multiply}
 .sec-head-flex{display:flex; align-items:center; justify-content:flex-start; gap:20px; flex-wrap:wrap}
 .sec-head-flex .sec-head{margin:0}
 .sec-mosey{height:108px; width:auto; flex:0 0 auto}
-.subhead{display:flex; flex-direction:column; gap:9px; margin-top:30px; font-size:13px; color:var(--muted)}
+.subhead{display:flex; flex-direction:column; gap:13px; margin-top:44px; font-size:13px; color:var(--muted)}
 .subhead span{display:flex; gap:12px}
 .subhead b{color:var(--ink); font-weight:700; flex:0 0 42px; letter-spacing:.06em; text-transform:uppercase; font-size:11px; padding-top:2px}
 
@@ -126,7 +126,7 @@ h2{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(26px,4vw,38px)
   box-shadow:0 1px 0 var(--hair)}
 .widget .wx{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px}
 .widget .wx small{font-size:10px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase}
-.widget .line{font-size:12.5px; line-height:1.5}
+.widget .line{font-size:12.5px; line-height:1.5; min-height:2.6em}
 .dockrow{position:absolute; left:0; right:0; bottom:20px; display:flex; justify-content:center; gap:20px; opacity:.5}
 .dot{width:42px; height:42px; border-radius:12px; border:1.5px solid var(--ink)}
 
@@ -171,9 +171,76 @@ h2{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(26px,4vw,38px)
 .metric .k{font-size:11px; color:var(--muted); margin-top:6px}
 
 .foot{padding:50px 0 20px; color:var(--muted); font-size:12px}
+
+/* ---------- onboarding overlay ---------- */
+.ob-overlay{
+  position:fixed; inset:0; z-index:1000;
+  background:var(--paper);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  opacity:1;
+}
+.ob-hint-wrap{height:20px; margin-top:14px; display:flex; align-items:center; justify-content:center}
+.ob-hint{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); opacity:0}
+.ob-hint.show{animation:ob-pulse 1s ease-in-out infinite}
+@keyframes ob-pulse{0%,100%{opacity:0} 50%{opacity:.9}}
+.ob-scene{overflow:hidden}
+.ob-title{
+  position:absolute; top:34px; left:0; right:0; text-align:center;
+  font-family:"Fraunces",serif; font-weight:500; font-size:27px; letter-spacing:-.01em; opacity:0;
+}
+.ob-img{position:absolute; left:50%; top:210px; transform:translate(-50%,-50%); opacity:0}
+.ob-walker{position:absolute; top:210px; left:50%; width:84px; opacity:1; translate:-50% -50%; scale:1 1}
+.ob-narr{position:absolute; top:325px; left:26px; right:26px; font-size:12.5px; opacity:1}
+.ob-ns{position:absolute; font-size:12.5px; opacity:1}
+.ob-ns-narrow{left:50%; transform:translateX(-50%); width:100px; text-align:left}
+#ob-ns1{top:60px}
+#ob-ns2{top:100px}
+#ob-ns3{top:140px}
+#ob-ns4{top:310px; left:50%; transform:translateX(-50%); width:155px; text-align:left}
+.ob-start{position:absolute; left:26px; right:26px; bottom:34px; opacity:0; display:none}
+.ob-continue{
+  position:absolute; left:50%; bottom:26px; transform:translateX(-50%);
+  width:32px; height:32px; border-radius:50%; padding:0;
+  border:1.4px solid var(--muted); background:transparent; color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; cursor:pointer; transition:opacity .3s ease;
+}
+.ob-continue.show{opacity:1}
+.ob-map-img{position:absolute; top:18px; left:50%; transform:translateX(-50%) scale(1); width:212px; height:340px; object-fit:contain; opacity:0}
+.ob-map-buttons{display:none; opacity:0}
+.ob-replay-row{margin-top:32px}
 </style>
 </head>
 <body>
+
+<div class="ob-overlay" id="ob-overlay">
+  <div class="phone">
+    <div class="glass">
+      <div class="stat"><span>9:41</span><span>mosey</span></div>
+      <div class="scene ob-scene" id="ob-scene">
+        <div class="ob-title" id="ob-title">Mosey</div>
+        <img class="mosey-img ob-img" id="ob-img" alt="">
+        <img class="mosey-img ob-walker" id="ob-walker" src="assets/mosey_walk.png" alt="Mosey walking">
+        <img class="ob-map-img" id="ob-map" src="assets/map.png" alt="Hand-drawn map">
+        <div class="narr ob-narr tw" id="ob-narr"></div>
+        <div class="ob-ns ob-ns-narrow" id="ob-ns1"></div>
+        <div class="ob-ns ob-ns-narrow" id="ob-ns2"></div>
+        <div class="ob-ns ob-ns-narrow" id="ob-ns3"></div>
+        <div class="ob-ns" id="ob-ns4"></div>
+        <div class="pill accent-pill ob-start" id="ob-start-btn">start</div>
+        <div class="yesno ob-map-buttons" id="ob-map-buttons">
+          <div class="pill accent-pill" data-choice="go">let's go</div>
+          <div class="pill" data-choice="later">later</div>
+        </div>
+        <button class="ob-continue" id="ob-continue" aria-label="continue" type="button">
+          <svg viewBox="0 0 24 24" width="12" height="12"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="ob-hint-wrap"><span class="ob-hint" id="ob-hint">tap screen to continue</span></div>
+</div>
+
 <div class="wrap">
 
   <header class="mast">
@@ -190,6 +257,9 @@ h2{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(26px,4vw,38px)
       <span><b>Who</b> people who want to walk more, minus the pressure</span>
       <span><b>Feel</b> genuine, minimal, a little blunt, no nonsense (Peanuts, Gromit, Moomin)</span>
       <span><b>MVP</b> iOS · the dog, the mailbox, the widget</span>
+    </div>
+    <div class="ob-replay-row">
+      <button class="replay" id="ob-replay-btn">↻ Play Onboarding Demo Again</button>
     </div>
   </header>
 
@@ -253,7 +323,7 @@ h2{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(26px,4vw,38px)
       <div class="sec-head"><span class="sec-num">07</span><h2>The bet</h2></div>
       <img class="sec-mosey mosey-img" src="assets/mosey_sleep.png" alt="Mosey asleep">
     </div>
-    <p class="lede">Fitness apps lose people fast, companion apps keep them. Mosey is about adding a touch of whimsy to an everyday walk. The basics are free forever: the walks, the mail, the whole loop. You only pay for extras: outfits for Mosey, ways to decorate. The walk itself is never for sale. The numbers below are rough targets to test in the beta.</p>
+    <p class="lede">Fitness apps lose people fast, companion apps keep them. Mosey is about adding a touch of whimsy to an everyday walk. The whole loop stays free forever, the walks, the mail, all of it. A small yearly subscription, about a coffee a month, gives you more of the world. More of Mosey, more letters and weather, plus outfits and ways to make the place your own. It never guilts you, and only asks once you've fallen for the character. The numbers below are rough targets to test in the beta.</p>
     <div class="metrics" id="metric-grid"></div>
   </section>
 </div>
@@ -436,15 +506,6 @@ document.getElementById('voice-replay').addEventListener('click',()=>{ vi=(vi+1)
 /* ---------------- screens ---------------- */
 const screens=[
   {
-    name:"Onboarding", sub:"the first thing you see",
-    html:`<div class="scene">
-      <img src="assets/mosey_window.png" class="mosey-img" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);width:136px" alt="Mosey at the window">
-      <div class="center-narr tw" data-type="ob" style="top:208px"></div>
-      <div class="pill" style="position:absolute;left:26px;right:26px;bottom:34px;background:var(--accent);color:var(--card);border-color:var(--accent)">start</div>
-    </div>`,
-    type:{key:'ob', ops:[{t:"There's a whole world out there.",block:true},{beat:900},{t:"Some days you only make it to the mailbox.",block:true},{beat:800},{t:"Or maybe not even that.",block:true}]}
-  },
-  {
     name:"The Peek", sub:"you always catch Mosey in the middle of something",
     html:`<div class="scene">
       <img src="assets/mosey_window_picture.png" class="mosey-img" style="position:absolute;top:132px;left:50%;transform:translateX(-50%);width:136px" alt="Mosey at the window, remembering a walk">
@@ -619,6 +680,236 @@ const metrics=[["45%","still here after day 1"],["15%","still here after a month
 const mg=document.getElementById('metric-grid');
 metrics.forEach(m=>{ const el=document.createElement('div'); el.className='metric';
   el.innerHTML=`<div class="v">${m[0]}</div><div class="k">${m[1]}</div>`; mg.appendChild(el); });
+
+/* ================= Onboarding demo (full-screen cover) ================= */
+(function(){
+  const overlay=document.getElementById('ob-overlay');
+  const hintWrap=document.getElementById('ob-hint-wrap');
+  const hint=document.getElementById('ob-hint');
+  const continueBtn=document.getElementById('ob-continue');
+  const scene=document.getElementById('ob-scene');
+  const title=document.getElementById('ob-title');
+  const img=document.getElementById('ob-img');
+  const walker=document.getElementById('ob-walker');
+  const mapImg=document.getElementById('ob-map');
+  const narr=document.getElementById('ob-narr');
+  const ns1=document.getElementById('ob-ns1');
+  const ns2=document.getElementById('ob-ns2');
+  const ns3=document.getElementById('ob-ns3');
+  const ns4=document.getElementById('ob-ns4');
+  const startBtn=document.getElementById('ob-start-btn');
+  const mapBtns=document.getElementById('ob-map-buttons');
+  const replayBtn=document.getElementById('ob-replay-btn');
+
+  function fade(el,to,ms){
+    return new Promise(resolve=>{
+      el.style.transition=`opacity ${ms}ms ease`;
+      void el.offsetWidth;
+      el.style.opacity=to;
+      setTimeout(resolve,ms);
+    });
+  }
+  function setOpacity(el,val){ el.style.transition='none'; el.style.opacity=val; void el.offsetWidth; }
+  function moveWalker(xPx,ms){
+    return new Promise(resolve=>{
+      walker.style.transition=`translate ${ms}ms linear`;
+      void walker.offsetWidth;
+      walker.style.translate=`calc(-50% + ${xPx}px) -50%`;
+      setTimeout(resolve,ms);
+    });
+  }
+  function waitTap(el){
+    return new Promise(resolve=>{
+      function h(){ el.removeEventListener('click',h); resolve(); }
+      el.addEventListener('click',h);
+    });
+  }
+  function showChevron(){ continueBtn.classList.add('show'); }
+  function hideChevron(){ continueBtn.classList.remove('show'); }
+  function showHintText(){ hint.classList.add('show'); }
+  function hideHintText(){ hint.classList.remove('show'); }
+
+  /* tapping the screen mid-type fast-forwards the sentence being typed */
+  let isTyping=false, skipTyping=false;
+  overlay.addEventListener('click',()=>{ if(isTyping) skipTyping=true; });
+
+  async function typeInto(span,text,speed){
+    isTyping=true; skipTyping=false;
+    for(const ch of text){
+      if(skipTyping){ span.textContent=text; break; }
+      span.textContent+=ch;
+      await sleep(ch===' '?speed*0.5:speed);
+    }
+    isTyping=false;
+  }
+  async function typeText(container,text,speed){
+    container.innerHTML='';
+    const span=document.createElement('span');
+    container.appendChild(span);
+    await typeInto(span,text,speed);
+  }
+  async function typeAppendLine(container,parts,speed){
+    const line=document.createElement('span');
+    line.style.cssText='display:block;margin-top:6px';
+    container.appendChild(line);
+    for(const part of parts){
+      const span=document.createElement('span');
+      if(part.heart) span.className='heart';
+      line.appendChild(span);
+      await typeInto(span,part.t,speed);
+    }
+  }
+
+  function walkerOffscreenX(){ return scene.clientWidth/2+70; }
+
+  function resetAll(){
+    setOpacity(title,0); title.textContent='Mosey';
+    setOpacity(img,0); img.removeAttribute('src');
+    const off=walkerOffscreenX();
+    walker.style.transition='none'; walker.style.opacity=1; walker.src='assets/mosey_walk.png';
+    walker.style.scale='1 1'; walker.style.top=''; walker.style.width='';
+    walker.style.translate=`calc(-50% + ${-off}px) -50%`;
+    mapImg.style.transition='none'; mapImg.style.transform='translateX(-50%) scale(0.67)';
+    setOpacity(mapImg,0); mapImg.src='assets/map.png';
+    hideChevron(); hideHintText();
+    narr.innerHTML=''; setOpacity(narr,1); narr.style.top='325px';
+    [ns1,ns2,ns3,ns4].forEach(el=>{ el.innerHTML=''; setOpacity(el,1); });
+    startBtn.style.display='none'; setOpacity(startBtn,0);
+    mapBtns.style.display='none'; setOpacity(mapBtns,0);
+  }
+
+  /* chevron always appears the moment the line is ready. the "tap screen to
+     continue" caption appears immediately only on the very first screen —
+     elsewhere it waits, and never shows at all if the user has already tapped. */
+  async function stepIntro(imgSrc,alt,line,fadeInMs,width,beatMs,hintDelayMs){
+    setOpacity(img,0);
+    img.src=imgSrc; img.alt=alt;
+    img.style.width=width+'px';
+    await fade(img,1,fadeInMs);
+    await sleep(beatMs);
+    await typeText(narr,line,44);
+
+    showChevron();
+    const tapPromise=waitTap(overlay);
+    if(hintDelayMs>0){
+      const early=await Promise.race([ tapPromise.then(()=>true), sleep(hintDelayMs).then(()=>false) ]);
+      if(!early) showHintText();
+    } else {
+      showHintText();
+    }
+    await tapPromise;
+    hideChevron(); hideHintText();
+    await Promise.all([ fade(img,0,200), fade(narr,0,200) ]);
+    setOpacity(narr,1); narr.innerHTML='';
+  }
+
+  let running=false;
+  async function playOnboarding(){
+    if(running) return;
+    running=true;
+    document.body.style.overflow='hidden';
+    overlay.style.transition='none';
+    overlay.style.display='flex';
+    overlay.style.pointerEvents='auto';
+    overlay.style.opacity=1;
+    void overlay.offsetWidth;
+    resetAll();
+
+    /* screens 1–3: the honest opening (sizes matched to "The App" section, scaled -20%) */
+    await stepIntro('assets/mosey_window.png','Mosey at the window',"There's a whole world out there to explore.",2500,109,0,0);
+    await stepIntro('assets/mailbox.png','The mailbox, flag up',"Some days you only make it to the mailbox.",1000,64,80,5000);
+    await stepIntro('assets/mosey_sleep.png','Mosey, curled up asleep',"Or maybe not even that.",1000,84,80,5000);
+
+    /* screen 4a: the walk + tagline, ending on the chevron (no red button here) */
+    const off=walkerOffscreenX();
+    walker.style.transition='none';
+    walker.src='assets/mosey_walk.png';
+    walker.style.scale='-1 1';
+    walker.style.translate=`calc(-50% + ${-off}px) -50%`;
+    void walker.offsetWidth;
+
+    await fade(title,1,1000);
+
+    const walkAcross=moveWalker(off,3000);
+    await sleep(1000);
+    typeText(narr,'A walking companion.',46);
+    await walkAcross;
+
+    walker.style.transition='none';
+    walker.style.scale='1 1';
+    void walker.offsetWidth;
+    await moveWalker(0,1500);
+    walker.src='assets/mosey.png';
+
+    await sleep(500);
+    await typeAppendLine(narr,[{t:'who understands '},{t:'<3',heart:true}],55);
+
+    showChevron();
+    await waitTap(overlay);
+    hideChevron();
+
+    await Promise.all([ fade(title,0,200), fade(walker,0,200), fade(narr,0,200) ]);
+    setOpacity(narr,1); narr.innerHTML='';
+
+    /* screen 4b: the plain-language self-explanation, spread top to bottom,
+       ending in the real start button. everything reveals in order:
+       No streaks -> No counting -> No guilt -> mosey_walk fades in -> beat -> final line. */
+    await typeText(ns1,'No streaks.',44);
+    await sleep(250);
+    await typeText(ns2,'No counting.',44);
+    await sleep(250);
+    await typeText(ns3,'No guilt.',44);
+    await sleep(550);
+
+    walker.style.transition='none';
+    walker.style.top='235px'; walker.style.width='84px';
+    walker.style.scale='-1 1'; walker.style.translate='-50% -50%';
+    walker.src='assets/mosey_walk.png';
+    setOpacity(walker,0);
+    await fade(walker,1,400);
+    await sleep(450);
+    await typeAppendLine(ns4,[{t:'Just one small walk'}],44);
+    await typeAppendLine(ns4,[{t:'at a time.'}],44);
+    await sleep(500);
+    startBtn.style.display='block';
+    await fade(startBtn,1,400);
+    await waitTap(startBtn);
+
+    await Promise.all([ fade(ns1,0,200), fade(ns2,0,200), fade(ns3,0,200), fade(ns4,0,200), fade(walker,0,200), fade(startBtn,0,200) ]);
+    startBtn.style.display='none';
+    [ns1,ns2,ns3,ns4].forEach(el=>{ setOpacity(el,1); el.innerHTML=''; });
+
+    /* screen 5: the map — scales up from 67% into its final pose as it fades in */
+    mapImg.style.transition='none';
+    mapImg.style.transform='translateX(-50%) scale(0.67)';
+    setOpacity(mapImg,0);
+    mapImg.style.transition='opacity 1000ms ease-out, transform 1000ms ease-out';
+    void mapImg.offsetWidth;
+    mapImg.style.opacity=1;
+    mapImg.style.transform='translateX(-50%) scale(1)';
+    await sleep(800);
+    narr.style.top='355px';
+    await typeText(narr,"There's something in the mailbox.",44);
+    await sleep(600);
+    mapBtns.style.display='flex';
+    await fade(mapBtns,1,400);
+
+    await new Promise(resolve=>{
+      const buttons=mapBtns.querySelectorAll('.pill');
+      function h(){ buttons.forEach(b=>b.removeEventListener('click',h)); resolve(); }
+      buttons.forEach(b=>b.addEventListener('click',h));
+    });
+
+    await fade(overlay,0,200);
+    overlay.style.display='none';
+    overlay.style.pointerEvents='none';
+    document.body.style.overflow='';
+    running=false;
+  }
+
+  replayBtn.addEventListener('click',()=>{ playOnboarding(); });
+  playOnboarding();
+})();
 </script>
 </body>
 </html>
