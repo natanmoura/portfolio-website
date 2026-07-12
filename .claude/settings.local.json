@@ -29,7 +29,9 @@
       "Bash(where ruby *)",
       "PowerShell(@\\('node','npx','python','python3','php','ruby','py'\\) | ForEach-Object { $p = \\(Get-Command $_ -ErrorAction SilentlyContinue\\); if \\($p\\) { \"$_ -> $\\($p.Source\\)\" } })",
       "PowerShell(py --version 2>&1)",
-      "PowerShell(\\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source)"
+      "PowerShell(\\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)"
     ]
   }
 }

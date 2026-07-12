@@ -62,8 +62,8 @@ body {
 /* ---------- sheet 1 two-column body ---------- */
 .sheet1-body {
   display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 18px;
+  grid-template-columns: 138px 1fr;
+  gap: 14px;
 }
 
 /* ---------- sidebar ---------- */
@@ -117,18 +117,18 @@ body {
 /* ---------- main column / timeline ---------- */
 .main {
   position: relative;
-  padding-left: 28px;
+  padding-left: 24px;
 }
 
 /* No global rail: each section draws its own connector (see .entry/.award/.profile ::after
    below) so the line only ever runs between two dots, never above a section's first dot
-   or below its last. */
+   or below its last. Rail center sits at 7px from .main's left edge. */
 
-/* page 2 has no sidebar column, so offset it by the same amount the grid (150px sidebar + 18px gap)
+/* page 2 has no sidebar column, so offset it by the same amount the grid (138px sidebar + 14px gap)
    shifts .main on page 1 — keeps the rail in the same horizontal spot on both pages */
-.main-full { padding-left: 28px; margin-left: 168px; }
+.main-full { padding-left: 24px; margin-left: 152px; }
 
-.sec { margin-bottom: 20px; }
+.sec { margin-bottom: 14px; }
 
 .sec-head {
   position: relative;
@@ -137,10 +137,10 @@ body {
   margin-bottom: 4px;
 }
 
-/* icon box centered on the rail (masks the line): left = railCenter(9) - mainPadding(28) - width/2(9) */
+/* icon box centered on the rail (masks the line): left = railCenter(7) - mainPadding(24) - width/2(9) */
 .sec-icon {
   position: absolute;
-  left: -28px;
+  left: -26px;
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
@@ -170,22 +170,22 @@ body {
 /* entries with timeline node */
 .entry {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .entry:last-child { margin-bottom: 0; }
 
 .award {
   position: relative;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
-/* dot centered on the rail: left = railCenter(9) - mainPadding(28) - dot/2(3);
+/* dot centered on the rail: left = railCenter(7) - mainPadding(24) - dot/2(3);
    top aligned to the vertical center of the role/profile line's cap-height */
 .entry::before, .award::before, .profile::before {
   content: "";
   position: absolute;
-  left: -22px;
+  left: -20px;
   top: 6px;
   width: 6px;
   height: 6px;
@@ -205,15 +205,15 @@ body {
 .entry::after, .award::after, .profile::after {
   content: "";
   position: absolute;
-  left: -20px;
+  left: -18px;
   top: 9px;
   width: 2px;
   background: var(--ink);
   bottom: 0;
 }
 
-.entry:not(:last-child)::after { bottom: -25px; }
-.award:not(:last-child)::after { bottom: -13px; }
+.entry:not(:last-child)::after { bottom: -21px; }
+.award:not(:last-child)::after { bottom: -11px; }
 
 .role {
   font-family: var(--sans);
@@ -272,7 +272,12 @@ body {
     margin: 0;
     width: 100%;
     min-height: 0;
-    padding: 0.4in 0.5in;
+    /* No padding here — the @page margin below applies to EVERY physical page,
+       including wherever content naturally splits mid-flow (e.g. mid-Emmy-Awards),
+       so there's always real breathing room at the bottom of one page and the top
+       of the next. Padding on .sheet itself only ever applied once, at the very
+       start/end of the whole document, not at internal page breaks. */
+    padding: 0;
   }
   /* No forced break between sheets — let Annie Awards flow immediately after
      wherever Emmy Awards naturally ends, so the page break lands wherever the
@@ -283,5 +288,5 @@ body {
      entire section jumping to the next page as one block. */
   .entry, .award, .side-sec { break-inside: avoid; }
   .sec-head { break-after: avoid; }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 0.4in 0.5in; }
 }
