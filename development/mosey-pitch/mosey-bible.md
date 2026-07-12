@@ -724,13 +724,13 @@ The bet: companion-grade retention in a category with fitness-grade churn. Fitne
 
 Analytics constraint: measurement must honor the architecture — no route storage, no individual decline tracking (declines aren't data even for us), aggregate-only funnels. Privacy is a brand feature; the analytics stack is part of the brand.
 
-## 8.3 Monetization: the expression economy
+## 8.3 Monetization: more of the world, not just cosmetics
 
-The Finch model, adopted whole (§1.5): subscription + expression, monetized through love, never need.
+The Finch model, adopted whole (§1.5): subscription + expression, monetized through love, never need. The pitch is more of the world, not a locked one — the subscription buys more of Mosey, not access to the dog.
 
 - **Free, forever:** the entire core loop — walks, mail in and out, finds, sends, the widget, the journal, the residents, every sincere letter. The walk is never for sale; currency never touches find odds.
-- **Premium unlocks expression and abundance:** the wardrobe (bandanas, terrible raincoats, the one hat), home and journal cosmetics, keepsake frames and seasonal overlays and caption styles (§5.10), the premium track of monthly sets (the Finch pattern: premium unlocks the set's centerpiece days earlier — gentle differential, no exclusion), a supporter tag on Mosey's collar.
-- **Pricing:** $9.99/month, $59.99/year (working; the category skews annual). Launch accessible, hold pricing until retention is proven — the Finch playbook.
+- **Premium unlocks more of the world:** more of Mosey being Mosey, more letters and weather and small strange happenings, the premium track of monthly sets (the Finch pattern: premium unlocks the set's centerpiece days earlier — gentle differential, no exclusion) — plus the expression layer on top: the wardrobe (bandanas, terrible raincoats, the one hat), home and journal cosmetics, keepsake frames and seasonal overlays and caption styles (§5.10), a supporter tag on Mosey's collar. It never guilts you, and only asks you to pay once you've fallen for the character.
+- **Pricing:** $9.99/month, $59.99/year — about a coffee a month (working; the category skews annual). Launch accessible, hold pricing until retention is proven — the Finch playbook.
 - **Paywall placement:** contextual, days in, after the first warm moment — never in the FTUE (§6.6). A quiet, always-open shop besides. We knowingly trade the day-0 spike for subscriber quality and brand trust.
 - **Later, not now:** merch (a single-icon character earns a plush; the Jellycat demographic is literally §2.1), and gift subscriptions ("a walk buddy for someone having a year").
 - **Revenue reality (from §2.5):** year one ~$45K quiet / ~$400K solid / $2.5M+ breakout; the difference between Aloe Bud's floor and Finch's ceiling is the daily loop plus this economy. The wardrobe pipeline is not polish — it is the P&L.
