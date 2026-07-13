@@ -42,7 +42,7 @@ const projects = [
   {
     title: "Yuki 7",
     slug: "yuki-7",
-    thumbnail: "assets/gifs/yuki-7-cover.gif",
+    thumbnail: "assets/gifs/thumbs/yuki-7-cover.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/aVATvQRy01N53fzzREi92ZAkUlDecUBGKmSZOC9R9VmA?metadata-video-title=Yuki+7+Micro-Series+Trailer&video-title=Yuki+7+Micro-Series+Trailer&thumbnail-time=0&autoplay&muted", aspectRatio: "4/3", narrow: true },
@@ -97,7 +97,7 @@ const projects = [
   {
     title: "My Moon",
     slug: "my-moon",
-    thumbnail: "assets/gifs/my-moon-cover.gif",
+    thumbnail: "assets/gifs/thumbs/my-moon-cover.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/iODGnSn8xnKg8oROoNl01E1akrpHEm601wER3jgec00Myo?thumbnail-time=0&autoplay&muted", aspectRatio: "2.35/1" },
@@ -111,7 +111,7 @@ const projects = [
     title: "Namoo",
     slug: "namoo-2d",
     thumbnailScale: 1.05,
-    thumbnail: "assets/gifs/namoo-2d.gif",
+    thumbnail: "assets/gifs/thumbs/namoo-2d.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/rT5mLXjAqdvocYw9fMrzHPFzeULEkVnv2a00PmaqrQN8?thumbnail-time=0&autoplay&muted" },
@@ -141,7 +141,7 @@ const projects = [
   {
     title: "Airbnb Japan",
     slug: "airbnb-japan",
-    thumbnail: "assets/gifs/airbnb-japan-02.gif",
+    thumbnail: "assets/gifs/thumbs/airbnb-japan-02.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/eh1rpxFbD6ZmhHB5h00us2gpeG01UOohznvbopngMlIeI?thumbnail-time=0&autoplay&muted" },
@@ -174,7 +174,7 @@ const projects = [
   {
     title: "Steven Universe: The Movie - Opening Titles",
     slug: "steven-universe-movie-titles",
-    thumbnail: "assets/gifs/steven-universe-cover.gif",
+    thumbnail: "assets/gifs/thumbs/steven-universe-cover.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/wX4PiGnk9VsOF8hVedaCTRWGcGLP5DF26l7p3YNCPbE?thumbnail-time=0&autoplay&muted" },
@@ -189,7 +189,7 @@ const projects = [
   {
     title: "Eden and the Army of Paradise",
     slug: "eden-army-of-paradise",
-    thumbnail: "assets/gifs/eden-cover.gif",
+    thumbnail: "assets/gifs/thumbs/eden-cover.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/tfPcptKYgz4PNnAU31tpUWDEVFE00D3Ng2w4u1uS8DTU?thumbnail-time=0&autoplay&muted" },
@@ -209,7 +209,7 @@ const projects = [
   {
     title: "Volta-X",
     slug: "volta-x",
-    thumbnail: "assets/gifs/volta-x/voltax-cover.gif",
+    thumbnail: "assets/gifs/thumbs/voltax-cover.gif",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/0000jzfBrVZ395K00vetgSR01kVOHjdg02m4heRqT00qSFwVA?thumbnail-time=0&autoplay&muted" },

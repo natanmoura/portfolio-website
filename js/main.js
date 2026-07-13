@@ -76,6 +76,18 @@ projects.forEach((p, i) => {
   gallery.appendChild(item);
 });
 
+// ── Retry thumbnails that fail to load (transient network blips) ──
+gallery.querySelectorAll('.gallery-item-thumb img').forEach(img => {
+  const baseSrc = img.getAttribute('src');
+  let attempts = 0;
+  img.addEventListener('error', function onError() {
+    attempts++;
+    if (attempts > 3) return;
+    const sep = baseSrc.includes('?') ? '&' : '?';
+    setTimeout(() => { img.src = baseSrc + sep + 'retry=' + attempts; }, attempts * 800);
+  });
+});
+
 // ── Project page ──
 function buildProjectHTML(i) {
   const p = projects[i];
