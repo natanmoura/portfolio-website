@@ -1073,6 +1073,10 @@ body.projects #main-content {
   max-width: 1290px;
 }
 
+.project-page-media-item--narrow {
+  max-width: 680px;
+}
+
 /* ── Multi-column media grid ── */
 .project-media-grid {
   display: grid;

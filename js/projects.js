@@ -45,7 +45,7 @@ const projects = [
     thumbnail: "assets/gifs/yuki-7-cover.gif",
     page: {
       content: [
-        { type: "mux", src: "https://player.mux.com/aVATvQRy01N53fzzREi92ZAkUlDecUBGKmSZOC9R9VmA?metadata-video-title=Yuki+7+Micro-Series+Trailer&video-title=Yuki+7+Micro-Series+Trailer&thumbnail-time=0&autoplay&muted", aspectRatio: "4/3" },
+        { type: "mux", src: "https://player.mux.com/aVATvQRy01N53fzzREi92ZAkUlDecUBGKmSZOC9R9VmA?metadata-video-title=Yuki+7+Micro-Series+Trailer&video-title=Yuki+7+Micro-Series+Trailer&thumbnail-time=0&autoplay&muted", aspectRatio: "4/3", narrow: true },
         { type: "text", html: `As an Epic MegaGrant recipient, <a href="http://chromosphere-la.com">Chromosphere</a> was able to develop the <em>Yuki 7</em> micro-series and explore the power of Unreal Engine for animation productions.` },
         { type: "text", html: `I helped create layout and character animations all done using newly developed workflows in UE5's Sequencer.` },
         { type: "text", html: `Below are two reels of scenes I animated.` },

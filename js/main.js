@@ -108,11 +108,12 @@ function buildProjectHTML(i) {
       if (item.type === 'bracket') return `<div class="project-page-bracket fade-in-item">[${item.label}]</div>`;
       if (item.type === 'mux' || item.type === 'video-embed') {
         const arStyle = item.aspectRatio ? ` style="aspect-ratio:${item.aspectRatio}"` : '';
+        const narrowClass = item.narrow ? ' project-page-media-item--narrow' : '';
         if (item.endTime != null) {
           const playbackId = item.src.replace(/^https?:\/\/player\.mux\.com\//, '').split('?')[0];
-          return `<div class="project-page-media-item fade-in-item" data-end-time="${item.endTime}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" end-time="${item.endTime}" thumbnail-time="0" autoplay muted style="width:100%;height:100%"></mux-player></div>`;
+          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" end-time="${item.endTime}" thumbnail-time="0" autoplay muted style="width:100%;height:100%"></mux-player></div>`;
         }
-        return `<div class="project-page-media-item fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe></div>`;
+        return `<div class="project-page-media-item${narrowClass} fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe></div>`;
       }
       if (item.type === 'video')
         return `<div class="project-page-media-item fade-in-item"><video src="${item.src}" controls playsinline></video></div>`;
