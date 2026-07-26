@@ -120,14 +120,17 @@ function resize() {
 /* ── Interaction ─────────────────────────────────────────── */
 
 function bindPointer() {
+  let capturedId = null;
+
   stage.addEventListener('pointerdown', (e) => {
     dragging = true;
     moved = 0;
     lastPointer = { x: e.clientX, y: e.clientY };
-    stage.classList.add('is-dragging');
-    stage.setPointerCapture(e.pointerId);
     tween = null;
     hideHint();
+    // Don't capture yet — capturing immediately redirects the click that
+    // follows a plain tap to the stage instead of the bubble under it.
+    // Only claim the pointer once movement proves this is really a drag.
   });
 
   stage.addEventListener('pointermove', (e) => {
@@ -136,6 +139,13 @@ function bindPointer() {
     const dy = e.clientY - lastPointer.y;
     lastPointer = { x: e.clientX, y: e.clientY };
     moved += Math.abs(dx) + Math.abs(dy);
+
+    if (capturedId === null && moved > 8) {
+      capturedId = e.pointerId;
+      stage.setPointerCapture(capturedId);
+      stage.classList.add('is-dragging');
+    }
+
     vel.y = dx * 0.35;
     vel.x = dy * 0.35;
     spin(vel.x, vel.y);
@@ -145,7 +155,10 @@ function bindPointer() {
     if (!dragging) return;
     dragging = false;
     stage.classList.remove('is-dragging');
-    try { stage.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+    if (capturedId !== null) {
+      try { stage.releasePointerCapture(capturedId); } catch (err) { /* already gone */ }
+      capturedId = null;
+    }
   };
   stage.addEventListener('pointerup', end);
   stage.addEventListener('pointercancel', end);

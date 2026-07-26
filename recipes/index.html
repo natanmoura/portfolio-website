@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=4" />
+  <link rel="stylesheet" href="css/recipes.css?v=6" />
 </head>
 <body>
 
@@ -133,10 +133,13 @@
 
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast">
+    <span id="toastMsg"></span>
+    <button class="toast-undo" id="toastUndo" style="display:none">Undo</button>
+  </div>
 
   <script src="js/recipes-data.js?v=2"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/app.js?v=6"></script>
 
   <script type="importmap">
   {
@@ -146,6 +149,6 @@
     }
   }
   </script>
-  <script type="module" src="js/orbit.js?v=5"></script>
+  <script type="module" src="js/orbit.js?v=6"></script>
 </body>
 </html>

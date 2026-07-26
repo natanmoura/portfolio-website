@@ -111,10 +111,9 @@
       .map((c, i) => `
         <section class="group" data-group="ing-${i}">
           <button class="group-head" aria-expanded="true" data-toggle="ing-${i}">
-            <span class="chev" aria-hidden="true"></span>
             <span class="group-name">${esc(c.name)}</span>
           </button>
-          <div class="group-body">
+          <div class="group-body"><div class="group-body-inner">
             <ul class="ing-list">
               ${c.ingredients.map((ing) => {
                 const q = (ing.q === null || ing.q === undefined) ? null : ing.q * f;
@@ -124,25 +123,24 @@
                 </li>`;
               }).join('')}
             </ul>
-          </div>
+          </div></div>
         </section>`).join('');
   }
 
-  /* ── Method ──────────────────────────────────────────── */
+  /* ── Instructions ────────────────────────────────────── */
 
   function renderSteps() {
     elSteps.innerHTML = recipe.components.map((c, i) => `
       <section class="group" data-group="st-${i}">
         <button class="group-head" aria-expanded="true" data-toggle="st-${i}">
-          <span class="chev" aria-hidden="true"></span>
           <span class="group-name">${esc(c.name)}</span>
         </button>
-        <div class="group-body">
-          <ol class="step-list">
+        <div class="group-body"><div class="group-body-inner">
+          <ul class="step-list">
             ${c.steps.map((s) => `<li>${esc(s)}</li>`).join('')}
-          </ol>
+          </ul>
           ${c.tip ? `<p class="tip">${esc(c.tip)}</p>` : ''}
-        </div>
+        </div></div>
       </section>`).join('');
   }
 

@@ -39,6 +39,8 @@
     publishBtn: $('publishBtn'),
     planName: $('planName'),
     toast: $('toast'),
+    toastMsg: $('toastMsg'),
+    toastUndo: $('toastUndo'),
   };
 
   /* ── State ───────────────────────────────────────────── */
@@ -583,12 +585,25 @@
   /* ── Toast ───────────────────────────────────────────── */
 
   let toastTimer;
-  function toast(msg) {
-    el.toast.textContent = msg;
+  let undoAction = null;
+
+  /* A plain message, or one with an undo action attached (dismisses on
+     its own timer either way, but a click on Undo reverts it first). */
+  function toast(msg, onUndo) {
+    el.toastMsg.textContent = msg;
+    undoAction = onUndo || null;
+    el.toastUndo.style.display = onUndo ? '' : 'none';
     el.toast.classList.add('is-on');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.toast.classList.remove('is-on'), 2400);
+    toastTimer = setTimeout(() => { el.toast.classList.remove('is-on'); undoAction = null; }, onUndo ? 5000 : 2400);
   }
+
+  el.toastUndo.addEventListener('click', () => {
+    if (undoAction) undoAction();
+    el.toast.classList.remove('is-on');
+    clearTimeout(toastTimer);
+    undoAction = null;
+  });
 
   /* ── Views ───────────────────────────────────────────── */
 
@@ -738,11 +753,9 @@
 
       if (drop) {
         const key = drop.dataset.drop;
-        state.edits[key] = Object.assign({}, state.edits[key], { removed: true });
-        save(EDITS_KEY, state.edits);
         const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
-        if (row) row.remove();
-        renderGroceries();
+        const name = row ? row.querySelector('.g-name').textContent.trim() : 'item';
+        removeGroceryKey(key, name);
         return;
       }
 
@@ -758,11 +771,7 @@
         next = Math.max(0, Math.round(next * 100) / 100);
 
         if (next === 0) {
-          state.edits[key] = Object.assign({}, state.edits[key], { removed: true });
-          save(EDITS_KEY, state.edits);
-          const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
-          if (row) row.remove();
-          renderGroceries();
+          removeGroceryKey(key, cur.name);
         } else {
           state.edits[key] = Object.assign({}, state.edits[key], { amount: next, removed: false });
           save(EDITS_KEY, state.edits);
@@ -771,17 +780,41 @@
       }
     });
 
+    /* Remove one grocery line, with an Undo that restores its exact
+       prior edit state (not just "un-removed" — a prior amount tweak
+       comes back too). */
+    function removeGroceryKey(key, name) {
+      const prev = state.edits[key];
+      state.edits[key] = Object.assign({}, prev, { removed: true });
+      save(EDITS_KEY, state.edits);
+      const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
+      if (row) row.remove();
+      renderGroceries();
+      toast(`Removed ${name}`, () => restoreEdits({ [key]: prev }));
+    }
+
+    function restoreEdits(snapshot) {
+      Object.keys(snapshot).forEach((k) => {
+        if (snapshot[k] === undefined) delete state.edits[k];
+        else state.edits[k] = snapshot[k];
+      });
+      save(EDITS_KEY, state.edits);
+      renderGroceries();
+    }
+
     // Clear the spice shelf — you almost always have these already
     el.spiceBtn.addEventListener('click', () => {
       const groups = compileGroceries();
       const spices = groups.find((g) => g.aisle === SPICE_AISLE);
       if (!spices) return;
+      const snapshot = {};
       spices.items.forEach((it) => {
+        snapshot[it.key] = state.edits[it.key];
         state.edits[it.key] = Object.assign({}, state.edits[it.key], { removed: true });
       });
       save(EDITS_KEY, state.edits);
       renderGroceries();
-      toast(`Cleared ${spices.items.length} spices`);
+      toast(`Cleared ${spices.items.length} spices`, () => restoreEdits(snapshot));
     });
 
     el.copyBtn.addEventListener('click', async () => {

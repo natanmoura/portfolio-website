@@ -485,14 +485,22 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .toast {
   position: fixed; left: 50%; bottom: 2rem; z-index: 200;
   transform: translate(-50%, 1.4rem);
-  padding: .72rem 1.3rem; border-radius: var(--r-pill);
+  display: flex; align-items: center; gap: .8rem;
+  padding: .72rem .8rem .72rem 1.3rem; border-radius: var(--r-pill);
   background: var(--herb-deep); color: #fff;
   font-size: .86rem; font-weight: 600;
   box-shadow: var(--shadow-lift);
   opacity: 0; pointer-events: none;
   transition: opacity .3s var(--ease), transform .3s var(--ease);
 }
-.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast-undo {
+  padding: .3rem .75rem; border-radius: var(--r-pill);
+  background: rgba(255,255,255,.16); color: #fff;
+  font-size: .8rem; font-weight: 700;
+  transition: background .2s var(--ease);
+}
+.toast-undo:hover { background: rgba(255,255,255,.28); }
 
 /* ═══ Recipe page ═════════════════════════════════════════ */
 
@@ -525,52 +533,61 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   border-bottom: 1.5px solid var(--hairline);
 }
 
-/* Collapsible groups, on the page itself rather than in a card */
+/* Ingredients sit on their own white card; instructions stay on the page */
+.ingredients-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 1.1rem 1.25rem;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Collapsible groups. No visible toggle — the title itself is the
+   button, so tapping it opens/closes with nothing extra to look at. */
 .group { margin-bottom: 1.4rem; }
+.group:last-child { margin-bottom: 0; }
 .group-head {
-  display: flex; align-items: center; gap: .5rem;
+  display: block;
   width: 100%; text-align: left; padding: .2rem 0;
 }
-.chev {
-  width: .5rem; height: .5rem; flex: none;
-  border-right: 2px solid var(--dish); border-bottom: 2px solid var(--dish);
-  transform: rotate(45deg); margin-top: -.25rem;
-  transition: transform .28s var(--ease);
-}
-.group.is-closed .chev { transform: rotate(-45deg); margin-top: 0; }
 .group-name {
   font-family: var(--font-display);
   font-variation-settings: 'SOFT' 50, 'opsz' 40;
   font-size: 1.06rem; font-weight: 600; color: var(--dish); line-height: 1.25;
 }
+
+/* Grid-row trick: animating 1fr -> 0fr is smooth regardless of the
+   content's actual height, unlike animating max-height off a guessed cap. */
 .group-body {
-  overflow: hidden;
-  max-height: 200rem; opacity: 1;
-  transition: max-height .4s var(--ease), opacity .28s var(--ease), margin .3s var(--ease);
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows .45s var(--ease), opacity .35s var(--ease), margin-top .45s var(--ease);
   margin-top: .5rem;
 }
-.group.is-closed .group-body { max-height: 0; opacity: 0; margin-top: 0; }
+.group-body-inner { overflow: hidden; min-height: 0; }
+.group.is-closed .group-body { grid-template-rows: 0fr; opacity: 0; margin-top: 0; }
 
 .ing-list { list-style: none; display: flex; flex-direction: column; gap: .34rem; }
 .ing-list li { display: flex; gap: .6rem; font-size: .92rem; line-height: 1.45; }
 .ing-qty { font-family: var(--font-mono); font-size: .8rem; color: var(--dish); flex: none; min-width: 3.8rem; padding-top: .1rem; }
 .ing-name .ing-note { color: var(--muted); font-size: .86em; }
 
-.step-list { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: .7rem; }
+.step-list { list-style: none; display: flex; flex-direction: column; gap: .65rem; }
 .step-list li {
-  counter-increment: step;
-  display: flex; gap: .8rem;
+  display: flex; gap: .7rem;
   font-size: 1.02rem; line-height: 1.6;
+  color: var(--ink);
 }
 .step-list li::before {
-  content: counter(step);
+  content: '';
   flex: none;
-  font-family: var(--font-mono); font-size: .74rem;
-  color: var(--faint);
-  padding-top: .3rem; min-width: 1.2rem;
+  width: .28rem; height: .28rem; border-radius: 50%;
+  background: currentColor;
+  opacity: .55;
+  margin-top: .72rem;
 }
 .tip {
-  margin-top: .8rem; padding-left: 2rem;
+  margin-top: .8rem; padding-left: 1.2rem;
   font-size: .9rem; color: var(--ink-soft); font-style: italic;
 }
 
