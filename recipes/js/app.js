@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   List · search · sort · meal plan · grocery list · saved plans
+   Top modes (Recipes/Plan) · List/Tile/Orbit · search · sort ·
+   meal plan · grocery list · saved plans
    ═══════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -18,16 +19,19 @@
 
   const el = {
     meta: $('mastheadMeta'),
+    topInk: $('topInk'),
+    planCount: $('planCount'),
     search: $('search'),
     searchWrap: $('searchWrap'),
     searchClear: $('searchClear'),
     autofill: $('autofill'),
+    viewSelect: $('viewSelect'),
+    viewSelectWrap: $('viewSelectWrap'),
     sort: $('sort'),
     sortWrap: $('sortWrap'),
     list: $('recipeList'),
+    tileGrid: $('tileGrid'),
     controls: $('controls'),
-    modeInk: $('modeInk'),
-    planCount: $('planCount'),
     chosenList: $('chosenList'),
     chosenSub: $('chosenSub'),
     groceryList: $('groceryList'),
@@ -35,6 +39,9 @@
     copyBtn: $('copyBtn'),
     copyLabel: $('copyLabel'),
     spiceBtn: $('spiceBtn'),
+    trashBtn: $('trashBtn'),
+    trashCount: $('trashCount'),
+    undoBtn: $('undoBtn'),
     savedList: $('savedList'),
     publishBtn: $('publishBtn'),
     planName: $('planName'),
@@ -46,7 +53,8 @@
   /* ── State ───────────────────────────────────────────── */
 
   const state = {
-    view: 'list',
+    topMode: 'recipes',   // 'recipes' | 'plan'
+    subMode: 'list',      // 'list' | 'tile' | 'orbit' — remembered across a Plan visit
     query: '',
     sort: 'az',
     // plan: [{ slug, servings }]
@@ -54,8 +62,9 @@
     // edits: { "name|unit": { amount, removed } }
     edits: load(EDITS_KEY, {}),
     saved: load(SAVED_KEY, []),
+    selected: new Set(),  // grocery keys checked for bulk delete — transient, not persisted
     afIndex: -1,
-    animate: true, // only animate rows on a real content change
+    animate: true,        // only animate rows on a real content change
   };
 
   function load(key, fallback) {
@@ -196,8 +205,6 @@
     if (isDiscrete(u)) return 1;
     if (u === 'g') return 50;
     if (u === 'mL') return 50;
-    if (u === 'tbsp') return 1;
-    if (u === 'tsp') return 1;
     return 1;
   }
 
@@ -217,7 +224,8 @@
     }
     save(PLAN_KEY, state.plan);
     updatePlanCount();
-    patchRow(slug);      // no full re-render, so nothing flashes
+    patchRow(slug);
+    patchTile(slug);
     renderPlan();
   }
 
@@ -353,6 +361,7 @@
   const plusSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>';
   const checkSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.5 3 3 6-7"/></svg>';
   const xSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+  const arrowSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h7v7M13 3 3 13"/></svg>';
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, (c) => (
@@ -360,11 +369,46 @@
     ));
   }
 
+  /* ── Rendering: tile ─────────────────────────────────── */
+
+  function tileHtml(entry) {
+    const r = entry.recipe;
+    const on = planHas(r.slug);
+    return `
+      <div class="tile-item" style="--dish:${r.dish}" data-tile="${r.slug}">
+        <button class="tile-toggle${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
+          <span class="tile-check" aria-hidden="true">${checkSvg()}</span>
+          <span class="tile-title">${esc(r.title)}</span>
+          <span class="tile-time">${esc(r.time)}</span>
+        </button>
+        <a class="tile-open" href="recipe.html?r=${encodeURIComponent(r.slug)}" aria-label="Open ${esc(r.title)}">${arrowSvg()}</a>
+      </div>`;
+  }
+
+  function renderTiles() {
+    const res = results();
+    if (!res.length) {
+      el.tileGrid.innerHTML = '<div class="empty"><strong>Nothing matches that.</strong>Try an ingredient — tahini, chard, lime.</div>';
+      return;
+    }
+    el.tileGrid.classList.toggle('no-anim', !state.animate);
+    el.tileGrid.innerHTML = res.map(({ entry }) => tileHtml(entry)).join('');
+  }
+
+  function patchTile(slug) {
+    const item = el.tileGrid.querySelector(`[data-tile="${slug}"]`);
+    if (!item) return;
+    const on = planHas(slug);
+    const btn = item.querySelector('.tile-toggle');
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', String(on));
+  }
+
   /* ── Autofill (orbit) ────────────────────────────────── */
 
   function renderAutofill() {
     const q = state.query.trim().toLowerCase();
-    if (state.view !== 'orbit' || !q) {
+    if (state.subMode !== 'orbit' || !q) {
       el.autofill.classList.remove('is-on');
       el.autofill.innerHTML = '';
       state.afIndex = -1;
@@ -391,7 +435,7 @@
   function renderChosen() {
     if (!state.plan.length) {
       el.chosenSub.textContent = 'Nothing picked yet';
-      el.chosenList.innerHTML = '<p class="muted-note">Add recipes from the List tab. Their ingredients land here, sorted by aisle.</p>';
+      el.chosenList.innerHTML = '<p class="muted-note">Add recipes from the Recipes tab. Their ingredients land here, sorted by aisle.</p>';
       return;
     }
     el.chosenSub.textContent = `${state.plan.length} ${state.plan.length === 1 ? 'recipe' : 'recipes'}`;
@@ -410,8 +454,8 @@
             <span class="serv-n">${p.servings}</span>
             <span class="serv-u">${esc(r.servings.unit)}</span>
             <button class="step-btn" data-sinc="${p.slug}" aria-label="More">+</button>
-            ${changed ? `<span class="serv-note">recipe makes ${r.servings.n}</span>` : ''}
           </div>
+          <p class="serv-note" style="visibility:${changed ? 'visible' : 'hidden'}">recipe makes ${r.servings.n}</p>
         </div>`;
     }).join('');
   }
@@ -421,12 +465,19 @@
     const total = groups.reduce((n, g) => n + g.items.length, 0);
     const hasSpices = groups.some((g) => g.aisle === SPICE_AISLE);
 
+    // A key that no longer exists on the list can't stay selected
+    const validKeys = new Set();
+    groups.forEach((g) => g.items.forEach((it) => validKeys.add(it.key)));
+    Array.from(state.selected).forEach((k) => { if (!validKeys.has(k)) state.selected.delete(k); });
+
     el.copyBtn.disabled = total === 0;
     el.publishBtn.disabled = total === 0;
     el.spiceBtn.style.display = hasSpices ? '' : 'none';
     el.grocerySub.textContent = total
       ? `${total} ${total === 1 ? 'item' : 'items'} · ${groups.length} ${groups.length === 1 ? 'aisle' : 'aisles'}`
       : 'By aisle';
+
+    updateToolbar();
 
     if (!total) {
       el.groceryList.innerHTML = '<p class="muted-note">Your list builds itself once you pick a recipe.</p>';
@@ -439,8 +490,13 @@
         ${g.items.map((it) => {
           const note = Array.from(it.notes)[0] || '';
           const from = Array.from(it.from).join(', ');
+          const checked = state.selected.has(it.key);
           return `
-          <div class="g-item" data-key="${esc(it.key)}">
+          <div class="g-item${checked ? ' is-selected' : ''}" data-key="${esc(it.key)}">
+            <label class="g-check">
+              <input type="checkbox" data-select="${esc(it.key)}" ${checked ? 'checked' : ''} aria-label="Select ${esc(it.name)}" />
+              <span class="box">${checkSvg()}</span>
+            </label>
             <span class="g-name">${esc(it.name)}</span>
             <span class="g-amount${it.hasQty ? '' : ' is-loose'}">
               ${it.hasQty ? `<button class="step-btn" data-dec="${esc(it.key)}" aria-label="Less ${esc(it.name)}">−</button>` : ''}
@@ -452,7 +508,6 @@
               ${it.rounded ? `<span class="g-round">rounded up from ${esc(fmtQty(it.roundedFrom))}</span>` : ''}
               <span class="g-from">${esc(from)}</span>
             </span>
-            <button class="icon-btn" data-drop="${esc(it.key)}" aria-label="Remove ${esc(it.name)} — already have it">${xSvg()}</button>
           </div>`;
         }).join('')}
       </div>`).join('');
@@ -473,6 +528,55 @@
   }
 
   function cssEscape(s) { return s.replace(/["\\]/g, '\\$&'); }
+
+  function updateToolbar() {
+    const n = state.selected.size;
+    el.trashBtn.disabled = n === 0;
+    el.trashCount.textContent = n || '';
+    el.trashCount.classList.toggle('is-on', n > 0);
+    el.undoBtn.disabled = !lastBatch;
+  }
+
+  /* ── Batch undo for the grocery list only ─────────────── */
+  /* Tracks just the most recent grocery action (a bulk delete, or one
+     amount tweak) so Undo can put it back exactly — separate from
+     anything else you do on the page. */
+  let lastBatch = null;
+
+  function recordBatch(keys) {
+    const snapshot = {};
+    keys.forEach((k) => { snapshot[k] = state.edits[k]; });
+    lastBatch = { snapshot, keys: keys.slice() };
+  }
+
+  function undoLastBatch() {
+    if (!lastBatch) return;
+    const keys = lastBatch.keys;
+    restoreEdits(lastBatch.snapshot);
+    lastBatch = null;
+    updateToolbar(); // restoreEdits already rendered once, while the batch still existed
+    flashKeys(keys);
+  }
+
+  function restoreEdits(snapshot) {
+    Object.keys(snapshot).forEach((k) => {
+      if (snapshot[k] === undefined) delete state.edits[k];
+      else state.edits[k] = snapshot[k];
+    });
+    save(EDITS_KEY, state.edits);
+    renderGroceries();
+  }
+
+  function flashKeys(keys) {
+    requestAnimationFrame(() => {
+      keys.forEach((k) => {
+        const row = el.groceryList.querySelector(`[data-key="${cssEscape(k)}"]`);
+        if (!row) return;
+        row.classList.add('is-restored');
+        setTimeout(() => row.classList.remove('is-restored'), 1300);
+      });
+    });
+  }
 
   /* ── Saved plans ─────────────────────────────────────── */
 
@@ -538,6 +642,7 @@
     save(EDITS_KEY, state.edits);
     updatePlanCount();
     renderList();
+    renderTiles();
     renderPlan();
     return true;
   }
@@ -587,8 +692,6 @@
   let toastTimer;
   let undoAction = null;
 
-  /* A plain message, or one with an undo action attached (dismisses on
-     its own timer either way, but a click on Undo reverts it first). */
   function toast(msg, onUndo) {
     el.toastMsg.textContent = msg;
     undoAction = onUndo || null;
@@ -605,72 +708,149 @@
     undoAction = null;
   });
 
-  /* ── Views ───────────────────────────────────────────── */
+  /* ── Masthead stats ──────────────────────────────────── */
 
-  function setView(view) {
-    state.view = view;
-    document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
-    $(`view-${view}`).classList.add('is-active');
-    document.querySelectorAll('.mode-btn').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
-    moveInk();
+  function computeStats() {
+    const stats = [`${RECIPES.length} recipes`];
 
-    // Search is for finding recipes; the plan is already chosen.
-    // display:none (not visibility) so it doesn't leave a gap in the bar.
-    el.searchWrap.style.display = view === 'plan' ? 'none' : '';
-    el.sortWrap.style.display = view === 'list' ? '' : 'none';
-    el.search.placeholder = view === 'orbit' ? 'Search and spin to it' : 'Search recipes and ingredients';
+    const newest = RECIPES.reduce((a, b) => (a.order > b.order ? a : b), RECIPES[0]);
+    if (newest) stats.push(`Newest: ${newest.title}`);
 
-    renderAutofill();
+    const quickest = RECIPES.reduce((a, b) => (parseInt(a.time, 10) <= parseInt(b.time, 10) ? a : b), RECIPES[0]);
+    if (quickest) stats.push(`Quickest: ${quickest.title} — ${quickest.time}`);
 
-    if (view === 'orbit') {
-      if (window.OrbitAPI) window.OrbitAPI.resume();
-      else setTimeout(() => {
-        if (state.view !== 'orbit') return;
-        if (window.OrbitAPI) window.OrbitAPI.resume();
-        else { $('orbitFallback').classList.add('is-on'); $('orbitStage').style.display = 'none'; }
-      }, 1200);
-    } else if (window.OrbitAPI) {
-      window.OrbitAPI.pause();
-    }
+    const ingredientCount = new Map();
+    const uniqueIngredients = new Set();
+    RECIPES.forEach((r) => {
+      const seenInThisRecipe = new Set();
+      r.components.forEach((c) => c.ingredients.forEach((ing) => {
+        const name = (ing.buyAs || ing.n).toLowerCase();
+        uniqueIngredients.add(name);
+        if (!seenInThisRecipe.has(name)) {
+          seenInThisRecipe.add(name);
+          ingredientCount.set(name, (ingredientCount.get(name) || 0) + 1);
+        }
+      }));
+    });
+    stats.push(`${uniqueIngredients.size} different ingredients across the collection`);
 
-    if (!location.hash.startsWith('#list=')) {
-      history.replaceState(null, '', view === 'list' ? location.pathname : `#${view}`);
-    }
+    let topName = null, topCount = 0;
+    ingredientCount.forEach((count, name) => { if (count > topCount) { topCount = count; topName = name; } });
+    if (topName && topCount > 1) stats.push(`${cap(topName)} shows up in ${topCount} of ${RECIPES.length} recipes`);
+
+    return stats;
   }
 
-  function moveInk() {
-    const active = document.querySelector('.mode-btn[aria-selected="true"]');
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function startStatRotator() {
+    const stats = computeStats();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let i = 0;
+
+    el.meta.innerHTML = `<span class="stat is-on">${esc(stats[0])}</span>`;
+    if (stats.length < 2 || reduceMotion) return;
+
+    setInterval(() => {
+      const next = (i + 1) % stats.length;
+      const cur = el.meta.querySelector('.stat.is-on');
+      if (cur) cur.classList.remove('is-on');
+      const fresh = document.createElement('span');
+      fresh.className = 'stat';
+      fresh.textContent = stats[next];
+      el.meta.appendChild(fresh);
+      requestAnimationFrame(() => fresh.classList.add('is-on'));
+      setTimeout(() => { if (cur) cur.remove(); }, 600);
+      i = next;
+    }, 4200);
+  }
+
+  /* ── Views ───────────────────────────────────────────── */
+
+  function setTopMode(mode) {
+    state.topMode = mode;
+    document.querySelectorAll('.top-btn').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.top === mode)));
+    moveTopInk();
+    el.controls.style.display = mode === 'recipes' ? '' : 'none';
+    syncViews();
+    if (mode === 'plan' && window.OrbitAPI) window.OrbitAPI.pause();
+    else if (mode === 'recipes' && state.subMode === 'orbit') resumeOrbit();
+    updateHash();
+  }
+
+  function setSubMode(mode) {
+    state.subMode = mode;
+    el.viewSelect.value = mode;
+    syncViews();
+    el.sortWrap.style.display = mode === 'orbit' ? 'none' : '';
+    el.search.placeholder = mode === 'orbit' ? 'Search and spin to it' : 'Search recipes and ingredients';
+    renderAutofill();
+    if (mode === 'orbit') resumeOrbit();
+    else if (window.OrbitAPI) window.OrbitAPI.pause();
+    updateHash();
+  }
+
+  function syncViews() {
+    document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
+    if (state.topMode === 'plan') { $('view-plan').classList.add('is-active'); }
+    else { $(`view-${state.subMode}`).classList.add('is-active'); }
+  }
+
+  function resumeOrbit() {
+    if (window.OrbitAPI) { window.OrbitAPI.resume(); return; }
+    setTimeout(() => {
+      if (!(state.topMode === 'recipes' && state.subMode === 'orbit')) return;
+      if (window.OrbitAPI) window.OrbitAPI.resume();
+      else { $('orbitFallback').classList.add('is-on'); $('orbitStage').style.display = 'none'; }
+    }, 1200);
+  }
+
+  function updateHash() {
+    if (location.hash.startsWith('#list=')) return; // a shared-plan link owns the hash on load
+    let h = '';
+    if (state.topMode === 'plan') h = 'plan';
+    else if (state.subMode !== 'list') h = state.subMode;
+    history.replaceState(null, '', h ? `#${h}` : location.pathname);
+  }
+
+  function moveTopInk() {
+    const active = document.querySelector('.top-btn[aria-selected="true"]');
     if (!active) return;
-    el.modeInk.style.width = `${active.offsetWidth}px`;
-    el.modeInk.style.transform = `translateX(${active.offsetLeft - 3}px)`;
+    el.topInk.style.width = `${active.offsetWidth}px`;
+    el.topInk.style.transform = `translateX(${active.offsetLeft - 4}px)`;
   }
 
   function updatePlanCount() {
     el.planCount.textContent = state.plan.length ? ` ${state.plan.length}` : '';
-    moveInk();
+    moveTopInk();
   }
 
   /* ── Init ────────────────────────────────────────────── */
 
   function init() {
-    el.meta.textContent = `${RECIPES.length} recipes`;
+    startStatRotator();
 
     // A shared plan link wins over whatever is stored locally
     const shared = location.hash.startsWith('#list=') ? decodePlan(location.hash.slice(6)) : null;
 
     updatePlanCount();
     renderList();
+    renderTiles();
     renderPlan();
     state.animate = false; // entry animation is a first-paint thing only
 
-    moveInk();
-    requestAnimationFrame(moveInk);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveInk);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) moveInk(); });
+    moveTopInk();
+    requestAnimationFrame(moveTopInk);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveTopInk);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) moveTopInk(); });
 
     if (shared && loadPlanPayload(shared)) {
-      setView('plan');
+      setTopMode('plan');
       toast(shared.n ? `Opened "${shared.n}"` : 'Opened shared list');
+    } else {
+      const hash = location.hash.replace('#', '');
+      if (hash === 'plan') setTopMode('plan');
+      else if (hash === 'tile' || hash === 'orbit') setSubMode(hash);
     }
 
     // Search
@@ -679,11 +859,12 @@
       state.afIndex = -1;
       el.searchClear.classList.toggle('is-on', !!state.query);
       renderList();
+      renderTiles();
       renderAutofill();
     });
 
     el.search.addEventListener('keydown', (e) => {
-      if (state.view !== 'orbit' || !el.autofill.classList.contains('is-on')) {
+      if (state.subMode !== 'orbit' || !el.autofill.classList.contains('is-on')) {
         if (e.key === 'Escape') { el.search.value = ''; el.search.dispatchEvent(new Event('input')); }
         return;
       }
@@ -702,6 +883,7 @@
       state.query = '';
       el.searchClear.classList.remove('is-on');
       renderList();
+      renderTiles();
       renderAutofill();
       el.search.focus();
     });
@@ -720,19 +902,23 @@
     el.sort.addEventListener('change', () => {
       state.sort = el.sort.value;
       renderList();
+      renderTiles();
     });
 
-    document.querySelectorAll('.mode-btn').forEach((b) => {
-      b.addEventListener('click', () => setView(b.dataset.view));
+    el.viewSelect.addEventListener('change', () => setSubMode(el.viewSelect.value));
+
+    document.querySelectorAll('.top-btn').forEach((b) => {
+      b.addEventListener('click', () => setTopMode(b.dataset.top));
     });
 
-    // The whole row is the link; the plan button opts out.
+    // The whole row/tile is the link; the plan button opts out.
     el.list.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-plan]');
-      if (btn) {
-        e.preventDefault();
-        togglePlan(btn.dataset.plan);
-      }
+      if (btn) { e.preventDefault(); togglePlan(btn.dataset.plan); }
+    });
+    el.tileGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-plan]');
+      if (btn) { e.preventDefault(); togglePlan(btn.dataset.plan); }
     });
 
     // Chosen recipes: remove, and servings steppers
@@ -745,76 +931,69 @@
       if (inc) { const p = planEntry(inc.dataset.sinc); if (p) setServings(p.slug, p.servings + 1); }
     });
 
-    // Grocery list edits
-    el.groceryList.addEventListener('click', (e) => {
-      const drop = e.target.closest('[data-drop]');
-      const dec = e.target.closest('[data-dec]');
-      const inc = e.target.closest('[data-inc]');
-
-      if (drop) {
-        const key = drop.dataset.drop;
-        const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
-        const name = row ? row.querySelector('.g-name').textContent.trim() : 'item';
-        removeGroceryKey(key, name);
-        return;
-      }
-
-      if (dec || inc) {
-        const key = (dec || inc).dataset[dec ? 'dec' : 'inc'];
-        const groups = compileGroceries();
-        let cur = null;
-        groups.forEach((g) => g.items.forEach((it) => { if (it.key === key) cur = it; }));
-        if (!cur || !cur.hasQty) return;
-
-        const step = stepFor(cur.unit);
-        let next = dec ? cur.qty - step : cur.qty + step;
-        next = Math.max(0, Math.round(next * 100) / 100);
-
-        if (next === 0) {
-          removeGroceryKey(key, cur.name);
-        } else {
-          state.edits[key] = Object.assign({}, state.edits[key], { amount: next, removed: false });
-          save(EDITS_KEY, state.edits);
-          patchAmount(key);
-        }
-      }
+    // Grocery list: checkbox selection + amount steppers
+    el.groceryList.addEventListener('change', (e) => {
+      const box = e.target.closest('[data-select]');
+      if (!box) return;
+      const key = box.dataset.select;
+      if (box.checked) state.selected.add(key); else state.selected.delete(key);
+      box.closest('.g-item').classList.toggle('is-selected', box.checked);
+      updateToolbar();
     });
 
-    /* Remove one grocery line, with an Undo that restores its exact
-       prior edit state (not just "un-removed" — a prior amount tweak
-       comes back too). */
-    function removeGroceryKey(key, name) {
-      const prev = state.edits[key];
-      state.edits[key] = Object.assign({}, prev, { removed: true });
-      save(EDITS_KEY, state.edits);
-      const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
-      if (row) row.remove();
-      renderGroceries();
-      toast(`Removed ${name}`, () => restoreEdits({ [key]: prev }));
-    }
+    el.groceryList.addEventListener('click', (e) => {
+      const dec = e.target.closest('[data-dec]');
+      const inc = e.target.closest('[data-inc]');
+      if (!dec && !inc) return;
 
-    function restoreEdits(snapshot) {
-      Object.keys(snapshot).forEach((k) => {
-        if (snapshot[k] === undefined) delete state.edits[k];
-        else state.edits[k] = snapshot[k];
-      });
+      const key = (dec || inc).dataset[dec ? 'dec' : 'inc'];
+      const groups = compileGroceries();
+      let cur = null;
+      groups.forEach((g) => g.items.forEach((it) => { if (it.key === key) cur = it; }));
+      if (!cur || !cur.hasQty) return;
+
+      recordBatch([key]);
+
+      const step = stepFor(cur.unit);
+      let next = dec ? cur.qty - step : cur.qty + step;
+      next = Math.max(0, Math.round(next * 100) / 100);
+
+      if (next === 0) {
+        state.edits[key] = Object.assign({}, state.edits[key], { removed: true });
+        save(EDITS_KEY, state.edits);
+        const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
+        if (row) row.remove();
+        renderGroceries();
+      } else {
+        state.edits[key] = Object.assign({}, state.edits[key], { amount: next, removed: false });
+        save(EDITS_KEY, state.edits);
+        patchAmount(key);
+      }
+      updateToolbar();
+    });
+
+    // Trash: delete everything checked, as one undo-able batch
+    el.trashBtn.addEventListener('click', () => {
+      const keys = Array.from(state.selected);
+      if (!keys.length) return;
+      recordBatch(keys);
+      keys.forEach((k) => { state.edits[k] = Object.assign({}, state.edits[k], { removed: true }); });
+      state.selected.clear();
       save(EDITS_KEY, state.edits);
       renderGroceries();
-    }
+      toast(`Removed ${keys.length} ${keys.length === 1 ? 'item' : 'items'}`, undoLastBatch);
+    });
 
-    // Clear the spice shelf — you almost always have these already
+    el.undoBtn.addEventListener('click', undoLastBatch);
+
+    // Select spices — just checks their boxes, Trash does the deleting
     el.spiceBtn.addEventListener('click', () => {
       const groups = compileGroceries();
       const spices = groups.find((g) => g.aisle === SPICE_AISLE);
       if (!spices) return;
-      const snapshot = {};
-      spices.items.forEach((it) => {
-        snapshot[it.key] = state.edits[it.key];
-        state.edits[it.key] = Object.assign({}, state.edits[it.key], { removed: true });
-      });
-      save(EDITS_KEY, state.edits);
+      spices.items.forEach((it) => state.selected.add(it.key));
       renderGroceries();
-      toast(`Cleared ${spices.items.length} spices`, () => restoreEdits(snapshot));
+      toast(`Selected ${spices.items.length} spices — tap Trash to remove`);
     });
 
     el.copyBtn.addEventListener('click', async () => {
@@ -862,10 +1041,7 @@
       ).observe(sentinel);
     }
 
-    window.addEventListener('resize', moveInk);
-
-    const hash = location.hash.replace('#', '');
-    if ((hash === 'orbit' || hash === 'plan') && !shared) setView(hash);
+    window.addEventListener('resize', moveTopInk);
 
     // Orbit hands recipes back to the plan
     window.addEventListener('orbit:plan', (e) => {

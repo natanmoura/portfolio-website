@@ -81,12 +81,17 @@
 
   function renderServings() {
     const changed = servings !== recipe.servings.n;
+    // The note always occupies its own line beneath the stepper — a
+    // fixed slot that's just visibility:hidden when unneeded, so its
+    // appearing/disappearing never shifts the button beside it.
     elServe.innerHTML = `
-      <button class="step-btn" id="sDec" aria-label="Fewer ${esc(recipe.servings.unit)}">−</button>
-      <span class="serv-n">${servings}</span>
-      <span class="serv-u">${esc(recipe.servings.unit)}</span>
-      <button class="step-btn" id="sInc" aria-label="More ${esc(recipe.servings.unit)}">+</button>
-      ${changed ? `<span class="serv-note">recipe makes ${recipe.servings.n}</span>` : ''}`;
+      <div class="stepper-row">
+        <button class="step-btn" id="sDec" aria-label="Fewer ${esc(recipe.servings.unit)}">−</button>
+        <span class="serv-n">${servings}</span>
+        <span class="serv-u">${esc(recipe.servings.unit)}</span>
+        <button class="step-btn" id="sInc" aria-label="More ${esc(recipe.servings.unit)}">+</button>
+      </div>
+      <p class="serv-note" style="visibility:${changed ? 'visible' : 'hidden'}">recipe makes ${recipe.servings.n}</p>`;
 
     document.getElementById('sDec').onclick = () => { servings = Math.max(1, servings - 1); afterServings(); };
     document.getElementById('sInc').onclick = () => { servings += 1; afterServings(); };

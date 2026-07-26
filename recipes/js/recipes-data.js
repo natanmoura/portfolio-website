@@ -51,17 +51,15 @@ const RECIPES = [
     order: 1,
     components: [
       {
-        name: 'Spinach & Peppers',
+        name: 'Spinach',
         ingredients: [
           { q: 6, u: 'oz', n: 'fresh spinach', aisle: 'Produce', note: 'or 1 cup frozen, thawed and squeezed dry', buy: { q: 170, u: 'g' } },
-          { q: 1, u: null, n: 'bell pepper', aisle: 'Produce', note: 'diced, or ½ cup sun-dried tomato' },
           { q: 1, u: 'tsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch' },
         ],
         steps: [
           'Heat 1 tsp olive oil in a medium skillet over medium heat.',
-          'Add the diced peppers and cook 2–3 minutes.',
-          'Add the spinach and a pinch of salt. Cook until wilted, another 3–5 minutes.',
+          'Add the spinach and a pinch of salt. Cook until wilted, 3–5 minutes.',
           'Set aside to cool slightly.',
         ],
       },
@@ -85,7 +83,7 @@ const RECIPES = [
           'Preheat the oven to 400°F. Spray a standard muffin tin or line it.',
           'Whisk the milk, yogurt, neutral oil and eggs together in a large bowl.',
           'Add the flour, baking powder, baking soda, salt, oregano and black pepper. Fold until just combined.',
-          'Fold in the cooked spinach and peppers, the scallions and the feta.',
+          'Fold in the cooked spinach, the scallions and the feta.',
           'Fill each cavity to the top. Grind extra black pepper over them.',
           'Bake 20–25 minutes on the centre rack, until golden and a skewer comes out clean.',
           'Rest 3–4 minutes, then move to a wire rack — or tilt them in the tin to keep the bottoms crisp.',
@@ -305,7 +303,7 @@ const RECIPES = [
 
   {
     slug: 'high-protein-tofu-souvlaki-bowls',
-    title: 'High Protein Tofu Souvlaki Bowls',
+    title: 'Tofu Souvlaki Bowls',
     dish: '#66753C',
     time: '40 min',
     servings: { n: 3, unit: 'servings' },
