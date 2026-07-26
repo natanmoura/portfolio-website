@@ -319,6 +319,16 @@
     return { q: Math.round(q * 4) / 4, u, rounded: false, from: q };
   }
 
+  /* Express a per-recipe base contribution in the item's final display
+     unit, for the recipe-breakdown shown in the copied grocery text.
+     No round-up here (that's only for what you'd actually buy in
+     total) — just a readable number for "which recipe needs how much". */
+  function displayAmount(base, unit) {
+    const mult = TO_BASE[unit];
+    const q = mult ? base / mult : base;
+    return Math.round(q * 100) / 100;
+  }
+
   /* How much a +/- press moves, in whatever unit is being shown. */
   function stepFor(u) {
     if (u === null || isDiscrete(u)) return 1;
@@ -391,12 +401,15 @@
               hasQty: false,
               notes: new Set(),
               from: new Set(),
+              fromBase: new Map(), // recipe title -> base qty this recipe alone contributed
             });
           }
           const it = map.get(key);
           if (buy.q !== null && buy.q !== undefined) {
-            it.base += toBase(buy.q * factor, unit);
+            const contrib = toBase(buy.q * factor, unit);
+            it.base += contrib;
             it.hasQty = true;
+            it.fromBase.set(r.title, (it.fromBase.get(r.title) || 0) + contrib);
           }
           if (ing.buyNote) it.notes.add(ing.buyNote);
           it.from.add(r.title);
@@ -414,15 +427,20 @@
         it.unit = edit.unit === undefined ? null : edit.unit;
         it.rounded = false;
         it.hasQty = true;
+        it.fromBreakdown = null; // hand-edited amount — per-recipe split no longer meaningful
       } else if (it.hasQty) {
         const f = finalizeAmount(it.base, it.family);
         it.qty = f.q;
         it.unit = f.u;
         it.rounded = f.rounded;
         it.roundedFrom = f.from;
+        it.fromBreakdown = Array.from(it.fromBase.entries())
+          .map(([title, base]) => ({ title, qty: displayAmount(base, it.unit) }))
+          .sort((a, b) => a.title.localeCompare(b.title));
       } else {
         it.qty = null;
         it.unit = null;
+        it.fromBreakdown = null; // no measured quantity (e.g. salt/pepper "to taste") — nothing to split
       }
       items.push(it);
     });
@@ -899,15 +917,23 @@
     }
   }
 
+  /* The recipe block up top and each item's (via ...) breakdown exist so
+     a downstream tool (the saveonfoods-shopping Claude Code skill) can
+     tell which recipe needs how much of a given item without recomputing
+     the grocery merge itself — e.g. to know what to remove from a cart
+     if a recipe drops off the plan. Keep this machine-parseable: one
+     recipe per line under the header, breakdown always in the same
+     "Title Nunit" shape. */
   function groceryText() {
     const groups = compileGroceries();
     const lines = ['Moura Boys Forever Recipes — grocery list'];
-    const names = state.plan.map((p) => {
+
+    lines.push('RECIPES IN THIS LIST');
+    state.plan.forEach((p) => {
       const r = recipeBySlug(p.slug);
-      if (!r) return '';
-      return p.servings === r.servings.n ? r.title : `${r.title} (${p.servings} ${r.servings.unit})`;
-    }).filter(Boolean);
-    if (names.length) lines.push(names.join(', '));
+      if (!r) return;
+      lines.push(`- ${r.title} — ${p.servings} ${p.servings === 1 ? r.servings.unit.replace(/s$/, '') : r.servings.unit}`);
+    });
     lines.push('');
 
     groups.forEach((g) => {
@@ -915,7 +941,13 @@
       g.items.forEach((it) => {
         const amt = fmtAmount(it.qty, it.unit);
         const note = Array.from(it.notes)[0];
-        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}${note ? ` (${note})` : ''}`);
+        let breakdown = '';
+        if (it.fromBreakdown && it.fromBreakdown.length > 1) {
+          breakdown = ` (via ${it.fromBreakdown.map((b) => `${b.title} ${fmtAmount(b.qty, it.unit)}`).join(', ')})`;
+        } else if (it.from.size) {
+          breakdown = ` (via ${Array.from(it.from).join(', ')})`;
+        }
+        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}${note ? ` (${note})` : ''}${breakdown}`);
       });
       lines.push('');
     });
