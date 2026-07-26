@@ -2,8 +2,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000;
-const ROOT = 'C:\\Users\\User\\Documents\\projects\\portfolio-website';
+const PORT = Number(process.env.PORT || process.argv[2] || 3000);
+const ROOT = path.resolve(__dirname, '..');
 
 const mime = {
   '.html': 'text/html',
