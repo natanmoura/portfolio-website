@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Recipe — The Moura Boy Forever Recipes</title>
+  <title>Recipe — Moura Boys Forever Recipes</title>
   <meta name="robots" content="noindex" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤤</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=2" />
+  <link rel="stylesheet" href="css/recipes.css?v=4" />
 </head>
 <body>
 
@@ -20,16 +20,26 @@
         All recipes
       </a>
       <h1 id="title">…</h1>
-      <p class="recipe-meta" id="meta"></p>
+      <div class="recipe-bar">
+        <p class="recipe-meta" id="meta"></p>
+        <div class="servings" id="servings"></div>
+        <button class="plan-btn" id="planBtn"></button>
+      </div>
     </header>
 
     <div class="cook-grid" id="cookGrid">
-      <aside class="panel ingredients-panel" id="ingredients"></aside>
-      <div class="steps-area" id="steps"></div>
+      <aside class="ingredients-panel">
+        <h2 class="col-head">Ingredients</h2>
+        <div id="ingredients"></div>
+      </aside>
+      <div class="method">
+        <h2 class="col-head">Method</h2>
+        <div id="steps"></div>
+      </div>
     </div>
   </div>
 
-  <script src="js/recipes-data.js?v=1"></script>
-  <script src="js/cook.js?v=1"></script>
+  <script src="js/recipes-data.js?v=2"></script>
+  <script src="js/cook.js?v=2"></script>
 </body>
 </html>

@@ -20,6 +20,7 @@ const card = document.getElementById('orbitCard');
 const cardTitle = document.getElementById('orbitCardTitle');
 const cardMeta = document.getElementById('orbitCardMeta');
 const cardOpen = document.getElementById('orbitCardOpen');
+const cardPlan = document.getElementById('orbitCardPlan');
 const dice = document.getElementById('diceBtn');
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -81,11 +82,12 @@ function build() {
     group.add(sprite);
     bubbles.push(sprite);
 
+    // A tap always brings the bubble round to the front — same move as
+    // picking one out of the search box. Opening is the card's job.
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       if (moved > 8) return;          // that was a drag, not a tap
-      if (focused === sprite) openRecipe(r);
-      else focus(sprite);
+      focus(sprite);
     });
   });
 
@@ -155,6 +157,11 @@ function bindPointer() {
   });
 
   dice.addEventListener('click', roll);
+
+  cardPlan.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent('orbit:plan', { detail: { slug: cardPlan.dataset.slug } }));
+  });
 }
 
 function spin(dx, dy) {
@@ -179,15 +186,22 @@ function focus(sprite, dur = 0.85) {
   vel.x = 0;
   vel.y = 0;
 
-  const r = sprite.userData.recipe;
+  paintCard(sprite.userData.recipe);
+  hideHint();
+}
+
+function paintCard(r) {
   cardTitle.textContent = r.title;
-  cardMeta.textContent = r.meta;
+  cardMeta.textContent = `${r.servings.n} ${r.servings.unit} · ${r.time}`;
   cardOpen.href = `recipe.html?r=${encodeURIComponent(r.slug)}`;
   card.style.setProperty('--dish', r.dish);
-  card.classList.add('is-on');
-  hideHint();
 
-  window.dispatchEvent(new CustomEvent('orbit:pick', { detail: { slug: r.slug } }));
+  const inPlan = window.OrbitPlanHas ? window.OrbitPlanHas(r.slug) : false;
+  cardPlan.classList.toggle('is-on', inPlan);
+  cardPlan.textContent = inPlan ? 'In plan' : 'Add to plan';
+  cardPlan.dataset.slug = r.slug;
+
+  card.classList.add('is-on');
 }
 
 function blur() {
@@ -304,6 +318,9 @@ window.OrbitAPI = {
     this.resume();
     const b = bubbles.find((x) => x.userData.recipe.slug === slug);
     if (b) focus(b, 1);
+  },
+  refreshCard() {
+    if (focused) paintCard(focused.userData.recipe);
   },
 };
 

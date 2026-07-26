@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   List · search · sort · meal plan · grocery list
+   List · search · sort · meal plan · grocery list · saved plans
    ═══════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -7,17 +7,23 @@
 
   const RECIPES = window.RECIPES || [];
   const AISLES = window.AISLES || [];
-  const PLAN_KEY = 'mbfr.plan.v1';
-  const EDITS_KEY = 'mbfr.edits.v1';
+  const DISCRETE = window.DISCRETE_UNITS || [null, '', 'bunch', 'can', 'block', 'head', 'jar', 'pack'];
+
+  const PLAN_KEY = 'mbfr.plan.v2';
+  const EDITS_KEY = 'mbfr.edits.v2';
+  const SAVED_KEY = 'mbfr.saved.v1';
+  const SPICE_AISLE = 'Spices & Dried Herbs';
 
   const $ = (id) => document.getElementById(id);
 
   const el = {
     meta: $('mastheadMeta'),
     search: $('search'),
+    searchWrap: $('searchWrap'),
     searchClear: $('searchClear'),
     autofill: $('autofill'),
     sort: $('sort'),
+    sortWrap: $('sortWrap'),
     list: $('recipeList'),
     controls: $('controls'),
     modeInk: $('modeInk'),
@@ -28,6 +34,10 @@
     grocerySub: $('grocerySub'),
     copyBtn: $('copyBtn'),
     copyLabel: $('copyLabel'),
+    spiceBtn: $('spiceBtn'),
+    savedList: $('savedList'),
+    publishBtn: $('publishBtn'),
+    planName: $('planName'),
     toast: $('toast'),
   };
 
@@ -37,10 +47,13 @@
     view: 'list',
     query: '',
     sort: 'az',
+    // plan: [{ slug, servings }]
     plan: load(PLAN_KEY, []),
-    // { "name|unit": { amount: n, removed: bool } }
+    // edits: { "name|unit": { amount, removed } }
     edits: load(EDITS_KEY, {}),
+    saved: load(SAVED_KEY, []),
     afIndex: -1,
+    animate: true, // only animate rows on a real content change
   };
 
   function load(key, fallback) {
@@ -57,11 +70,11 @@
 
   const index = RECIPES.map((r) => {
     const ingredients = [];
-    const stepWords = [];
+    const body = [];
     r.components.forEach((c) => {
       c.ingredients.forEach((i) => ingredients.push(i.n));
-      c.steps.forEach((s) => stepWords.push(s));
-      stepWords.push(c.name);
+      c.steps.forEach((s) => body.push(s));
+      body.push(c.name);
     });
     return {
       slug: r.slug,
@@ -69,7 +82,7 @@
       title: r.title.toLowerCase(),
       ingredients: ingredients.map((s) => s.toLowerCase()),
       ingredientLabel: dedupe(ingredients),
-      body: stepWords.join(' ').toLowerCase(),
+      body: body.join(' ').toLowerCase(),
     };
   });
 
@@ -83,16 +96,13 @@
     });
   }
 
-  /* Name first, then ingredients, then anything in the method. */
   function score(entry, q) {
     if (!q) return 1;
     const t = entry.title;
     if (t === q) return 1000;
     if (t.startsWith(q)) return 900;
     if (t.includes(q)) return 800;
-
-    const words = t.split(/\s+/);
-    if (words.some((w) => w.startsWith(q))) return 700;
+    if (t.split(/\s+/).some((w) => w.startsWith(q))) return 700;
 
     let best = 0;
     for (const ing of entry.ingredients) {
@@ -101,14 +111,12 @@
       if (ing.includes(q)) best = Math.max(best, 500);
     }
     if (best) return best;
-
     if (entry.body.includes(q)) return 200;
     return 0;
   }
 
   function matched(entry, q) {
-    if (!q) return null;
-    if (entry.title.includes(q)) return null;
+    if (!q || entry.title.includes(q)) return null;
     const ing = entry.ingredientLabel.find((i) => i.toLowerCase().includes(q));
     if (ing) return ing;
     if (entry.body.includes(q)) return 'in the method';
@@ -117,15 +125,12 @@
 
   function results() {
     const q = state.query.trim().toLowerCase();
-    let out = index
+    const out = index
       .map((e) => ({ entry: e, s: score(e, q), why: matched(e, q) }))
       .filter((x) => x.s > 0);
 
-    if (q) {
-      out.sort((a, b) => b.s - a.s || a.entry.title.localeCompare(b.entry.title));
-    } else {
-      out.sort((a, b) => sortCompare(a.entry.recipe, b.entry.recipe));
-    }
+    if (q) out.sort((a, b) => b.s - a.s || a.entry.title.localeCompare(b.entry.title));
+    else out.sort((a, b) => sortCompare(a.entry.recipe, b.entry.recipe));
     return out;
   }
 
@@ -138,7 +143,7 @@
     }
   }
 
-  /* ── Quantities ──────────────────────────────────────── */
+  /* ── Amounts ─────────────────────────────────────────── */
 
   const FRACTIONS = [
     [0.125, '⅛'], [0.25, '¼'], [0.333, '⅓'], [0.375, '⅜'],
@@ -154,8 +159,7 @@
       const hit = FRACTIONS.find(([v]) => Math.abs(frac - v) < 0.035);
       fracStr = hit ? hit[1] : String(Math.round(frac * 100) / 100).replace(/^0/, '');
     }
-    if (whole === 0 && fracStr) return fracStr;
-    if (whole === 0 && !fracStr) return '0';
+    if (whole === 0) return fracStr || '0';
     return whole + fracStr;
   }
 
@@ -166,60 +170,195 @@
     return n ? `${n} ${u}` : u;
   }
 
+  const isDiscrete = (u) => DISCRETE.indexOf(u || null) !== -1 || DISCRETE.indexOf(u) !== -1;
+
+  /* You can't buy 1.3 lemons. Round discrete things up, and round
+     weights and volumes to a number you'd actually read off a label. */
+  function roundForBuying(q, u) {
+    if (q === null || q === undefined) return { q, rounded: false, from: null };
+    if (isDiscrete(u)) {
+      const up = Math.ceil(q - 1e-9);
+      return { q: up, rounded: Math.abs(up - q) > 0.05, from: q };
+    }
+    if (u === 'g' || u === 'mL') {
+      const step = q >= 200 ? 50 : 10;
+      const up = Math.ceil(q / step) * step;
+      return { q: up, rounded: Math.abs(up - q) > 0.5, from: q };
+    }
+    const up = Math.round(q * 4) / 4;
+    return { q: up, rounded: false, from: q };
+  }
+
+  /* How much a +/- press should move, in purchase units. */
+  function stepFor(u) {
+    if (isDiscrete(u)) return 1;
+    if (u === 'g') return 50;
+    if (u === 'mL') return 50;
+    if (u === 'tbsp') return 1;
+    if (u === 'tsp') return 1;
+    return 1;
+  }
+
+  /* ── Plan helpers ────────────────────────────────────── */
+
+  const planEntry = (slug) => state.plan.find((p) => p.slug === slug);
+  const planHas = (slug) => !!planEntry(slug);
+  const recipeBySlug = (slug) => RECIPES.find((r) => r.slug === slug);
+
+  function togglePlan(slug, servings) {
+    const i = state.plan.findIndex((p) => p.slug === slug);
+    if (i === -1) {
+      const r = recipeBySlug(slug);
+      state.plan.push({ slug, servings: servings || (r ? r.servings.n : 1) });
+    } else {
+      state.plan.splice(i, 1);
+    }
+    save(PLAN_KEY, state.plan);
+    updatePlanCount();
+    patchRow(slug);      // no full re-render, so nothing flashes
+    renderPlan();
+  }
+
+  function setServings(slug, n) {
+    const p = planEntry(slug);
+    if (!p) return;
+    p.servings = Math.max(1, Math.round(n));
+    save(PLAN_KEY, state.plan);
+    renderPlan();
+  }
+
+  /* ── Grocery engine ──────────────────────────────────── */
+
+  /* Merge every ingredient across the plan into things you can buy.
+     Amounts scale with each recipe's chosen servings. */
+  function compileGroceries() {
+    const map = new Map();
+
+    state.plan.forEach((entry) => {
+      const r = recipeBySlug(entry.slug);
+      if (!r) return;
+      const factor = entry.servings / r.servings.n;
+
+      r.components.forEach((c) => {
+        c.ingredients.forEach((ing) => {
+          const buy = ing.buy || { q: ing.q, u: ing.u };
+          const name = ing.buyAs || ing.n;
+          const unit = buy.u === undefined ? ing.u : buy.u;
+          const key = `${name.toLowerCase()}|${unit || ''}`;
+
+          if (!map.has(key)) {
+            map.set(key, {
+              key,
+              name,
+              unit,
+              aisle: ing.aisle,
+              qty: null,
+              hasQty: false,
+              notes: new Set(),
+              from: new Set(),
+            });
+          }
+          const it = map.get(key);
+          if (buy.q !== null && buy.q !== undefined) {
+            it.qty = (it.qty || 0) + buy.q * factor;
+            it.hasQty = true;
+          }
+          if (ing.buyNote) it.notes.add(ing.buyNote);
+          it.from.add(r.title);
+        });
+      });
+    });
+
+    const items = [];
+    map.forEach((it) => {
+      const edit = state.edits[it.key];
+      if (edit && edit.removed) return;
+
+      if (edit && typeof edit.amount === 'number' && it.hasQty) {
+        it.qty = edit.amount;
+        it.rounded = false;
+      } else if (it.hasQty) {
+        const r = roundForBuying(it.qty, it.unit);
+        it.rounded = r.rounded;
+        it.roundedFrom = r.from;
+        it.qty = r.q;
+      }
+      items.push(it);
+    });
+
+    const byAisle = new Map();
+    items.forEach((it) => {
+      if (!byAisle.has(it.aisle)) byAisle.set(it.aisle, []);
+      byAisle.get(it.aisle).push(it);
+    });
+
+    return AISLES
+      .filter((a) => byAisle.has(a))
+      .map((a) => ({ aisle: a, items: byAisle.get(a).sort((x, y) => x.name.localeCompare(y.name)) }));
+  }
+
   /* ── Rendering: list ─────────────────────────────────── */
 
-  function planHas(slug) { return state.plan.indexOf(slug) !== -1; }
+  function rowHtml(entry, why, i) {
+    const r = entry.recipe;
+    const on = planHas(r.slug);
+    const steps = r.components.length;
+    const keywords = why
+      ? `<span class="row-why">${esc(why)}</span> · ${esc(entry.ingredientLabel.slice(0, 5).join(' · '))}`
+      : esc(entry.ingredientLabel.slice(0, 6).join(' · '));
+
+    return `
+      <a class="recipe-row${on ? ' is-planned' : ''}" href="recipe.html?r=${encodeURIComponent(r.slug)}"
+         data-row="${r.slug}" style="--dish:${r.dish}${state.animate ? `;animation-delay:${Math.min(i * 24, 300)}ms` : ''}">
+        <span class="row-main">
+          <span class="row-title">${esc(r.title)}</span>
+          <span class="row-keywords">${keywords}</span>
+          <span class="row-meta">${r.servings.n} ${esc(r.servings.unit)} · ${esc(r.time)} · ${steps} ${steps === 1 ? 'step' : 'steps'}</span>
+        </span>
+        <span class="row-side">
+          <button class="plan-btn${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
+            ${on ? checkSvg() : plusSvg()}<span>${on ? 'In plan' : 'Add to plan'}</span>
+          </button>
+        </span>
+      </a>`;
+  }
 
   function renderList() {
     const res = results();
     if (!res.length) {
-      el.list.innerHTML =
-        '<div class="empty"><strong>Nothing matches that.</strong>Try an ingredient — tahini, chard, lime.</div>';
+      el.list.innerHTML = '<div class="empty"><strong>Nothing matches that.</strong>Try an ingredient — tahini, chard, lime.</div>';
       return;
     }
-
-    el.list.innerHTML = res.map(({ entry, why }, i) => {
-      const r = entry.recipe;
-      const on = planHas(r.slug);
-      const parts = r.components.length;
-      const keywords = why
-        ? `<span style="color:var(--dish)">${escapeHtml(why)}</span> · ${escapeHtml(entry.ingredientLabel.slice(0, 5).join(' · '))}`
-        : escapeHtml(entry.ingredientLabel.slice(0, 6).join(' · '));
-
-      return `
-        <article class="recipe-row${on ? ' is-planned' : ''}" style="--dish:${r.dish};animation-delay:${Math.min(i * 26, 320)}ms">
-          <div class="row-main">
-            <a class="row-title" href="recipe.html?r=${encodeURIComponent(r.slug)}">${escapeHtml(r.title)}</a>
-            <p class="row-keywords">${keywords}</p>
-            <p class="row-meta">${escapeHtml(r.meta)} · ${parts} ${parts === 1 ? 'part' : 'parts'}</p>
-          </div>
-          <div class="row-side">
-            <button class="plan-btn${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
-              ${on ? checkSvg() : plusSvg()}
-              ${on ? 'In plan' : 'Add to plan'}
-            </button>
-          </div>
-        </article>`;
-    }).join('');
+    el.list.classList.toggle('no-anim', !state.animate);
+    el.list.innerHTML = res.map(({ entry, why }, i) => rowHtml(entry, why, i)).join('');
   }
 
-  function plusSvg() {
-    return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>';
-  }
-  function checkSvg() {
-    return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.5 3 3 6-7"/></svg>';
-  }
-  function xSvg() {
-    return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+  /* Update one row in place. Re-rendering the whole list made every
+     card replay its entry animation, which read as a flash. */
+  function patchRow(slug) {
+    const row = el.list.querySelector(`[data-row="${slug}"]`);
+    if (!row) return;
+    const on = planHas(slug);
+    row.classList.toggle('is-planned', on);
+    const btn = row.querySelector('.plan-btn');
+    if (btn) {
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.innerHTML = `${on ? checkSvg() : plusSvg()}<span>${on ? 'In plan' : 'Add to plan'}</span>`;
+    }
   }
 
-  function escapeHtml(s) {
+  const plusSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>';
+  const checkSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+  const xSvg = () => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+
+  function esc(s) {
     return String(s).replace(/[&<>"']/g, (c) => (
       { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
     ));
   }
 
-  /* ── Rendering: autofill (orbit search) ──────────────── */
+  /* ── Autofill (orbit) ────────────────────────────────── */
 
   function renderAutofill() {
     const q = state.query.trim().toLowerCase();
@@ -230,174 +369,211 @@
       return;
     }
     const res = results().slice(0, 6);
-    if (!res.length) {
-      el.autofill.classList.remove('is-on');
-      return;
-    }
+    if (!res.length) { el.autofill.classList.remove('is-on'); return; }
+
     el.autofill.innerHTML = res.map(({ entry, why }, i) => `
       <button class="autofill-item${i === state.afIndex ? ' is-active' : ''}" data-slug="${entry.slug}" role="option" style="--dish:${entry.recipe.dish}">
-        <span class="af-title">${escapeHtml(entry.recipe.title)}</span>
-        ${why ? `<span class="af-why"> — ${escapeHtml(why)}</span>` : ''}
+        <span class="af-title">${esc(entry.recipe.title)}</span>${why ? `<span class="af-why"> — ${esc(why)}</span>` : ''}
       </button>`).join('');
     el.autofill.classList.add('is-on');
   }
 
-  /* ── Meal plan ───────────────────────────────────────── */
-
-  function togglePlan(slug) {
-    const i = state.plan.indexOf(slug);
-    if (i === -1) state.plan.push(slug);
-    else state.plan.splice(i, 1);
-    save(PLAN_KEY, state.plan);
-    renderList();
-    renderPlan();
-    updatePlanCount();
-  }
-
-  function updatePlanCount() {
-    el.planCount.textContent = state.plan.length ? ` ${state.plan.length}` : '';
-    moveInk(); // the count changes the button's width
-  }
-
-  function plannedRecipes() {
-    return state.plan
-      .map((slug) => RECIPES.find((r) => r.slug === slug))
-      .filter(Boolean);
-  }
-
-  /* Merge every ingredient across the chosen recipes.
-     Same name + same unit adds up; anything else stands on its own. */
-  function compileGroceries() {
-    const map = new Map();
-
-    plannedRecipes().forEach((r) => {
-      r.components.forEach((c) => {
-        c.ingredients.forEach((ing) => {
-          const key = `${ing.n.toLowerCase()}|${ing.u || ''}`;
-          if (!map.has(key)) {
-            // qty starts empty — the accumulator below adds every
-            // occurrence, including this first one.
-            map.set(key, {
-              key,
-              name: ing.n,
-              unit: ing.u,
-              aisle: ing.aisle,
-              qty: null,
-              hasQty: false,
-              notes: new Set(),
-              from: new Set(),
-            });
-          }
-          const it = map.get(key);
-          if (ing.q !== null && ing.q !== undefined) {
-            it.qty = (it.qty === null || it.qty === undefined) ? ing.q : it.qty + ing.q;
-            it.hasQty = true;
-          }
-          if (ing.note) it.notes.add(ing.note);
-          it.from.add(r.title);
-        });
-      });
-    });
-
-    // Apply the edits made in the list itself
-    const items = [];
-    map.forEach((it) => {
-      const edit = state.edits[it.key];
-      if (edit && edit.removed) return;
-      if (edit && typeof edit.amount === 'number' && it.hasQty) it.qty = edit.amount;
-      items.push(it);
-    });
-
-    // Group by aisle, in shop-walk order
-    const byAisle = new Map();
-    items.forEach((it) => {
-      if (!byAisle.has(it.aisle)) byAisle.set(it.aisle, []);
-      byAisle.get(it.aisle).push(it);
-    });
-
-    return AISLES
-      .filter((a) => byAisle.has(a))
-      .map((a) => ({
-        aisle: a,
-        items: byAisle.get(a).sort((x, y) => x.name.localeCompare(y.name)),
-      }));
-  }
-
-  function stepFor(q) {
-    if (q >= 8) return 1;
-    if (q >= 2) return 0.5;
-    if (q >= 0.5) return 0.25;
-    return 0.125;
-  }
+  /* ── Rendering: plan ─────────────────────────────────── */
 
   function renderPlan() {
-    const chosen = plannedRecipes();
+    renderChosen();
+    renderGroceries();
+    renderSaved();
+  }
 
-    // Chosen recipes
-    if (!chosen.length) {
+  function renderChosen() {
+    if (!state.plan.length) {
       el.chosenSub.textContent = 'Nothing picked yet';
-      el.chosenList.innerHTML =
-        '<p style="font-size:.9rem;color:var(--muted)">Add recipes from the List tab and their ingredients land here, sorted by aisle.</p>';
-    } else {
-      el.chosenSub.textContent = `${chosen.length} ${chosen.length === 1 ? 'recipe' : 'recipes'}`;
-      el.chosenList.innerHTML = chosen.map((r) => `
-        <div class="chosen" style="--dish:${r.dish}">
-          <span class="chosen-name">${escapeHtml(r.title)}</span>
-          <button class="icon-btn" data-unplan="${r.slug}" aria-label="Remove ${escapeHtml(r.title)} from the plan">${xSvg()}</button>
-        </div>`).join('');
+      el.chosenList.innerHTML = '<p class="muted-note">Add recipes from the List tab. Their ingredients land here, sorted by aisle.</p>';
+      return;
     }
+    el.chosenSub.textContent = `${state.plan.length} ${state.plan.length === 1 ? 'recipe' : 'recipes'}`;
+    el.chosenList.innerHTML = state.plan.map((p) => {
+      const r = recipeBySlug(p.slug);
+      if (!r) return '';
+      const changed = p.servings !== r.servings.n;
+      return `
+        <div class="chosen" style="--dish:${r.dish}">
+          <div class="chosen-top">
+            <span class="chosen-name">${esc(r.title)}</span>
+            <button class="icon-btn" data-unplan="${p.slug}" aria-label="Remove ${esc(r.title)}">${xSvg()}</button>
+          </div>
+          <div class="chosen-servings">
+            <button class="step-btn" data-sdec="${p.slug}" aria-label="Fewer">−</button>
+            <span class="serv-n">${p.servings}</span>
+            <span class="serv-u">${esc(r.servings.unit)}</span>
+            <button class="step-btn" data-sinc="${p.slug}" aria-label="More">+</button>
+            ${changed ? `<span class="serv-note">recipe makes ${r.servings.n}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
 
-    // Grocery list
+  function renderGroceries() {
     const groups = compileGroceries();
     const total = groups.reduce((n, g) => n + g.items.length, 0);
+    const hasSpices = groups.some((g) => g.aisle === SPICE_AISLE);
+
     el.copyBtn.disabled = total === 0;
+    el.publishBtn.disabled = total === 0;
+    el.spiceBtn.style.display = hasSpices ? '' : 'none';
     el.grocerySub.textContent = total
       ? `${total} ${total === 1 ? 'item' : 'items'} · ${groups.length} ${groups.length === 1 ? 'aisle' : 'aisles'}`
       : 'By aisle';
 
     if (!total) {
-      el.groceryList.innerHTML =
-        '<p style="font-size:.9rem;color:var(--muted)">Your list builds itself once you pick a recipe.</p>';
+      el.groceryList.innerHTML = '<p class="muted-note">Your list builds itself once you pick a recipe.</p>';
       return;
     }
 
-    el.groceryList.innerHTML = groups.map((g, gi) => `
-      <div class="aisle" style="animation-delay:${Math.min(gi * 40, 260)}ms">
-        <div class="aisle-name">${escapeHtml(g.aisle)}<span>${g.items.length}</span></div>
+    el.groceryList.innerHTML = groups.map((g) => `
+      <div class="aisle">
+        <div class="aisle-name">${esc(g.aisle)}<span>${g.items.length}</span></div>
         ${g.items.map((it) => {
-          const notes = Array.from(it.notes).slice(0, 2).join(', ');
+          const note = Array.from(it.notes)[0] || '';
           const from = Array.from(it.from).join(', ');
-          const canStep = it.hasQty;
-          const q = it.qty;
           return `
-          <div class="g-item" data-key="${escapeHtml(it.key)}">
-            <div class="g-name">
-              ${escapeHtml(it.name)}
-              ${notes ? `<span class="g-note">${escapeHtml(notes)}</span>` : ''}
-            </div>
-            <div class="g-amount${canStep ? '' : ' is-loose'}">
-              ${canStep ? `<button class="step-btn" data-dec="${escapeHtml(it.key)}" aria-label="Less ${escapeHtml(it.name)}">−</button>` : ''}
-              <span class="amt">${escapeHtml(fmtAmount(q, it.unit) || 'some')}</span>
-              ${canStep ? `<button class="step-btn" data-inc="${escapeHtml(it.key)}" aria-label="More ${escapeHtml(it.name)}">+</button>` : ''}
-            </div>
-            <button class="icon-btn" data-drop="${escapeHtml(it.key)}" aria-label="Remove ${escapeHtml(it.name)} — already have it">${xSvg()}</button>
-            <span class="g-from">${escapeHtml(from)}</span>
+          <div class="g-item" data-key="${esc(it.key)}">
+            <span class="g-name">${esc(it.name)}</span>
+            <span class="g-amount${it.hasQty ? '' : ' is-loose'}">
+              ${it.hasQty ? `<button class="step-btn" data-dec="${esc(it.key)}" aria-label="Less ${esc(it.name)}">−</button>` : ''}
+              <span class="amt">${esc(fmtAmount(it.qty, it.unit) || 'some')}</span>
+              ${it.hasQty ? `<button class="step-btn" data-inc="${esc(it.key)}" aria-label="More ${esc(it.name)}">+</button>` : ''}
+            </span>
+            <span class="g-side">
+              ${note ? `<span class="g-note">${esc(note)}</span>` : ''}
+              ${it.rounded ? `<span class="g-round">rounded up from ${esc(fmtQty(it.roundedFrom))}</span>` : ''}
+              <span class="g-from">${esc(from)}</span>
+            </span>
+            <button class="icon-btn" data-drop="${esc(it.key)}" aria-label="Remove ${esc(it.name)} — already have it">${xSvg()}</button>
           </div>`;
         }).join('')}
       </div>`).join('');
   }
 
+  /* Update just one amount, so a +/- press doesn't repaint the list. */
+  function patchAmount(key) {
+    const groups = compileGroceries();
+    let item = null;
+    groups.forEach((g) => g.items.forEach((it) => { if (it.key === key) item = it; }));
+    const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
+    if (!row) { renderGroceries(); return; }
+    if (!item) { row.remove(); renderGroceries(); return; }
+
+    row.querySelector('.amt').textContent = fmtAmount(item.qty, item.unit) || 'some';
+    const roundEl = row.querySelector('.g-round');
+    if (roundEl) roundEl.remove();
+  }
+
+  function cssEscape(s) { return s.replace(/["\\]/g, '\\$&'); }
+
+  /* ── Saved plans ─────────────────────────────────────── */
+
+  /* No backend here — a plan travels as a compressed payload in the
+     URL, so a list made on the iPad opens on the phone from a link. */
+  function encodePlan(name) {
+    const payload = { n: name, p: state.plan, e: state.edits };
+    return btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodePlan(str) {
+    try {
+      const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(decodeURIComponent(escape(atob(b64))));
+    } catch (e) { return null; }
+  }
+
+  function planUrl(name) {
+    return `${location.origin}${location.pathname}#list=${encodePlan(name)}`;
+  }
+
+  function publishPlan() {
+    const name = (el.planName.value || '').trim() || defaultPlanName();
+    const url = planUrl(name);
+    const rec = { name, url, at: Date.now(), count: state.plan.length };
+
+    const i = state.saved.findIndex((s) => s.name === name);
+    if (i === -1) state.saved.unshift(rec);
+    else state.saved[i] = rec;
+
+    save(SAVED_KEY, state.saved);
+    el.planName.value = '';
+    renderSaved();
+    copyText(url).then(() => toast(`"${name}" published — link copied`));
+  }
+
+  function defaultPlanName() {
+    const d = new Date();
+    return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} shop`;
+  }
+
+  function renderSaved() {
+    if (!state.saved.length) {
+      el.savedList.innerHTML = '<p class="muted-note">Publish a list to get a link you can open on any device.</p>';
+      return;
+    }
+    el.savedList.innerHTML = state.saved.map((s, i) => `
+      <div class="saved">
+        <span class="saved-name">${esc(s.name)}</span>
+        <span class="saved-meta">${s.count} ${s.count === 1 ? 'recipe' : 'recipes'}</span>
+        <button class="mini-btn" data-open="${i}">Open</button>
+        <button class="mini-btn" data-link="${i}">Copy link</button>
+        <button class="icon-btn" data-forget="${i}" aria-label="Delete ${esc(s.name)}">${xSvg()}</button>
+      </div>`).join('');
+  }
+
+  function loadPlanPayload(payload) {
+    if (!payload || !Array.isArray(payload.p)) return false;
+    state.plan = payload.p.filter((p) => recipeBySlug(p.slug));
+    state.edits = payload.e || {};
+    save(PLAN_KEY, state.plan);
+    save(EDITS_KEY, state.edits);
+    updatePlanCount();
+    renderList();
+    renderPlan();
+    return true;
+  }
+
+  /* ── Copy ────────────────────────────────────────────── */
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  }
+
   function groceryText() {
     const groups = compileGroceries();
-    const chosen = plannedRecipes().map((r) => r.title).join(', ');
-    const lines = ['The Moura Boy Forever Recipes — grocery list'];
-    if (chosen) lines.push(chosen);
+    const lines = ['Moura Boys Forever Recipes — grocery list'];
+    const names = state.plan.map((p) => {
+      const r = recipeBySlug(p.slug);
+      if (!r) return '';
+      return p.servings === r.servings.n ? r.title : `${r.title} (${p.servings} ${r.servings.unit})`;
+    }).filter(Boolean);
+    if (names.length) lines.push(names.join(', '));
     lines.push('');
+
     groups.forEach((g) => {
       lines.push(g.aisle.toUpperCase());
       g.items.forEach((it) => {
         const amt = fmtAmount(it.qty, it.unit);
-        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}`);
+        const note = Array.from(it.notes)[0];
+        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}${note ? ` (${note})` : ''}`);
       });
       lines.push('');
     });
@@ -411,49 +587,40 @@
     el.toast.textContent = msg;
     el.toast.classList.add('is-on');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.toast.classList.remove('is-on'), 2200);
+    toastTimer = setTimeout(() => el.toast.classList.remove('is-on'), 2400);
   }
 
-  /* ── View switching ──────────────────────────────────── */
+  /* ── Views ───────────────────────────────────────────── */
 
   function setView(view) {
     state.view = view;
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
     $(`view-${view}`).classList.add('is-active');
-
-    document.querySelectorAll('.mode-btn').forEach((b) => {
-      b.setAttribute('aria-selected', String(b.dataset.view === view));
-    });
+    document.querySelectorAll('.mode-btn').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
     moveInk();
 
-    el.search.placeholder = view === 'orbit'
-      ? 'Search and spin to it'
-      : 'Search recipes and ingredients';
-
-    // Sorting only means something in the flat list
-    $('sortWrap').style.display = view === 'list' ? '' : 'none';
+    // Search is for finding recipes; the plan is already chosen.
+    // display:none (not visibility) so it doesn't leave a gap in the bar.
+    el.searchWrap.style.display = view === 'plan' ? 'none' : '';
+    el.sortWrap.style.display = view === 'list' ? '' : 'none';
+    el.search.placeholder = view === 'orbit' ? 'Search and spin to it' : 'Search recipes and ingredients';
 
     renderAutofill();
 
     if (view === 'orbit') {
       if (window.OrbitAPI) window.OrbitAPI.resume();
-      else {
-        // The 3D engine loads as a module from a CDN. If it never arrived,
-        // say so instead of showing an empty box.
-        setTimeout(() => {
-          if (state.view !== 'orbit') return;
-          if (window.OrbitAPI) window.OrbitAPI.resume();
-          else {
-            $('orbitFallback').classList.add('is-on');
-            $('orbitStage').style.display = 'none';
-          }
-        }, 1200);
-      }
+      else setTimeout(() => {
+        if (state.view !== 'orbit') return;
+        if (window.OrbitAPI) window.OrbitAPI.resume();
+        else { $('orbitFallback').classList.add('is-on'); $('orbitStage').style.display = 'none'; }
+      }, 1200);
     } else if (window.OrbitAPI) {
       window.OrbitAPI.pause();
     }
 
-    history.replaceState(null, '', view === 'list' ? location.pathname : `#${view}`);
+    if (!location.hash.startsWith('#list=')) {
+      history.replaceState(null, '', view === 'list' ? location.pathname : `#${view}`);
+    }
   }
 
   function moveInk() {
@@ -463,22 +630,33 @@
     el.modeInk.style.transform = `translateX(${active.offsetLeft - 3}px)`;
   }
 
-  /* ── Wiring ──────────────────────────────────────────── */
+  function updatePlanCount() {
+    el.planCount.textContent = state.plan.length ? ` ${state.plan.length}` : '';
+    moveInk();
+  }
+
+  /* ── Init ────────────────────────────────────────────── */
 
   function init() {
-    const newest = RECIPES.reduce((a, b) => (a.order > b.order ? a : b), RECIPES[0]);
-    el.meta.textContent = `${RECIPES.length} recipes · newest: ${newest.title}`;
+    el.meta.textContent = `${RECIPES.length} recipes`;
+
+    // A shared plan link wins over whatever is stored locally
+    const shared = location.hash.startsWith('#list=') ? decodePlan(location.hash.slice(6)) : null;
 
     updatePlanCount();
     renderList();
     renderPlan();
+    state.animate = false; // entry animation is a first-paint thing only
 
-    // The pill has to land even if the page opened in a background tab
-    // (no rAF there) or the display face arrives late and changes widths.
     moveInk();
     requestAnimationFrame(moveInk);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveInk);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) moveInk(); });
+
+    if (shared && loadPlanPayload(shared)) {
+      setView('plan');
+      toast(shared.n ? `Opened "${shared.n}"` : 'Opened shared list');
+    }
 
     // Search
     el.search.addEventListener('input', () => {
@@ -495,21 +673,13 @@
         return;
       }
       const items = el.autofill.querySelectorAll('.autofill-item');
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        state.afIndex = Math.min(state.afIndex + 1, items.length - 1);
-        renderAutofill();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        state.afIndex = Math.max(state.afIndex - 1, 0);
-        renderAutofill();
-      } else if (e.key === 'Enter') {
+      if (e.key === 'ArrowDown') { e.preventDefault(); state.afIndex = Math.min(state.afIndex + 1, items.length - 1); renderAutofill(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); state.afIndex = Math.max(state.afIndex - 1, 0); renderAutofill(); }
+      else if (e.key === 'Enter') {
         e.preventDefault();
         const pick = items[state.afIndex >= 0 ? state.afIndex : 0];
         if (pick) selectFromAutofill(pick.dataset.slug);
-      } else if (e.key === 'Escape') {
-        el.autofill.classList.remove('is-on');
-      }
+      } else if (e.key === 'Escape') el.autofill.classList.remove('is-on');
     });
 
     el.searchClear.addEventListener('click', () => {
@@ -532,29 +702,35 @@
       if (window.OrbitAPI) window.OrbitAPI.focusSlug(slug);
     }
 
-    // Sort
     el.sort.addEventListener('change', () => {
       state.sort = el.sort.value;
       renderList();
     });
 
-    // Modes
     document.querySelectorAll('.mode-btn').forEach((b) => {
       b.addEventListener('click', () => setView(b.dataset.view));
     });
 
-    // Plan buttons in the list
+    // The whole row is the link; the plan button opts out.
     el.list.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-plan]');
-      if (btn) togglePlan(btn.dataset.plan);
+      if (btn) {
+        e.preventDefault();
+        togglePlan(btn.dataset.plan);
+      }
     });
 
-    // Plan panel
+    // Chosen recipes: remove, and servings steppers
     el.chosenList.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-unplan]');
-      if (btn) togglePlan(btn.dataset.unplan);
+      const un = e.target.closest('[data-unplan]');
+      const dec = e.target.closest('[data-sdec]');
+      const inc = e.target.closest('[data-sinc]');
+      if (un) return togglePlan(un.dataset.unplan);
+      if (dec) { const p = planEntry(dec.dataset.sdec); if (p) setServings(p.slug, p.servings - 1); }
+      if (inc) { const p = planEntry(inc.dataset.sinc); if (p) setServings(p.slug, p.servings + 1); }
     });
 
+    // Grocery list edits
     el.groceryList.addEventListener('click', (e) => {
       const drop = e.target.closest('[data-drop]');
       const dec = e.target.closest('[data-dec]');
@@ -564,58 +740,87 @@
         const key = drop.dataset.drop;
         state.edits[key] = Object.assign({}, state.edits[key], { removed: true });
         save(EDITS_KEY, state.edits);
-        renderPlan();
-        toast('Removed — already got it');
+        const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
+        if (row) row.remove();
+        renderGroceries();
         return;
       }
 
       if (dec || inc) {
         const key = (dec || inc).dataset[dec ? 'dec' : 'inc'];
         const groups = compileGroceries();
-        let current = null;
-        groups.forEach((g) => g.items.forEach((it) => { if (it.key === key) current = it; }));
-        if (!current || !current.hasQty) return;
+        let cur = null;
+        groups.forEach((g) => g.items.forEach((it) => { if (it.key === key) cur = it; }));
+        if (!cur || !cur.hasQty) return;
 
-        const step = stepFor(current.qty);
-        let next = dec ? current.qty - step : current.qty + step;
-        next = Math.max(0, Math.round(next * 1000) / 1000);
+        const step = stepFor(cur.unit);
+        let next = dec ? cur.qty - step : cur.qty + step;
+        next = Math.max(0, Math.round(next * 100) / 100);
 
         if (next === 0) {
           state.edits[key] = Object.assign({}, state.edits[key], { removed: true });
+          save(EDITS_KEY, state.edits);
+          const row = el.groceryList.querySelector(`[data-key="${cssEscape(key)}"]`);
+          if (row) row.remove();
+          renderGroceries();
         } else {
           state.edits[key] = Object.assign({}, state.edits[key], { amount: next, removed: false });
+          save(EDITS_KEY, state.edits);
+          patchAmount(key);
         }
-        save(EDITS_KEY, state.edits);
-        renderPlan();
       }
     });
 
-    // Copy
+    // Clear the spice shelf — you almost always have these already
+    el.spiceBtn.addEventListener('click', () => {
+      const groups = compileGroceries();
+      const spices = groups.find((g) => g.aisle === SPICE_AISLE);
+      if (!spices) return;
+      spices.items.forEach((it) => {
+        state.edits[it.key] = Object.assign({}, state.edits[it.key], { removed: true });
+      });
+      save(EDITS_KEY, state.edits);
+      renderGroceries();
+      toast(`Cleared ${spices.items.length} spices`);
+    });
+
     el.copyBtn.addEventListener('click', async () => {
-      const text = groceryText();
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch (err) {
-        // Older browsers, and any page not served over https
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
+      await copyText(groceryText());
       el.copyBtn.classList.add('is-copied');
       el.copyLabel.textContent = 'Copied';
       toast('Grocery list copied');
-      setTimeout(() => {
-        el.copyBtn.classList.remove('is-copied');
-        el.copyLabel.textContent = 'Copy list';
-      }, 2000);
+      setTimeout(() => { el.copyBtn.classList.remove('is-copied'); el.copyLabel.textContent = 'Copy list'; }, 2000);
     });
 
-    // Sticky control shadow
+    el.publishBtn.addEventListener('click', publishPlan);
+    el.planName.addEventListener('keydown', (e) => { if (e.key === 'Enter') publishPlan(); });
+
+    el.savedList.addEventListener('click', (e) => {
+      const open = e.target.closest('[data-open]');
+      const link = e.target.closest('[data-link]');
+      const forget = e.target.closest('[data-forget]');
+
+      if (open) {
+        const s = state.saved[+open.dataset.open];
+        const payload = decodePlan(s.url.split('#list=')[1] || '');
+        if (loadPlanPayload(payload)) toast(`Opened "${s.name}"`);
+        return;
+      }
+      if (link) {
+        const s = state.saved[+link.dataset.link];
+        copyText(s.url).then(() => toast('Link copied'));
+        return;
+      }
+      if (forget) {
+        const i = +forget.dataset.forget;
+        const name = state.saved[i].name;
+        state.saved.splice(i, 1);
+        save(SAVED_KEY, state.saved);
+        renderSaved();
+        toast(`Deleted "${name}"`);
+      }
+    });
+
     const sentinel = document.querySelector('.masthead');
     if ('IntersectionObserver' in window && sentinel) {
       new IntersectionObserver(
@@ -626,21 +831,18 @@
 
     window.addEventListener('resize', moveInk);
 
-    // Deep link: #orbit / #plan
     const hash = location.hash.replace('#', '');
-    if (hash === 'orbit' || hash === 'plan') setView(hash);
+    if ((hash === 'orbit' || hash === 'plan') && !shared) setView(hash);
 
-    // Let orbit.js hand focus back to the page
-    window.addEventListener('orbit:pick', (e) => {
-      el.search.value = '';
-      state.query = '';
-      el.searchClear.classList.remove('is-on');
-      renderAutofill();
+    // Orbit hands recipes back to the plan
+    window.addEventListener('orbit:plan', (e) => {
+      togglePlan(e.detail.slug);
+      const on = planHas(e.detail.slug);
+      toast(on ? 'Added to plan' : 'Removed from plan');
+      if (window.OrbitAPI) window.OrbitAPI.refreshCard();
     });
+    window.OrbitPlanHas = planHas;
   }
-
-  // Shared helpers for the recipe page
-  window.MBFR = { fmtAmount, fmtQty, escapeHtml };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

@@ -3,30 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>The Moura Boy Forever Recipes</title>
+  <title>Moura Boys Forever Recipes</title>
   <meta name="description" content="A family recipe collection — search it, spin it, and build a grocery list from it." />
   <meta name="robots" content="noindex" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤤</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=3" />
+  <link rel="stylesheet" href="css/recipes.css?v=4" />
 </head>
 <body>
 
   <div class="wrap">
 
-    <!-- ── Masthead ─────────────────────────────────────── -->
     <header class="masthead">
       <a class="backlink" href="/">
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 5.5 8 10 3.5"/></svg>
         natanmoura.com
       </a>
-      <h1>The Moura Boy Forever Recipes <span class="drool">🤤</span></h1>
+      <h1>Moura Boys Forever Recipes <span class="drool">🤤</span></h1>
       <p class="masthead-meta" id="mastheadMeta"></p>
     </header>
 
-    <!-- ── Controls ─────────────────────────────────────── -->
     <div class="controls" id="controls">
       <div class="controls-inner">
         <div class="search" id="searchWrap">
@@ -38,13 +36,6 @@
           <div class="autofill" id="autofill" role="listbox" aria-label="Matching recipes"></div>
         </div>
 
-        <div class="modes" role="tablist" aria-label="View">
-          <span class="mode-ink" id="modeInk"></span>
-          <button class="mode-btn" role="tab" id="tab-list" data-view="list" aria-selected="true">List</button>
-          <button class="mode-btn" role="tab" id="tab-orbit" data-view="orbit" aria-selected="false">Orbit</button>
-          <button class="mode-btn" role="tab" id="tab-plan" data-view="plan" aria-selected="false">Plan<span class="count" id="planCount"></span></button>
-        </div>
-
         <div class="sort" id="sortWrap">
           <select id="sort" aria-label="Sort recipes">
             <option value="az">A–Z</option>
@@ -53,15 +44,20 @@
             <option value="oldest">Oldest first</option>
           </select>
         </div>
+
+        <div class="modes" role="tablist" aria-label="View">
+          <span class="mode-ink" id="modeInk"></span>
+          <button class="mode-btn" role="tab" id="tab-list" data-view="list" aria-selected="true">List</button>
+          <button class="mode-btn" role="tab" id="tab-orbit" data-view="orbit" aria-selected="false">Orbit</button>
+          <button class="mode-btn" role="tab" id="tab-plan" data-view="plan" aria-selected="false">Plan<span class="count" id="planCount"></span></button>
+        </div>
       </div>
     </div>
 
-    <!-- ── List ─────────────────────────────────────────── -->
     <section class="view list is-active" id="view-list" role="tabpanel" aria-labelledby="tab-list">
       <div id="recipeList"></div>
     </section>
 
-    <!-- ── Orbit ────────────────────────────────────────── -->
     <section class="view" id="view-orbit" role="tabpanel" aria-labelledby="tab-orbit">
       <div id="orbitStage">
         <div class="css3d" id="css3d"></div>
@@ -80,10 +76,13 @@
         <div class="orbit-card" id="orbitCard">
           <h3 id="orbitCardTitle"></h3>
           <p id="orbitCardMeta"></p>
-          <a class="open-btn" id="orbitCardOpen" href="#">Open recipe</a>
+          <div class="orbit-card-actions">
+            <a class="open-btn" id="orbitCardOpen" href="#">Open recipe</a>
+            <button class="ghost-btn" id="orbitCardPlan">Add to plan</button>
+          </div>
         </div>
 
-        <p class="orbit-hint" id="orbitHint">Drag to spin · tap a bubble to focus</p>
+        <p class="orbit-hint" id="orbitHint">Drag to spin · tap a bubble to bring it round</p>
       </div>
       <div class="orbit-fallback" id="orbitFallback">
         <strong>The orbit needs a live connection.</strong>
@@ -91,26 +90,40 @@
       </div>
     </section>
 
-    <!-- ── Meal plan ────────────────────────────────────── -->
     <section class="view plan-view" id="view-plan" role="tabpanel" aria-labelledby="tab-plan">
       <div class="plan-grid">
 
-        <div class="panel">
-          <h2>This week</h2>
-          <p class="panel-sub" id="chosenSub">Nothing picked yet</p>
-          <div class="chosen-list" id="chosenList"></div>
+        <div class="plan-side">
+          <div class="panel">
+            <h2>This week</h2>
+            <p class="panel-sub" id="chosenSub">Nothing picked yet</p>
+            <div class="chosen-list" id="chosenList"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Saved lists</h2>
+            <p class="panel-sub">Publish to open on any device</p>
+            <div class="publish-row">
+              <input type="text" id="planName" placeholder="Name this list" aria-label="Name this list" />
+              <button class="copy-btn" id="publishBtn" disabled>Publish</button>
+            </div>
+            <div class="saved-list" id="savedList"></div>
+          </div>
         </div>
 
         <div class="panel">
           <div class="grocery-head">
             <div>
               <h2>Grocery list</h2>
-              <p class="panel-sub" id="grocerySub" style="margin-bottom:0">By aisle</p>
+              <p class="panel-sub" id="grocerySub">By aisle</p>
             </div>
-            <button class="copy-btn" id="copyBtn" disabled>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="9" rx="1.6"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 11h1.5"/></svg>
-              <span id="copyLabel">Copy list</span>
-            </button>
+            <div class="grocery-actions">
+              <button class="ghost-btn" id="spiceBtn">Clear spices</button>
+              <button class="copy-btn" id="copyBtn" disabled>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="9" rx="1.6"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 11h1.5"/></svg>
+                <span id="copyLabel">Copy list</span>
+              </button>
+            </div>
           </div>
           <div id="groceryList"></div>
         </div>
@@ -122,8 +135,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="js/recipes-data.js?v=1"></script>
-  <script src="js/app.js?v=3"></script>
+  <script src="js/recipes-data.js?v=2"></script>
+  <script src="js/app.js?v=5"></script>
 
   <script type="importmap">
   {
@@ -133,6 +146,6 @@
     }
   }
   </script>
-  <script type="module" src="js/orbit.js?v=4"></script>
+  <script type="module" src="js/orbit.js?v=5"></script>
 </body>
 </html>

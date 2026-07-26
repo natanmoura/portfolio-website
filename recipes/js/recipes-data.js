@@ -1,20 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
-   The Moura Boy Forever Recipes — recipe data
+   Moura Boys Forever Recipes — recipe data
    ───────────────────────────────────────────────────────────────
-   Source of truth for the site. Mirrors the markdown in the
-   forever-recipes repo, with extra structure the page needs:
+   Source of truth for the site.
 
-     components[]  one "thing being made" — becomes one cook-mode
-                   step box and one ingredient group
-     ingredients[] { q, u, n, aisle, note }
-                   q = quantity (number or null)
-                   u = unit ("cup", "tbsp", "g", null for counts)
-                   n = name, used to merge across recipes
-     steps[]       plain sentences, one action each
-     dish          the recipe's colour, drawn from what it tastes of
+     servings   { n, unit }  the recipe as written. The page scales
+                             every amount off this.
+     time       rough hands-on estimate
+     components one "thing being made" — an ingredient group and a
+                block of steps
+     ingredients
+       q, u, n   the amount AS WRITTEN in the recipe
+       note      prep detail for the cook ("drained and rinsed")
+       aisle     where it lives in the shop
+       buyAs     name to merge under on the grocery list, when it
+                 differs from n ("lemon juice" -> "lemons")
+       buy       { q, u } what you actually have to BUY for this
+                 amount. Converted to purchase units: bunches, whole
+                 lemons, g, mL. Omit when it equals the recipe amount.
+       buyNote   only what changes the shopping ("zest — buy whole")
 
-   Adding a recipe: append an object, keep `added` + `order` honest,
-   and give every ingredient an aisle from AISLES below.
+   Discrete buy units (null/bunch/can/block/head/jar/pack) round up
+   to whole numbers, since you can't buy 1.3 lemons.
    ═══════════════════════════════════════════════════════════════ */
 
 const AISLES = [
@@ -31,21 +37,25 @@ const AISLES = [
   'Sweeteners',
 ];
 
+/* Units you buy as whole items — these round up. */
+const DISCRETE_UNITS = [null, '', 'bunch', 'can', 'block', 'head', 'jar', 'pack'];
+
 const RECIPES = [
   {
     slug: 'spinach-feta-muffins',
     title: 'Spinach Feta Muffins',
     dish: '#5C7A52',
-    meta: 'Makes 10 muffins · 15 min prep · 25 min bake',
+    time: '40 min',
+    servings: { n: 10, unit: 'muffins' },
     added: '2026-07-12',
     order: 1,
     components: [
       {
         name: 'Spinach & Peppers',
         ingredients: [
-          { q: 6, u: 'oz', n: 'fresh spinach', aisle: 'Produce', note: 'or 1 cup frozen, thawed and squeezed dry' },
+          { q: 6, u: 'oz', n: 'fresh spinach', aisle: 'Produce', note: 'or 1 cup frozen, thawed and squeezed dry', buy: { q: 170, u: 'g' } },
           { q: 1, u: null, n: 'bell pepper', aisle: 'Produce', note: 'diced, or ½ cup sun-dried tomato' },
-          { q: 1, u: 'tsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 1, u: 'tsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch' },
         ],
         steps: [
@@ -58,18 +68,18 @@ const RECIPES = [
       {
         name: 'Muffin Batter',
         ingredients: [
-          { q: 0.75, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', note: '178g' },
-          { q: 0.25, u: 'cup', n: 'yogurt', aisle: 'Dairy & Eggs', note: '63g' },
-          { q: 0.25, u: 'cup', n: 'neutral oil', aisle: 'Oils & Vinegars', note: 'canola, avocado or vegetable' },
+          { q: 0.75, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', buy: { q: 180, u: 'mL' } },
+          { q: 0.25, u: 'cup', n: 'yogurt', aisle: 'Dairy & Eggs', buy: { q: 65, u: 'g' } },
+          { q: 0.25, u: 'cup', n: 'neutral oil', aisle: 'Oils & Vinegars', note: 'canola, avocado or vegetable', buy: { q: 60, u: 'mL' } },
           { q: 2, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
-          { q: 2.5, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: '312g' },
+          { q: 2.5, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', buy: { q: 315, u: 'g' } },
           { q: 3, u: 'tsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
           { q: 0.5, u: 'tsp', n: 'baking soda', aisle: 'Dry Goods & Grains' },
           { q: 1, u: 'tsp', n: 'kosher salt', aisle: 'Spices & Dried Herbs', note: 'half if using table salt' },
           { q: 2, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs' },
           { q: 2, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
-          { q: 1, u: 'cup', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled, 208g' },
-          { q: 1, u: 'bunch', n: 'scallions', aisle: 'Produce', note: 'about 10, chopped' },
+          { q: 1, u: 'cup', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled', buy: { q: 210, u: 'g' } },
+          { q: 1, u: 'bunch', n: 'scallions', aisle: 'Produce', note: 'about 10, chopped', buy: { q: 1, u: 'bunch' } },
         ],
         steps: [
           'Preheat the oven to 400°F. Spray a standard muffin tin or line it.',
@@ -88,19 +98,20 @@ const RECIPES = [
     slug: 'cilantro-lime-rice',
     title: 'Cilantro Lime Rice',
     dish: '#6E8C3F',
-    meta: 'Serves 3–5',
+    time: '25 min',
+    servings: { n: 4, unit: 'servings' },
     added: '2026-07-26',
     order: 2,
     components: [
       {
         name: 'The Rice',
         ingredients: [
-          { q: 2, u: 'cup', n: 'cooked rice', aisle: 'Dry Goods & Grains', note: 'about 2 rice-cooker cups' },
-          { q: null, u: 'handful', n: 'edamame', aisle: 'Produce' },
-          { q: null, u: 'handful', n: 'cilantro', aisle: 'Produce', note: 'small handful, chopped' },
-          { q: 2, u: null, n: 'green onions', aisle: 'Produce', note: 'chopped' },
-          { q: 0.5, u: null, n: 'lime', aisle: 'Produce', note: 'juiced — lemon works too' },
-          { q: 2.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 2, u: 'cup', n: 'cooked rice', aisle: 'Dry Goods & Grains', buyAs: 'white rice', buy: { q: 185, u: 'g' }, buyNote: 'dry weight' },
+          { q: 1, u: 'handful', n: 'edamame', aisle: 'Produce', buy: { q: 100, u: 'g' } },
+          { q: 1, u: 'handful', n: 'cilantro', aisle: 'Produce', note: 'small handful, chopped', buy: { q: 0.3, u: 'bunch' } },
+          { q: 2, u: null, n: 'green onions', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
+          { q: 0.5, u: null, n: 'lime', aisle: 'Produce', note: 'juiced — lemon works too', buyAs: 'limes', buy: { q: 0.5, u: null } },
+          { q: 2.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 38, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'to taste' },
         ],
         steps: [
@@ -116,14 +127,18 @@ const RECIPES = [
     slug: 'lebanese-style-potato-salad',
     title: 'Lebanese-Style Potato Salad',
     dish: '#A5842A',
-    meta: 'Serve hot, or chilled as a side',
+    time: '30 min',
+    servings: { n: 4, unit: 'servings' },
     added: '2026-07-26',
     order: 3,
+    // The source post listed no quantities at all. These are sensible
+    // working amounts — adjust once you've made it.
+    estimatedAmounts: true,
     components: [
       {
         name: 'Potatoes',
         ingredients: [
-          { q: null, u: null, n: 'potatoes', aisle: 'Produce' },
+          { q: 6, u: null, n: 'potatoes', aisle: 'Produce' },
         ],
         steps: [
           'Peel the potatoes.',
@@ -134,10 +149,10 @@ const RECIPES = [
       {
         name: 'Lemon Mint Dressing',
         ingredients: [
-          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars' },
-          { q: null, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'grated' },
-          { q: null, u: null, n: 'lemons', aisle: 'Produce', note: 'zest and juice' },
-          { q: null, u: null, n: 'dried mint', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'cup', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 60, u: 'mL' } },
+          { q: 3, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'grated', buyAs: 'garlic', buy: { q: 0.3, u: 'head' } },
+          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'zest and juice', buyAs: 'lemons', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
+          { q: 1, u: 'tbsp', n: 'dried mint', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
         ],
@@ -162,7 +177,8 @@ const RECIPES = [
     slug: 'greek-honey-lemon-potatoes',
     title: 'Greek Honey Lemon Potatoes',
     dish: '#B07C2A',
-    meta: 'A side, with a protein',
+    time: '1 hr',
+    servings: { n: 4, unit: 'servings' },
     added: '2026-07-26',
     order: 4,
     components: [
@@ -179,12 +195,12 @@ const RECIPES = [
       {
         name: 'Honey Lemon Dressing',
         ingredients: [
-          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'zest and juice' },
+          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'zest and juice', buyAs: 'lemons', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
           { q: 1, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried or fresh' },
-          { q: 3, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 3, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 45, u: 'mL' } },
           { q: 1, u: 'tsp', n: 'chili flakes', aisle: 'Spices & Dried Herbs' },
-          { q: 2, u: 'tsp', n: 'honey', aisle: 'Sweeteners', note: 'raw' },
-          { q: null, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'optional' },
+          { q: 2, u: 'tsp', n: 'honey', aisle: 'Sweeteners', note: 'raw', buy: { q: 15, u: 'g' } },
+          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'optional', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
         ],
@@ -196,8 +212,8 @@ const RECIPES = [
       {
         name: 'Roast',
         ingredients: [
-          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for the pan' },
-          { q: null, u: null, n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled, optional' },
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for the pan', buy: { q: 15, u: 'mL' } },
+          { q: 0.5, u: 'cup', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled, optional', buy: { q: 100, u: 'g' } },
         ],
         steps: [
           'Preheat a baking pan with 1 tbsp olive oil.',
@@ -214,22 +230,23 @@ const RECIPES = [
     slug: 'smoky-jalapeno-tofu-wraps',
     title: 'Smoky Jalapeño Tofu Wraps',
     dish: '#A34A32',
-    meta: 'Makes 2 wraps',
+    time: '35 min',
+    servings: { n: 2, unit: 'wraps' },
     added: '2026-07-26',
     order: 5,
     components: [
       {
         name: 'Marinade & Salsa',
         ingredients: [
-          { q: 2, u: 'slices', n: 'pickled jalapeños', aisle: 'Canned & Jarred', note: 'adjust to taste' },
-          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce' },
-          { q: 1, u: null, n: 'lime', aisle: 'Produce', note: 'juice and zest' },
-          { q: 3, u: 'tbsp', n: 'nutritional yeast', aisle: 'Dry Goods & Grains' },
+          { q: 2, u: 'slices', n: 'pickled jalapeños', aisle: 'Canned & Jarred', note: 'adjust to taste', buy: { q: 1, u: 'jar' } },
+          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
+          { q: 1, u: null, n: 'lime', aisle: 'Produce', note: 'juice and zest', buyAs: 'limes', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
+          { q: 3, u: 'tbsp', n: 'nutritional yeast', aisle: 'Dry Goods & Grains', buy: { q: 15, u: 'g' } },
           { q: 0.25, u: 'tsp', n: 'cayenne pepper', aisle: 'Spices & Dried Herbs' },
           { q: 0.75, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
           { q: 0.75, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
           { q: 0.75, u: 'tsp', n: 'onion powder', aisle: 'Spices & Dried Herbs' },
-          { q: 8, u: 'tbsp', n: 'Greek-style yogurt', aisle: 'Dairy & Eggs', note: '6 tbsp for the marinade, 2 for the salsa' },
+          { q: 8, u: 'tbsp', n: 'Greek yogurt', aisle: 'Dairy & Eggs', note: '6 tbsp for the marinade, 2 for the salsa', buy: { q: 120, u: 'g' } },
         ],
         steps: [
           'Blend the jalapeños, garlic, lime juice and zest, nutritional yeast, 6 tbsp yogurt, cayenne, smoked paprika, cumin and onion powder until smooth.',
@@ -241,7 +258,7 @@ const RECIPES = [
       {
         name: 'Tofu Ribbons',
         ingredients: [
-          { q: 200, u: 'g', n: 'smoked tofu', aisle: 'Tofu & Plant-Based', note: 'extra firm, drained and pressed' },
+          { q: 200, u: 'g', n: 'smoked tofu', aisle: 'Tofu & Plant-Based', note: 'extra firm, drained and pressed', buy: { q: 1, u: 'block' } },
         ],
         steps: [
           'Preheat the oven to 180°C fan (355°F / Gas 4) and line a tray with baking paper.',
@@ -254,14 +271,14 @@ const RECIPES = [
       {
         name: 'Crunchy Salad',
         ingredients: [
-          { q: 0.25, u: null, n: 'red onion', aisle: 'Produce', note: 'diced' },
-          { q: 0.33, u: null, n: 'English cucumber', aisle: 'Produce', note: 'diced' },
-          { q: 4, u: null, n: 'cherry tomatoes', aisle: 'Produce', note: 'quartered' },
-          { q: 5, u: 'g', n: 'fresh mint', aisle: 'Produce', note: 'chopped' },
-          { q: 5, u: 'g', n: 'fresh parsley', aisle: 'Produce', note: 'chopped' },
-          { q: 0.5, u: null, n: 'lime', aisle: 'Produce', note: 'juiced' },
-          { q: 0.5, u: 'tbsp', n: 'maple syrup', aisle: 'Sweeteners' },
-          { q: null, u: null, n: 'extra virgin olive oil', aisle: 'Oils & Vinegars' },
+          { q: 0.25, u: null, n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.25, u: null } },
+          { q: 0.33, u: null, n: 'English cucumber', aisle: 'Produce', note: 'diced', buyAs: 'cucumbers', buy: { q: 0.33, u: null } },
+          { q: 4, u: null, n: 'cherry tomatoes', aisle: 'Produce', note: 'quartered', buy: { q: 60, u: 'g' } },
+          { q: 5, u: 'g', n: 'fresh mint', aisle: 'Produce', note: 'chopped', buy: { q: 0.2, u: 'bunch' } },
+          { q: 5, u: 'g', n: 'fresh parsley', aisle: 'Produce', note: 'chopped', buy: { q: 0.2, u: 'bunch' } },
+          { q: 0.5, u: null, n: 'lime', aisle: 'Produce', note: 'juiced', buyAs: 'limes', buy: { q: 0.5, u: null } },
+          { q: 0.5, u: 'tbsp', n: 'maple syrup', aisle: 'Sweeteners', buy: { q: 8, u: 'mL' } },
+          { q: null, u: null, n: 'extra virgin olive oil', aisle: 'Oils & Vinegars', buyAs: 'olive oil', buy: { q: 15, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
         ],
@@ -274,7 +291,7 @@ const RECIPES = [
       {
         name: 'Build the Wraps',
         ingredients: [
-          { q: 2, u: null, n: 'wholewheat tortillas', aisle: 'Bakery' },
+          { q: 2, u: null, n: 'wholewheat tortillas', aisle: 'Bakery', buyAs: 'tortillas' },
         ],
         steps: [
           'Spread the salsa over each tortilla.',
@@ -290,21 +307,22 @@ const RECIPES = [
     slug: 'high-protein-tofu-souvlaki-bowls',
     title: 'High Protein Tofu Souvlaki Bowls',
     dish: '#66753C',
-    meta: 'Serves 2–3',
+    time: '40 min',
+    servings: { n: 3, unit: 'servings' },
     added: '2026-07-26',
     order: 6,
     components: [
       {
         name: 'Souvlaki Tofu',
         ingredients: [
-          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: 'ripped or cubed' },
-          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
-          { q: 2, u: 'tbsp', n: 'lemon juice', aisle: 'Produce' },
-          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'zested' },
-          { q: 1.5, u: 'tbsp', n: 'tamari', aisle: 'Condiments & Sauces', note: 'or soy sauce' },
-          { q: 2, u: 'tsp', n: 'maple syrup', aisle: 'Sweeteners' },
-          { q: 2, u: 'tsp', n: 'Dijon mustard', aisle: 'Condiments & Sauces' },
-          { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced or grated' },
+          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: 'ripped or cubed', buy: { q: 1, u: 'block' } },
+          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
+          { q: 2, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.7, u: null } },
+          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'zested', buyAs: 'lemons', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
+          { q: 1.5, u: 'tbsp', n: 'tamari', aisle: 'Condiments & Sauces', note: 'or soy sauce', buy: { q: 25, u: 'mL' } },
+          { q: 2, u: 'tsp', n: 'maple syrup', aisle: 'Sweeteners', buy: { q: 10, u: 'mL' } },
+          { q: 2, u: 'tsp', n: 'Dijon mustard', aisle: 'Condiments & Sauces', buy: { q: 10, u: 'g' } },
+          { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced or grated', buyAs: 'garlic', buy: { q: 0.4, u: 'head' } },
           { q: 2, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried' },
           { q: 1, u: 'tsp', n: 'dried thyme', aisle: 'Spices & Dried Herbs' },
           { q: 1, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
@@ -324,11 +342,11 @@ const RECIPES = [
       {
         name: 'Cucumber Tomato Salad',
         ingredients: [
-          { q: 1, u: 'cup', n: 'cherry tomatoes', aisle: 'Produce', note: 'chopped' },
-          { q: 1, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'chopped' },
-          { q: 1, u: 'tbsp', n: 'fresh parsley', aisle: 'Produce', note: 'chopped' },
-          { q: 1, u: 'tbsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars' },
-          { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 1, u: 'cup', n: 'cherry tomatoes', aisle: 'Produce', note: 'chopped', buy: { q: 150, u: 'g' } },
+          { q: 1, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'chopped', buy: { q: 0.5, u: null } },
+          { q: 1, u: 'tbsp', n: 'fresh parsley', aisle: 'Produce', note: 'chopped', buy: { q: 0.1, u: 'bunch' } },
+          { q: 1, u: 'tbsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
+          { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 8, u: 'mL' } },
           { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
         ],
@@ -340,13 +358,13 @@ const RECIPES = [
       {
         name: 'Mint Tzatziki',
         ingredients: [
-          { q: 0.5, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'grated, squeezed of excess moisture' },
-          { q: 0.75, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', note: 'plain, vegan works' },
-          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', note: '1–2, to taste' },
-          { q: 1.5, u: 'tbsp', n: 'lemon juice', aisle: 'Produce' },
-          { q: 1, u: 'tsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars' },
-          { q: 2, u: 'tbsp', n: 'fresh mint', aisle: 'Produce', note: 'chopped — dill or parsley also work' },
-          { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 0.5, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'grated, squeezed of excess moisture', buy: { q: 0.3, u: null } },
+          { q: 0.75, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', note: 'plain, vegan works', buy: { q: 190, u: 'g' } },
+          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', note: '1–2, to taste', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
+          { q: 1.5, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.5, u: null } },
+          { q: 1, u: 'tsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars', buy: { q: 5, u: 'mL' } },
+          { q: 2, u: 'tbsp', n: 'fresh mint', aisle: 'Produce', note: 'chopped — dill or parsley also work', buy: { q: 0.2, u: 'bunch' } },
+          { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 8, u: 'mL' } },
           { q: 0.25, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried' },
           { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
@@ -359,9 +377,9 @@ const RECIPES = [
       {
         name: 'Build the Bowls',
         ingredients: [
-          { q: null, u: null, n: 'white rice', aisle: 'Dry Goods & Grains' },
-          { q: null, u: null, n: 'pickled onions', aisle: 'Canned & Jarred' },
-          { q: null, u: null, n: 'kalamata olives', aisle: 'Canned & Jarred' },
+          { q: 1, u: 'cup', n: 'white rice', aisle: 'Dry Goods & Grains', buy: { q: 185, u: 'g' }, buyNote: 'dry weight' },
+          { q: null, u: null, n: 'pickled onions', aisle: 'Canned & Jarred', buy: { q: 1, u: 'jar' } },
+          { q: null, u: null, n: 'kalamata olives', aisle: 'Canned & Jarred', buy: { q: 1, u: 'jar' } },
         ],
         steps: [
           'Cook the rice and divide it between bowls.',
@@ -376,25 +394,26 @@ const RECIPES = [
     slug: 'smashed-falafel-tacos',
     title: 'Smashed Falafel Tacos',
     dish: '#A06B36',
-    meta: 'Makes 4 tacos',
+    time: '30 min',
+    servings: { n: 4, unit: 'tacos' },
     added: '2026-07-26',
     order: 7,
     components: [
       {
         name: 'Falafel Patties',
         ingredients: [
-          { q: 1, u: 'can', n: 'chickpeas', aisle: 'Canned & Jarred', note: 'drained, rinsed and dried' },
-          { q: 0.5, u: 'cup', n: 'fresh parsley', aisle: 'Produce', note: 'packed' },
-          { q: 0.5, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'packed' },
-          { q: 3, u: null, n: 'garlic cloves', aisle: 'Produce' },
-          { q: 0.25, u: null, n: 'red onion', aisle: 'Produce', note: 'cut into chunks — white works too' },
-          { q: 1.5, u: 'tbsp', n: 'flour', aisle: 'Dry Goods & Grains' },
-          { q: 1, u: 'tbsp', n: 'lemon juice', aisle: 'Produce' },
+          { q: 1, u: 'can', n: 'chickpeas', aisle: 'Canned & Jarred', note: 'drained, rinsed and dried', buy: { q: 1, u: 'can' } },
+          { q: 0.5, u: 'cup', n: 'fresh parsley', aisle: 'Produce', note: 'packed', buy: { q: 0.5, u: 'bunch' } },
+          { q: 0.5, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'packed', buy: { q: 0.5, u: 'bunch' } },
+          { q: 3, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.3, u: 'head' } },
+          { q: 0.25, u: null, n: 'red onion', aisle: 'Produce', note: 'cut into chunks — white works too', buy: { q: 0.25, u: null } },
+          { q: 1.5, u: 'tbsp', n: 'flour', aisle: 'Dry Goods & Grains', buy: { q: 12, u: 'g' } },
+          { q: 1, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.35, u: null } },
           { q: 1, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
           { q: 0.25, u: 'tsp', n: 'cayenne pepper', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
-          { q: 1.5, u: 'tbsp', n: 'coconut oil', aisle: 'Oils & Vinegars', note: 'refined, for frying' },
+          { q: 1.5, u: 'tbsp', n: 'coconut oil', aisle: 'Oils & Vinegars', note: 'refined, for frying', buy: { q: 25, u: 'mL' } },
         ],
         steps: [
           'Blitz the chickpeas, parsley, cilantro, garlic, onion, flour, lemon juice, cumin, cayenne, salt and pepper in a food processor until it forms a chunky paste.',
@@ -407,11 +426,11 @@ const RECIPES = [
       {
         name: 'Tomato Cucumber Salad',
         ingredients: [
-          { q: 1, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'diced' },
-          { q: 0.5, u: 'cup', n: 'tomatoes', aisle: 'Produce', note: 'diced' },
-          { q: 0.25, u: 'cup', n: 'red onion', aisle: 'Produce', note: 'diced' },
-          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars', note: 'a drizzle' },
-          { q: null, u: null, n: 'red wine vinegar', aisle: 'Oils & Vinegars', note: 'a drizzle' },
+          { q: 1, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'diced', buy: { q: 0.5, u: null } },
+          { q: 0.5, u: 'cup', n: 'tomatoes', aisle: 'Produce', note: 'diced', buy: { q: 1, u: null } },
+          { q: 0.25, u: 'cup', n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.25, u: null } },
+          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars', note: 'a drizzle', buy: { q: 15, u: 'mL' } },
+          { q: null, u: null, n: 'red wine vinegar', aisle: 'Oils & Vinegars', note: 'a drizzle', buy: { q: 15, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
         ],
         steps: [
@@ -422,12 +441,12 @@ const RECIPES = [
       {
         name: 'Tzatziki',
         ingredients: [
-          { q: 0.25, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'grated, squeeze out the moisture' },
-          { q: 0.5, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs' },
-          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'small, grated' },
-          { q: 3, u: 'tbsp', n: 'lemon juice', aisle: 'Produce' },
-          { q: 1, u: 'tbsp', n: 'fresh dill', aisle: 'Produce', note: 'heaping — parsley works too' },
-          { q: 2, u: 'tsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 0.25, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'grated, squeeze out the moisture', buy: { q: 0.15, u: null } },
+          { q: 0.5, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 125, u: 'g' } },
+          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'small, grated', buyAs: 'garlic', buy: { q: 0.1, u: 'head' } },
+          { q: 3, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 1, u: null } },
+          { q: 1, u: 'tbsp', n: 'fresh dill', aisle: 'Produce', note: 'heaping — parsley works too', buy: { q: 0.15, u: 'bunch' } },
+          { q: 2, u: 'tsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 10, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
         ],
@@ -439,8 +458,8 @@ const RECIPES = [
       {
         name: 'Build the Tacos',
         ingredients: [
-          { q: 4, u: null, n: 'flour tortillas', aisle: 'Bakery', note: 'small, taco sized' },
-          { q: null, u: null, n: 'shredded lettuce', aisle: 'Produce' },
+          { q: 4, u: null, n: 'flour tortillas', aisle: 'Bakery', note: 'small, taco sized', buyAs: 'tortillas' },
+          { q: null, u: null, n: 'shredded lettuce', aisle: 'Produce', buyAs: 'lettuce', buy: { q: 0.25, u: 'head' } },
         ],
         steps: [
           'Warm the tortillas.',
@@ -455,7 +474,8 @@ const RECIPES = [
     slug: 'tofu-gyros',
     title: 'Tofu Gyros',
     dish: '#7A5F33',
-    meta: 'Makes 4 gyros',
+    time: '50 min',
+    servings: { n: 4, unit: 'gyros' },
     added: '2026-07-26',
     order: 8,
     components: [
@@ -464,7 +484,7 @@ const RECIPES = [
         ingredients: [
           { q: 2, u: null, n: 'potatoes', aisle: 'Produce' },
           { q: 1, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs' },
-          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
         ],
         steps: [
@@ -478,11 +498,11 @@ const RECIPES = [
       {
         name: 'Miso Tofu Skewers',
         ingredients: [
-          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based' },
-          { q: 0.66, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs' },
-          { q: 1, u: null, n: 'lemon', aisle: 'Produce' },
-          { q: 2, u: 'tbsp', n: 'white miso', aisle: 'Condiments & Sauces' },
-          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce' },
+          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', buy: { q: 1, u: 'block' } },
+          { q: 0.66, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs', buy: { q: 165, u: 'g' } },
+          { q: 1, u: null, n: 'lemon', aisle: 'Produce', buyAs: 'lemons', buy: { q: 1, u: null } },
+          { q: 2, u: 'tbsp', n: 'white miso', aisle: 'Condiments & Sauces', buy: { q: 35, u: 'g' } },
+          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
           { q: 2, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
           { q: 1, u: 'tbsp', n: 'oregano', aisle: 'Spices & Dried Herbs' },
           { q: 2, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
@@ -497,11 +517,11 @@ const RECIPES = [
       {
         name: 'Tzatziki',
         ingredients: [
-          { q: 0.5, u: null, n: 'cucumbers', aisle: 'Produce' },
-          { q: 1, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs' },
-          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce' },
-          { q: null, u: 'handful', n: 'fresh dill', aisle: 'Produce', note: 'large handful' },
-          { q: 0.5, u: null, n: 'lemon', aisle: 'Produce' },
+          { q: 0.5, u: null, n: 'cucumbers', aisle: 'Produce', buy: { q: 0.5, u: null } },
+          { q: 1, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs', buy: { q: 250, u: 'g' } },
+          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.1, u: 'head' } },
+          { q: 1, u: 'handful', n: 'fresh dill', aisle: 'Produce', note: 'large handful', buy: { q: 0.5, u: 'bunch' } },
+          { q: 0.5, u: null, n: 'lemon', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.5, u: null } },
         ],
         steps: [
           'Grate the cucumber and squeeze out the moisture.',
@@ -511,10 +531,10 @@ const RECIPES = [
       {
         name: 'Salad & Assembly',
         ingredients: [
-          { q: null, u: null, n: 'tomatoes', aisle: 'Produce' },
-          { q: null, u: null, n: 'red onion', aisle: 'Produce' },
-          { q: null, u: null, n: 'cucumbers', aisle: 'Produce' },
-          { q: null, u: null, n: 'fresh parsley', aisle: 'Produce' },
+          { q: 2, u: null, n: 'tomatoes', aisle: 'Produce' },
+          { q: 0.5, u: null, n: 'red onion', aisle: 'Produce', buy: { q: 0.5, u: null } },
+          { q: 0.5, u: null, n: 'cucumbers', aisle: 'Produce', buy: { q: 0.5, u: null } },
+          { q: 1, u: 'handful', n: 'fresh parsley', aisle: 'Produce', buy: { q: 0.25, u: 'bunch' } },
           { q: 4, u: null, n: 'flatbreads', aisle: 'Bakery' },
         ],
         steps: [
@@ -530,16 +550,17 @@ const RECIPES = [
     slug: 'green-shakshuka',
     title: 'Green Shakshuka',
     dish: '#3F6B45',
-    meta: 'Serves 2 · double everything for 4',
+    time: '35 min',
+    servings: { n: 2, unit: 'servings' },
     added: '2026-07-26',
     order: 9,
     components: [
       {
         name: 'Prep',
         ingredients: [
-          { q: 300, u: 'g', n: 'Swiss chard', aisle: 'Produce' },
-          { q: 25, u: 'g', n: 'cilantro', aisle: 'Produce' },
-          { q: 1, u: null, n: 'lime', aisle: 'Produce' },
+          { q: 300, u: 'g', n: 'Swiss chard', aisle: 'Produce', buy: { q: 1, u: 'bunch' } },
+          { q: 25, u: 'g', n: 'cilantro', aisle: 'Produce', buy: { q: 0.5, u: 'bunch' } },
+          { q: 1, u: null, n: 'lime', aisle: 'Produce', buyAs: 'limes', buy: { q: 1, u: null } },
           { q: 2, u: null, n: 'pitas', aisle: 'Bakery' },
         ],
         steps: [
@@ -554,18 +575,19 @@ const RECIPES = [
       {
         name: 'Shakshuka Base',
         ingredients: [
-          { q: 150, u: 'g', n: 'leeks', aisle: 'Produce' },
-          { q: 4, u: 'tsp', n: 'garlic cloves', aisle: 'Produce' },
-          { q: 4, u: 'tsp', n: 'spice blend', aisle: 'Spices & Dried Herbs', note: '1 tbsp dried dill + 1 tsp cumin' },
-          { q: 2, u: 'pkg', n: 'raw sugar', aisle: 'Sweeteners' },
+          { q: 150, u: 'g', n: 'leeks', aisle: 'Produce', buy: { q: 1, u: null } },
+          { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.4, u: 'head' } },
+          { q: 1, u: 'tbsp', n: 'dried dill', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tbsp', n: 'raw sugar', aisle: 'Sweeteners', buy: { q: 15, u: 'g' } },
           { q: 1, u: 'tsp', n: 'red pepper flakes', aisle: 'Spices & Dried Herbs' },
           { q: 1, u: null, n: 'vegetable stock cube', aisle: 'Dry Goods & Grains' },
-          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
         ],
         steps: [
           'Heat 2 tbsp olive oil in a large oven-proof skillet over medium-high.',
           'Add the leeks and chard stems. Cook 3–4 minutes, stirring, until tender and turning golden.',
-          'Add the garlic, spice blend, sugar, three-quarters of the cilantro and red pepper flakes to taste. Cook 1–2 minutes until fragrant.',
+          'Add the garlic, dill, cumin, sugar, three-quarters of the cilantro and red pepper flakes to taste. Cook 1–2 minutes until fragrant.',
           'Add the chard leaves, the crumbled stock cube and ⅔ cup water. Bring to a low boil.',
           'Cover and cook 4–5 minutes, stirring occasionally, until the liquid has almost evaporated.',
           'Season with lime juice, salt and pepper.',
@@ -574,8 +596,8 @@ const RECIPES = [
       {
         name: 'Harissa Oil',
         ingredients: [
-          { q: 2, u: 'tsp', n: 'harissa paste', aisle: 'Condiments & Sauces' },
-          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars' },
+          { q: 2, u: 'tsp', n: 'harissa paste', aisle: 'Condiments & Sauces', buy: { q: 30, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
         ],
         steps: [
           'Combine 2 tbsp olive oil with harissa to taste in a small bowl.',
@@ -586,7 +608,7 @@ const RECIPES = [
         name: 'Eggs & Serve',
         ingredients: [
           { q: 4, u: null, n: 'eggs', aisle: 'Dairy & Eggs', note: 'free range' },
-          { q: 0.5, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs' },
+          { q: 0.5, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 125, u: 'g' } },
         ],
         steps: [
           'Turn the broiler to 550°F, one rack in the centre and another 6 inches from the top.',
@@ -607,19 +629,20 @@ const RECIPES = [
     slug: 'tahini-oat-bites',
     title: 'Tahini Oat Bites',
     dish: '#8E6244',
-    meta: 'Makes 16 bites',
+    time: '15 min + chilling',
+    servings: { n: 16, unit: 'bites' },
     added: '2026-07-26',
     order: 10,
     components: [
       {
         name: 'The Dough',
         ingredients: [
-          { q: 0.5, u: 'cup', n: 'tahini', aisle: 'Condiments & Sauces' },
-          { q: 3, u: 'tbsp', n: 'honey', aisle: 'Sweeteners' },
-          { q: 0.5, u: 'cup', n: 'large flake oats', aisle: 'Dry Goods & Grains' },
-          { q: 56, u: 'g', n: 'dried apricots', aisle: 'Dry Goods & Grains' },
+          { q: 0.5, u: 'cup', n: 'tahini', aisle: 'Condiments & Sauces', buy: { q: 120, u: 'g' } },
+          { q: 3, u: 'tbsp', n: 'honey', aisle: 'Sweeteners', buy: { q: 65, u: 'g' } },
+          { q: 0.5, u: 'cup', n: 'large flake oats', aisle: 'Dry Goods & Grains', buy: { q: 45, u: 'g' } },
+          { q: 56, u: 'g', n: 'dried apricots', aisle: 'Dry Goods & Grains', buy: { q: 60, u: 'g' } },
           { q: 1, u: 'tsp', n: 'cinnamon', aisle: 'Spices & Dried Herbs' },
-          { q: 28, u: 'g', n: 'pistachios', aisle: 'Nuts & Seeds' },
+          { q: 28, u: 'g', n: 'pistachios', aisle: 'Nuts & Seeds', buy: { q: 30, u: 'g' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch' },
         ],
         steps: [
@@ -633,7 +656,7 @@ const RECIPES = [
       {
         name: 'Coat & Chill',
         ingredients: [
-          { q: 0.5, u: 'cup', n: 'unsweetened shredded coconut', aisle: 'Dry Goods & Grains' },
+          { q: 0.5, u: 'cup', n: 'unsweetened shredded coconut', aisle: 'Dry Goods & Grains', buy: { q: 40, u: 'g' } },
         ],
         steps: [
           'Add the coconut to a shallow dish.',
@@ -650,4 +673,5 @@ const RECIPES = [
 if (typeof window !== 'undefined') {
   window.RECIPES = RECIPES;
   window.AISLES = AISLES;
+  window.DISCRETE_UNITS = DISCRETE_UNITS;
 }
