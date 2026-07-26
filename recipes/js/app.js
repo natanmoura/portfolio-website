@@ -319,16 +319,6 @@
     return { q: Math.round(q * 4) / 4, u, rounded: false, from: q };
   }
 
-  /* Express a per-recipe base contribution in the item's final display
-     unit, for the recipe-breakdown shown in the copied grocery text.
-     No round-up here (that's only for what you'd actually buy in
-     total) — just a readable number for "which recipe needs how much". */
-  function displayAmount(base, unit) {
-    const mult = TO_BASE[unit];
-    const q = mult ? base / mult : base;
-    return Math.round(q * 100) / 100;
-  }
-
   /* How much a +/- press moves, in whatever unit is being shown. */
   function stepFor(u) {
     if (u === null || isDiscrete(u)) return 1;
@@ -401,15 +391,12 @@
               hasQty: false,
               notes: new Set(),
               from: new Set(),
-              fromBase: new Map(), // recipe title -> base qty this recipe alone contributed
             });
           }
           const it = map.get(key);
           if (buy.q !== null && buy.q !== undefined) {
-            const contrib = toBase(buy.q * factor, unit);
-            it.base += contrib;
+            it.base += toBase(buy.q * factor, unit);
             it.hasQty = true;
-            it.fromBase.set(r.title, (it.fromBase.get(r.title) || 0) + contrib);
           }
           if (ing.buyNote) it.notes.add(ing.buyNote);
           it.from.add(r.title);
@@ -427,20 +414,15 @@
         it.unit = edit.unit === undefined ? null : edit.unit;
         it.rounded = false;
         it.hasQty = true;
-        it.fromBreakdown = null; // hand-edited amount — per-recipe split no longer meaningful
       } else if (it.hasQty) {
         const f = finalizeAmount(it.base, it.family);
         it.qty = f.q;
         it.unit = f.u;
         it.rounded = f.rounded;
         it.roundedFrom = f.from;
-        it.fromBreakdown = Array.from(it.fromBase.entries())
-          .map(([title, base]) => ({ title, qty: displayAmount(base, it.unit) }))
-          .sort((a, b) => a.title.localeCompare(b.title));
       } else {
         it.qty = null;
         it.unit = null;
-        it.fromBreakdown = null; // no measured quantity (e.g. salt/pepper "to taste") — nothing to split
       }
       items.push(it);
     });
@@ -917,16 +899,26 @@
     }
   }
 
-  /* The recipe block up top and each item's (via ...) breakdown exist so
-     a downstream tool (the saveonfoods-shopping Claude Code skill) can
-     tell which recipe needs how much of a given item without recomputing
-     the grocery merge itself — e.g. to know what to remove from a cart
-     if a recipe drops off the plan. Keep this machine-parseable: one
-     recipe per line under the header, breakdown always in the same
-     "Title Nunit" shape. */
+  /* The trailing recipe block exists so a downstream tool (the
+     saveonfoods-shopping Claude Code skill) knows exactly which recipes
+     and servings built this list — e.g. to work out what a dropped
+     recipe needs removed, it reads that recipe's own ingredients from
+     recipes-data.js and scales by servings, rather than this text
+     needing to spell out every item's source. Keep the block
+     machine-parseable: one recipe per line, always "Title — N unit". */
   function groceryText() {
     const groups = compileGroceries();
-    const lines = ['Moura Boys Forever Recipes — grocery list'];
+    const lines = ['Moura Boys Forever Recipes — grocery list', ''];
+
+    groups.forEach((g) => {
+      lines.push(g.aisle.toUpperCase());
+      g.items.forEach((it) => {
+        const amt = fmtAmount(it.qty, it.unit);
+        const note = Array.from(it.notes)[0];
+        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}${note ? ` (${note})` : ''}`);
+      });
+      lines.push('');
+    });
 
     lines.push('RECIPES IN THIS LIST');
     state.plan.forEach((p) => {
@@ -934,23 +926,7 @@
       if (!r) return;
       lines.push(`- ${r.title} — ${p.servings} ${p.servings === 1 ? r.servings.unit.replace(/s$/, '') : r.servings.unit}`);
     });
-    lines.push('');
 
-    groups.forEach((g) => {
-      lines.push(g.aisle.toUpperCase());
-      g.items.forEach((it) => {
-        const amt = fmtAmount(it.qty, it.unit);
-        const note = Array.from(it.notes)[0];
-        let breakdown = '';
-        if (it.fromBreakdown && it.fromBreakdown.length > 1) {
-          breakdown = ` (via ${it.fromBreakdown.map((b) => `${b.title} ${fmtAmount(b.qty, it.unit)}`).join(', ')})`;
-        } else if (it.from.size) {
-          breakdown = ` (via ${Array.from(it.from).join(', ')})`;
-        }
-        lines.push(`- ${amt ? amt + ' ' : ''}${it.name}${note ? ` (${note})` : ''}${breakdown}`);
-      });
-      lines.push('');
-    });
     return lines.join('\n').trim();
   }
 
