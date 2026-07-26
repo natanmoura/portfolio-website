@@ -796,6 +796,19 @@ button { background: none; border: none; cursor: pointer; }
 .qr-canvas svg { width: 100%; height: auto; max-width: 220px; }
 .qr-hint { font-size: .82rem; color: var(--muted); margin: .9rem 0 1.1rem; }
 
+/* Confirm dialog — same card shell as the QR modal, for anything
+   destructive (deleting a saved list) that deserves a real pause. */
+.confirm-card .qr-hint { margin-bottom: 1.3rem; }
+.confirm-actions { display: flex; gap: .6rem; justify-content: center; }
+.danger-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .55rem 1.1rem; border-radius: var(--r-pill);
+  background: #B5432E; color: #fff; font-size: .84rem; font-weight: 700;
+  transition: transform .26s var(--ease), filter .26s var(--ease);
+}
+.danger-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.danger-btn:active { transform: scale(.96); }
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; bottom: 2rem; z-index: 200;

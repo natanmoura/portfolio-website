@@ -58,6 +58,11 @@
     qrTitle: $('qrTitle'),
     qrCanvas: $('qrCanvas'),
     qrClose: $('qrClose'),
+    confirmOverlay: $('confirmOverlay'),
+    confirmTitle: $('confirmTitle'),
+    confirmMsg: $('confirmMsg'),
+    confirmYes: $('confirmYes'),
+    confirmCancel: $('confirmCancel'),
   };
 
   /* ── State ───────────────────────────────────────────── */
@@ -1298,12 +1303,19 @@
         return;
       }
       if (forget) {
-        const i = +forget.dataset.forget;
-        const name = state.saved[i].name;
-        state.saved.splice(i, 1);
-        save(SAVED_KEY, state.saved);
-        renderSaved();
-        toast(`Deleted "${name}"`);
+        const s = state.saved[+forget.dataset.forget];
+        confirmAction(
+          'Delete this list?',
+          `"${s.name}" will be gone for good — you'd need to publish it again from Plan.`,
+          () => {
+            const idx = state.saved.indexOf(s);
+            if (idx === -1) return;
+            state.saved.splice(idx, 1);
+            save(SAVED_KEY, state.saved);
+            renderSaved();
+            toast(`Deleted "${s.name}"`);
+          }
+        );
       }
     });
 
@@ -1325,6 +1337,36 @@
 
     el.qrClose.addEventListener('click', () => el.qrOverlay.classList.remove('is-on'));
     el.qrOverlay.addEventListener('click', (e) => { if (e.target === el.qrOverlay) el.qrOverlay.classList.remove('is-on'); });
+
+    /* A generic "are you sure" for anything destructive — right now
+       just deleting a saved list, but built to take any confirmation. */
+    let pendingConfirm = null;
+
+    function confirmAction(title, msg, onConfirm) {
+      el.confirmTitle.textContent = title;
+      el.confirmMsg.textContent = msg;
+      pendingConfirm = onConfirm;
+      el.confirmOverlay.classList.add('is-on');
+    }
+
+    function closeConfirm() {
+      el.confirmOverlay.classList.remove('is-on');
+      pendingConfirm = null;
+    }
+
+    el.confirmYes.addEventListener('click', () => {
+      const action = pendingConfirm;
+      closeConfirm();
+      if (action) action();
+    });
+    el.confirmCancel.addEventListener('click', closeConfirm);
+    el.confirmOverlay.addEventListener('click', (e) => { if (e.target === el.confirmOverlay) closeConfirm(); });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (el.confirmOverlay.classList.contains('is-on')) closeConfirm();
+      else if (el.qrOverlay.classList.contains('is-on')) el.qrOverlay.classList.remove('is-on');
+    });
 
     const sentinel = document.querySelector('.masthead');
     if ('IntersectionObserver' in window && sentinel) {

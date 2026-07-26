@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=13" />
+  <link rel="stylesheet" href="css/recipes.css?v=14" />
   <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
@@ -181,10 +181,21 @@
     </div>
   </div>
 
+  <div class="qr-overlay" id="confirmOverlay">
+    <div class="qr-card confirm-card">
+      <h3 id="confirmTitle"></h3>
+      <p class="qr-hint" id="confirmMsg"></p>
+      <div class="confirm-actions">
+        <button class="ghost-btn" id="confirmCancel">Cancel</button>
+        <button class="danger-btn" id="confirmYes">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="js/pagefade.js?v=1"></script>
   <script src="js/recipes-data.js?v=6"></script>
-  <script src="js/app.js?v=15"></script>
+  <script src="js/app.js?v=16"></script>
 
   <script type="importmap">
   {
