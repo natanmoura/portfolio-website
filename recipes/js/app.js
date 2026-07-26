@@ -741,7 +741,6 @@
     const totalCount = toBuyCount + boughtCount;
 
     el.shopBoughtCount.textContent = boughtCount || '';
-    el.shopBoughtCount.classList.toggle('is-on', boughtCount > 0);
     el.shopUndoBtn.disabled = shopUndoStack.length === 0;
 
     document.querySelectorAll('.shop-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.shoptab === state.shopTab)));
@@ -750,7 +749,7 @@
       if (totalCount === 0) {
         el.shopList.innerHTML = '<p class="muted-note">Add recipes to your plan and their grocery list shows up here to check off.</p>';
       } else if (toBuyCount === 0) {
-        el.shopList.innerHTML = '<div class="shop-done"><strong>You\'re done!</strong> Now get your butt in the kitchen 💚</div>';
+        el.shopList.innerHTML = '<div class="shop-done"><strong>You\'re done!</strong> Now get your butt in the kitchen ❤️</div>';
       } else {
         el.shopList.innerHTML = toBuy.map((g) => shopAisleHtml(g, false)).join('');
       }
@@ -761,16 +760,37 @@
     }
   }
 
+  /* Show the check (or uncheck) actually land before the row vanishes
+     from whichever list it's in — a plain instant re-render gave no
+     feedback that the tap registered at all. */
   function toggleBought(key) {
-    if (state.bought.has(key)) {
-      state.bought.delete(key); // bringing an item back from the Bought tab
-    } else {
-      state.bought.add(key);
-      shopUndoStack.push(key);
-      if (shopUndoStack.length > SHOP_UNDO_LIMIT) shopUndoStack.shift();
+    const willBuy = !state.bought.has(key);
+    const row = el.shopList.querySelector(`[data-key="${cssEscape(key)}"]`);
+    const circle = row ? row.querySelector('.shop-circle') : null;
+
+    if (circle) {
+      circle.innerHTML = willBuy ? checkSvg() : '';
+      circle.classList.add('is-toggling');
     }
-    saveBought();
-    renderShop();
+
+    const commit = () => {
+      if (willBuy) {
+        state.bought.add(key);
+        shopUndoStack.push(key);
+        if (shopUndoStack.length > SHOP_UNDO_LIMIT) shopUndoStack.shift();
+      } else {
+        state.bought.delete(key);
+      }
+      saveBought();
+      renderShop();
+    };
+
+    if (row) {
+      row.classList.add('is-leaving');
+      setTimeout(commit, 340);
+    } else {
+      commit();
+    }
   }
 
   function undoShop() {
@@ -829,12 +849,18 @@
     }
     el.savedList.innerHTML = state.saved.map((s, i) => `
       <div class="saved">
-        <span class="saved-name">${esc(s.name)}</span>
-        <span class="saved-meta">${s.count} ${s.count === 1 ? 'recipe' : 'recipes'}</span>
-        <button class="mini-btn" data-open="${i}">Open</button>
-        <button class="mini-btn" data-link="${i}">Copy link</button>
-        <button class="mini-btn" data-qr="${i}">QR</button>
-        <button class="icon-btn" data-forget="${i}" aria-label="Delete ${esc(s.name)}">${xSvg()}</button>
+        <div class="saved-top">
+          <div class="saved-title">
+            <span class="saved-name">${esc(s.name)}</span>
+            <span class="saved-meta">${s.count} ${s.count === 1 ? 'recipe' : 'recipes'}</span>
+          </div>
+          <button class="icon-btn" data-forget="${i}" aria-label="Delete ${esc(s.name)}">${xSvg()}</button>
+        </div>
+        <div class="saved-actions">
+          <button class="mini-btn" data-open="${i}">Open</button>
+          <button class="mini-btn" data-link="${i}">Copy link</button>
+          <button class="mini-btn" data-qr="${i}">QR</button>
+        </div>
       </div>`).join('');
   }
 
@@ -1049,7 +1075,9 @@
     const active = document.querySelector('.top-btn[aria-selected="true"]');
     if (!active) return;
     el.topInk.style.width = `${active.offsetWidth}px`;
-    el.topInk.style.transform = `translateX(${active.offsetLeft - 4}px)`;
+    // topInk's CSS baseline is left:0 (no padding compensation needed —
+    // offsetLeft already measures from the same padding-box edge).
+    el.topInk.style.transform = `translateX(${active.offsetLeft}px)`;
   }
 
   function updatePlanCount() {
