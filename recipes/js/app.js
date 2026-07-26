@@ -750,7 +750,7 @@
       if (totalCount === 0) {
         el.shopList.innerHTML = '<p class="muted-note">Add recipes to your plan and their grocery list shows up here to check off.</p>';
       } else if (toBuyCount === 0) {
-        el.shopList.innerHTML = '<div class="shop-done"><strong>Great job!</strong> Now get your butt in the kitchen &lt;3</div>';
+        el.shopList.innerHTML = '<div class="shop-done"><strong>You\'re done!</strong> Now get your butt in the kitchen 💚</div>';
       } else {
         el.shopList.innerHTML = toBuy.map((g) => shopAisleHtml(g, false)).join('');
       }
