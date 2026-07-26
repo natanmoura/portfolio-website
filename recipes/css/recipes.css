@@ -116,7 +116,7 @@ button { background: none; border: none; cursor: pointer; }
   position: absolute; left: 50%; top: 0; transform: translateX(-50%);
   white-space: nowrap;
   opacity: 0;
-  transition: opacity .5s var(--ease);
+  transition: opacity .5s ease-in-out;
 }
 .masthead-meta .stat.is-on { opacity: 1; }
 
@@ -147,7 +147,19 @@ button { background: none; border: none; cursor: pointer; }
   transition: color .25s var(--ease);
   white-space: nowrap;
 }
-.top-btn .count { font-family: var(--font-mono); font-size: .74em; margin-left: .35rem; opacity: .85; }
+/* Absolutely placed, so the count appearing/changing never resizes the
+   button itself — which would otherwise re-center the whole pill group
+   and make "Recipes" visibly shift sideways. */
+.top-btn .count {
+  position: absolute; top: -.3rem; right: -.3rem;
+  min-width: 1.2rem; height: 1.2rem; padding: 0 .3rem;
+  border-radius: var(--r-pill);
+  background: #fff; color: var(--herb-deep);
+  font-family: var(--font-mono); font-size: .64rem; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  box-shadow: 0 1px 3px rgba(30,43,36,.22);
+}
+.top-btn .count:not(:empty) { display: flex; }
 .top-btn[aria-selected="true"] { color: var(--surface); }
 
 /* ── Controls ─────────────────────────────────────────────── */

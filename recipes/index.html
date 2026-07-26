@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=9" />
+  <link rel="stylesheet" href="css/recipes.css?v=11" />
   <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
@@ -24,9 +24,11 @@
     </header>
 
     <nav class="top-modes" role="tablist" aria-label="Section">
-      <span class="top-ink" id="topInk"></span>
-      <button class="top-btn" role="tab" id="top-recipes" data-top="recipes" aria-selected="true">Recipes</button>
-      <button class="top-btn" role="tab" id="top-plan" data-top="plan" aria-selected="false">Plan<span class="count" id="planCount"></span></button>
+      <div class="top-modes-inner">
+        <span class="top-ink" id="topInk"></span>
+        <button class="top-btn" role="tab" id="top-recipes" data-top="recipes" aria-selected="true">Recipes</button>
+        <button class="top-btn" role="tab" id="top-plan" data-top="plan" aria-selected="false">Plan<span class="count" id="planCount"></span></button>
+      </div>
     </nav>
 
     <div class="controls" id="controls">
@@ -157,8 +159,8 @@
   </div>
 
   <script src="js/pagefade.js?v=1"></script>
-  <script src="js/recipes-data.js?v=3"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/recipes-data.js?v=5"></script>
+  <script src="js/app.js?v=11"></script>
 
   <script type="importmap">
   {

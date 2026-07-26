@@ -183,29 +183,72 @@
 
   const isDiscrete = (u) => DISCRETE.indexOf(u || null) !== -1 || DISCRETE.indexOf(u) !== -1;
 
-  /* You can't buy 1.3 lemons. Round discrete things up, and round
-     weights and volumes to a number you'd actually read off a label. */
-  function roundForBuying(q, u) {
-    if (q === null || q === undefined) return { q, rounded: false, from: null };
-    if (isDiscrete(u)) {
+  /* ── Unit conversion ─────────────────────────────────────
+     Recipes keep whatever units they were written in — the grocery
+     list does the converting. Units that measure the same thing live
+     in one "family" and convert through a common base, so the same
+     ingredient always merges into a single line no matter which unit
+     each recipe used. The list then shows it in the most natural
+     (largest sensible) unit for the total. */
+
+  const TO_BASE = { tsp: 1, tbsp: 3, cup: 48, mL: 1, L: 1000, g: 1, kg: 1000 };
+  const UNIT_FAMILY = {
+    tsp: 'spoon', tbsp: 'spoon', cup: 'spoon',
+    mL: 'liquid', L: 'liquid',
+    g: 'weight', kg: 'weight',
+  };
+
+  // Convertible units share a family; a discrete unit (bunch, can…) is
+  // its own family; a bare count (u:null) is the empty family.
+  function unitFamily(u) {
+    if (u === null || u === undefined || u === '') return '';
+    return UNIT_FAMILY[u] || u;
+  }
+  function toBase(q, u) {
+    const mult = TO_BASE[u];
+    return mult ? q * mult : q; // non-convertible units are their own base
+  }
+
+  /* Pick the largest unit that keeps the number readable, then round to
+     something you'd actually buy. Discrete things round up (no 1.3
+     lemons). Weights/volumes round up to a sensible step. Spoon and
+     large units just snap to a clean fraction. */
+  function finalizeAmount(base, family) {
+    let q, u;
+    if (family === 'spoon') {
+      if (base >= 12) { q = base / 48; u = 'cup'; }
+      else if (base >= 3) { q = base / 3; u = 'tbsp'; }
+      else { q = base; u = 'tsp'; }
+    } else if (family === 'liquid') {
+      if (base >= 1000) { q = base / 1000; u = 'L'; }
+      else { q = base; u = 'mL'; }
+    } else if (family === 'weight') {
+      if (base >= 1000) { q = base / 1000; u = 'kg'; }
+      else { q = base; u = 'g'; }
+    } else {
+      q = base; u = family === '' ? null : family; // count / discrete
+    }
+
+    if (u === null || isDiscrete(u)) {
       const up = Math.ceil(q - 1e-9);
-      return { q: up, rounded: Math.abs(up - q) > 0.05, from: q };
+      return { q: up, u, rounded: Math.abs(up - q) > 0.05, from: q };
     }
     if (u === 'g' || u === 'mL') {
       const step = q >= 200 ? 50 : 10;
       const up = Math.ceil(q / step) * step;
-      return { q: up, rounded: Math.abs(up - q) > 0.5, from: q };
+      return { q: up, u, rounded: Math.abs(up - q) > 0.5, from: q };
     }
-    const up = Math.round(q * 4) / 4;
-    return { q: up, rounded: false, from: q };
+    // cup / tbsp / tsp / L / kg — snap to a clean quarter, no "rounded up" note
+    return { q: Math.round(q * 4) / 4, u, rounded: false, from: q };
   }
 
-  /* How much a +/- press should move, in purchase units. */
+  /* How much a +/- press moves, in whatever unit is being shown. */
   function stepFor(u) {
-    if (isDiscrete(u)) return 1;
-    if (u === 'g') return 50;
-    if (u === 'mL') return 50;
-    return 1;
+    if (u === null || isDiscrete(u)) return 1;
+    if (u === 'g' || u === 'mL') return 50;
+    if (u === 'kg' || u === 'L') return 0.25;
+    if (u === 'cup') return 0.25;
+    return 1; // tsp, tbsp
   }
 
   /* ── Plan helpers ────────────────────────────────────── */
@@ -240,7 +283,10 @@
   /* ── Grocery engine ──────────────────────────────────── */
 
   /* Merge every ingredient across the plan into things you can buy.
-     Amounts scale with each recipe's chosen servings. */
+     Amounts scale with each recipe's chosen servings, and everything in
+     a unit family is summed in that family's base unit so the same
+     ingredient can't split across two lines just because two recipes
+     wrote it in different units. Key is name + family, not name + unit. */
   function compileGroceries() {
     const map = new Map();
 
@@ -254,14 +300,16 @@
           const buy = ing.buy || { q: ing.q, u: ing.u };
           const name = ing.buyAs || ing.n;
           const unit = buy.u === undefined ? ing.u : buy.u;
-          const key = `${name.toLowerCase()}|${unit || ''}`;
+          const family = unitFamily(unit);
+          const key = `${name.toLowerCase()}|${family}`;
 
           if (!map.has(key)) {
             map.set(key, {
               key,
               name,
-              unit,
+              family,
               aisle: ing.aisle,
+              base: 0,
               qty: null,
               hasQty: false,
               notes: new Set(),
@@ -270,7 +318,7 @@
           }
           const it = map.get(key);
           if (buy.q !== null && buy.q !== undefined) {
-            it.qty = (it.qty || 0) + buy.q * factor;
+            it.base += toBase(buy.q * factor, unit);
             it.hasQty = true;
           }
           if (ing.buyNote) it.notes.add(ing.buyNote);
@@ -284,14 +332,20 @@
       const edit = state.edits[it.key];
       if (edit && edit.removed) return;
 
-      if (edit && typeof edit.amount === 'number' && it.hasQty) {
+      if (edit && typeof edit.amount === 'number') {
         it.qty = edit.amount;
+        it.unit = edit.unit === undefined ? null : edit.unit;
         it.rounded = false;
+        it.hasQty = true;
       } else if (it.hasQty) {
-        const r = roundForBuying(it.qty, it.unit);
-        it.rounded = r.rounded;
-        it.roundedFrom = r.from;
-        it.qty = r.q;
+        const f = finalizeAmount(it.base, it.family);
+        it.qty = f.q;
+        it.unit = f.u;
+        it.rounded = f.rounded;
+        it.roundedFrom = f.from;
+      } else {
+        it.qty = null;
+        it.unit = null;
       }
       items.push(it);
     });
@@ -489,7 +543,6 @@
         <div class="aisle-name">${esc(g.aisle)}<span>${g.items.length}</span></div>
         ${g.items.map((it) => {
           const note = Array.from(it.notes)[0] || '';
-          const from = Array.from(it.from).join(', ');
           const checked = state.selected.has(it.key);
           return `
           <div class="g-item${checked ? ' is-selected' : ''}" data-key="${esc(it.key)}">
@@ -506,7 +559,6 @@
             <span class="g-side">
               ${note ? `<span class="g-note">${esc(note)}</span>` : ''}
               ${it.rounded ? `<span class="g-round">rounded up from ${esc(fmtQty(it.roundedFrom))}</span>` : ''}
-              <span class="g-from">${esc(from)}</span>
             </span>
           </div>`;
         }).join('')}
@@ -534,28 +586,30 @@
     el.trashBtn.disabled = n === 0;
     el.trashCount.textContent = n || '';
     el.trashCount.classList.toggle('is-on', n > 0);
-    el.undoBtn.disabled = !lastBatch;
+    el.undoBtn.disabled = undoStack.length === 0;
   }
 
-  /* ── Batch undo for the grocery list only ─────────────── */
-  /* Tracks just the most recent grocery action (a bulk delete, or one
-     amount tweak) so Undo can put it back exactly — separate from
-     anything else you do on the page. */
-  let lastBatch = null;
+  /* ── Undo history for the grocery list only ────────────── */
+  /* A stack of up to 50 grocery actions (each a bulk delete or one
+     amount tweak), each capturing the exact prior edit state of the
+     keys it touched. Undo pops the newest — separate from anything
+     else you do on the page. */
+  const UNDO_LIMIT = 50;
+  const undoStack = [];
 
   function recordBatch(keys) {
     const snapshot = {};
     keys.forEach((k) => { snapshot[k] = state.edits[k]; });
-    lastBatch = { snapshot, keys: keys.slice() };
+    undoStack.push({ snapshot, keys: keys.slice() });
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift(); // keep the 50 most recent
   }
 
   function undoLastBatch() {
-    if (!lastBatch) return;
-    const keys = lastBatch.keys;
-    restoreEdits(lastBatch.snapshot);
-    lastBatch = null;
-    updateToolbar(); // restoreEdits already rendered once, while the batch still existed
-    flashKeys(keys);
+    if (!undoStack.length) { toast('No more undos'); return; }
+    const batch = undoStack.pop();
+    restoreEdits(batch.snapshot);
+    updateToolbar(); // restoreEdits already rendered once, with the stack updated
+    flashKeys(batch.keys);
   }
 
   function restoreEdits(snapshot) {
@@ -709,23 +763,53 @@
   });
 
   /* ── Masthead stats ──────────────────────────────────── */
+  /* Every fact here is derived straight from RECIPES, so a new recipe
+     just folds into the rotation automatically — nothing to maintain
+     by hand. */
+
+  /* "1 hr" and "40 min" both need their unit read, not just the
+     leading digits (parseInt("1 hr") is 1, which made a 1-hour recipe
+     look "quicker" than a 25-minute one). */
+  function parseMinutes(t) {
+    const m = /([\d.]+)\s*(hr|hour|min)/i.exec(t || '');
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    return /^h/i.test(m[2]) ? n * 60 : n;
+  }
 
   function computeStats() {
-    const stats = [`${RECIPES.length} recipes`];
+    const stats = [`${RECIPES.length} Recipes Total`];
 
     const newest = RECIPES.reduce((a, b) => (a.order > b.order ? a : b), RECIPES[0]);
     if (newest) stats.push(`Newest: ${newest.title}`);
 
-    const quickest = RECIPES.reduce((a, b) => (parseInt(a.time, 10) <= parseInt(b.time, 10) ? a : b), RECIPES[0]);
-    if (quickest) stats.push(`Quickest: ${quickest.title} — ${quickest.time}`);
+    const oldest = RECIPES.reduce((a, b) => (a.order < b.order ? a : b), RECIPES[0]);
+    if (oldest && oldest !== newest) stats.push(`First recipe added: ${oldest.title}`);
+
+    const timed = RECIPES.map((r) => ({ r, mins: parseMinutes(r.time) })).filter((x) => x.mins !== null);
+    if (timed.length) {
+      const quickest = timed.reduce((a, b) => (a.mins <= b.mins ? a : b));
+      stats.push(`Quickest: ${quickest.r.title} — ${quickest.r.time}`);
+
+      const slowest = timed.reduce((a, b) => (a.mins >= b.mins ? a : b));
+      if (slowest.r !== quickest.r) stats.push(`Longest cook: ${slowest.r.title} — ${slowest.r.time}`);
+
+      const avg = Math.round(timed.reduce((sum, x) => sum + x.mins, 0) / timed.length);
+      stats.push(`Average cook time: ${avg} minutes`);
+
+      const quick = timed.filter((x) => x.mins <= 30).length;
+      if (quick) stats.push(`${quick} of ${RECIPES.length} recipes take 30 minutes or less`);
+    }
 
     const ingredientCount = new Map();
     const uniqueIngredients = new Set();
+    const aisles = new Set();
     RECIPES.forEach((r) => {
       const seenInThisRecipe = new Set();
       r.components.forEach((c) => c.ingredients.forEach((ing) => {
         const name = (ing.buyAs || ing.n).toLowerCase();
         uniqueIngredients.add(name);
+        aisles.add(ing.aisle);
         if (!seenInThisRecipe.has(name)) {
           seenInThisRecipe.add(name);
           ingredientCount.set(name, (ingredientCount.get(name) || 0) + 1);
@@ -733,10 +817,16 @@
       }));
     });
     stats.push(`${uniqueIngredients.size} different ingredients across the collection`);
+    stats.push(`Shopping spans ${aisles.size} grocery aisles`);
 
     let topName = null, topCount = 0;
     ingredientCount.forEach((count, name) => { if (count > topCount) { topCount = count; topName = name; } });
     if (topName && topCount > 1) stats.push(`${cap(topName)} shows up in ${topCount} of ${RECIPES.length} recipes`);
+
+    const mostSteps = RECIPES.reduce((a, b) => (a.components.length >= b.components.length ? a : b), RECIPES[0]);
+    if (mostSteps && mostSteps.components.length > 1) {
+      stats.push(`${mostSteps.title} has the most moving parts — ${mostSteps.components.length} components`);
+    }
 
     return stats;
   }
@@ -748,21 +838,20 @@
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let i = 0;
 
+    // One element, reused. The old fact fades fully out, then the text
+    // swaps and the new one fades in — a clean hand-off, not a crossfade.
     el.meta.innerHTML = `<span class="stat is-on">${esc(stats[0])}</span>`;
     if (stats.length < 2 || reduceMotion) return;
 
+    const span = el.meta.querySelector('.stat');
     setInterval(() => {
-      const next = (i + 1) % stats.length;
-      const cur = el.meta.querySelector('.stat.is-on');
-      if (cur) cur.classList.remove('is-on');
-      const fresh = document.createElement('span');
-      fresh.className = 'stat';
-      fresh.textContent = stats[next];
-      el.meta.appendChild(fresh);
-      requestAnimationFrame(() => fresh.classList.add('is-on'));
-      setTimeout(() => { if (cur) cur.remove(); }, 600);
-      i = next;
-    }, 4200);
+      span.classList.remove('is-on');        // fade out (0.5s)
+      setTimeout(() => {
+        i = (i + 1) % stats.length;
+        span.textContent = stats[i];
+        span.classList.add('is-on');         // fade in (0.5s)
+      }, 500);
+    }, 6000);
   }
 
   /* ── Views ───────────────────────────────────────────── */
@@ -965,7 +1054,7 @@
         if (row) row.remove();
         renderGroceries();
       } else {
-        state.edits[key] = Object.assign({}, state.edits[key], { amount: next, removed: false });
+        state.edits[key] = Object.assign({}, state.edits[key], { amount: next, unit: cur.unit, removed: false });
         save(EDITS_KEY, state.edits);
         patchAmount(key);
       }

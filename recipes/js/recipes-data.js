@@ -73,11 +73,11 @@ const RECIPES = [
           { q: 2.5, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', buy: { q: 315, u: 'g' } },
           { q: 3, u: 'tsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
           { q: 0.5, u: 'tsp', n: 'baking soda', aisle: 'Dry Goods & Grains' },
-          { q: 1, u: 'tsp', n: 'kosher salt', aisle: 'Spices & Dried Herbs', note: 'half if using table salt' },
+          { q: 1, u: 'tsp', n: 'kosher salt', aisle: 'Spices & Dried Herbs', note: 'half if using table salt', buyAs: 'salt', buy: { q: null, u: null } },
           { q: 2, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs' },
-          { q: 2, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
+          { q: 2, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
           { q: 1, u: 'cup', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled', buy: { q: 210, u: 'g' } },
-          { q: 1, u: 'bunch', n: 'scallions', aisle: 'Produce', note: 'about 10, chopped', buy: { q: 1, u: 'bunch' } },
+          { q: 1, u: 'bunch', n: 'scallions', aisle: 'Produce', note: 'about 10, chopped', buyAs: 'green onions', buy: { q: 1, u: 'bunch' } },
         ],
         steps: [
           'Preheat the oven to 400°F. Spray a standard muffin tin or line it.',
@@ -123,7 +123,7 @@ const RECIPES = [
 
   {
     slug: 'lebanese-style-potato-salad',
-    title: 'Lebanese-Style Potato Salad',
+    title: 'Lebanese Style Mashed Potatoes',
     dish: '#A5842A',
     time: '30 min',
     servings: { n: 4, unit: 'servings' },
@@ -325,8 +325,8 @@ const RECIPES = [
           { q: 1, u: 'tsp', n: 'dried thyme', aisle: 'Spices & Dried Herbs' },
           { q: 1, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
           { q: 0.5, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
-          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs' },
-          { q: 0.5, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
+          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.5, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
         ],
         steps: [
           'Bring a small pot of generously salted water to a boil.',
@@ -345,8 +345,8 @@ const RECIPES = [
           { q: 1, u: 'tbsp', n: 'fresh parsley', aisle: 'Produce', note: 'chopped', buy: { q: 0.1, u: 'bunch' } },
           { q: 1, u: 'tbsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
           { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 8, u: 'mL' } },
-          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs' },
-          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
         ],
         steps: [
           'Combine all the ingredients in a small bowl.',
@@ -364,8 +364,8 @@ const RECIPES = [
           { q: 2, u: 'tbsp', n: 'fresh mint', aisle: 'Produce', note: 'chopped — dill or parsley also work', buy: { q: 0.2, u: 'bunch' } },
           { q: 0.5, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 8, u: 'mL' } },
           { q: 0.25, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried' },
-          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs' },
-          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
         ],
         steps: [
           'Mix all the ingredients in a bowl.',
