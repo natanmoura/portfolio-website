@@ -21,7 +21,16 @@
 
    Discrete buy units (null/bunch/can/block/head/jar/pack) round up
    to whole numbers, since you can't buy 1.3 lemons.
+
+     tags           meal categories, for search/filtering — a recipe
+                    can carry more than one. One of MEAL_TAGS below.
+     keyIngredients curated list of the 3-4 ingredients that actually
+                    define the dish's flavour (not oil/milk/salt unless
+                    genuinely central) — shown under the title and fed
+                    into search, so it's picked by hand, not derived.
    ═══════════════════════════════════════════════════════════════ */
+
+const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'drinks', 'side'];
 
 const AISLES = [
   'Produce',
@@ -47,6 +56,8 @@ const RECIPES = [
     dish: '#5C7A52',
     time: '40 min',
     servings: { n: 10, unit: 'muffins' },
+    tags: ['breakfast', 'snack', 'side'],
+    keyIngredients: ['fresh spinach', 'feta', 'scallions'],
     added: '2026-07-12',
     order: 1,
     components: [
@@ -98,6 +109,8 @@ const RECIPES = [
     dish: '#6E8C3F',
     time: '35 min',
     servings: { n: 4, unit: 'servings' },
+    tags: ['side', 'lunch', 'dinner'],
+    keyIngredients: ['sushi rice', 'cilantro', 'lime', 'edamame'],
     added: '2026-07-26',
     order: 2,
     components: [
@@ -130,6 +143,8 @@ const RECIPES = [
     dish: '#A5842A',
     time: '30 min',
     servings: { n: 4, unit: 'servings' },
+    tags: ['side', 'lunch', 'dinner'],
+    keyIngredients: ['potatoes', 'lemon', 'dried mint', 'garlic'],
     added: '2026-07-26',
     order: 3,
     // The source post listed no quantities at all. These are sensible
@@ -142,7 +157,7 @@ const RECIPES = [
           { q: 6, u: null, n: 'potatoes', aisle: 'Produce' },
         ],
         steps: [
-          'Peel the potatoes.',
+          'Peel the potatoes and cut into chunks.',
           'Boil until fork tender, then drain well.',
           'Lightly mash into small chunks.',
         ],
@@ -180,6 +195,8 @@ const RECIPES = [
     dish: '#B07C2A',
     time: '1 hr',
     servings: { n: 4, unit: 'servings' },
+    tags: ['side', 'dinner'],
+    keyIngredients: ['potatoes', 'honey', 'lemon', 'feta'],
     added: '2026-07-26',
     order: 4,
     components: [
@@ -233,6 +250,8 @@ const RECIPES = [
     dish: '#A34A32',
     time: '35 min',
     servings: { n: 2, unit: 'wraps' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['smoked tofu', 'pickled jalapeños', 'nutritional yeast', 'lime'],
     added: '2026-07-26',
     order: 5,
     components: [
@@ -310,6 +329,8 @@ const RECIPES = [
     dish: '#66753C',
     time: '40 min',
     servings: { n: 3, unit: 'servings' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['tofu', 'tamari', 'dijon mustard', 'dill'],
     added: '2026-07-26',
     order: 6,
     components: [
@@ -360,7 +381,7 @@ const RECIPES = [
         name: 'Mint Tzatziki',
         ingredients: [
           { q: 0.5, u: 'cup', n: 'cucumbers', aisle: 'Produce', note: 'grated, squeezed of excess moisture', buy: { q: 0.3, u: null } },
-          { q: 0.75, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', note: 'plain, vegan works', buy: { q: 190, u: 'g' } },
+          { q: 0.75, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', note: 'plain', buy: { q: 190, u: 'g' } },
           { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', note: '1–2, to taste', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
           { q: 1.5, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.5, u: null } },
           { q: 1, u: 'tsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars', buy: { q: 5, u: 'mL' } },
@@ -397,6 +418,8 @@ const RECIPES = [
     dish: '#A06B36',
     time: '30 min',
     servings: { n: 4, unit: 'tacos' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['chickpeas', 'parsley', 'cilantro', 'cumin'],
     added: '2026-07-26',
     order: 7,
     components: [
@@ -477,6 +500,8 @@ const RECIPES = [
     dish: '#7A5F33',
     time: '50 min',
     servings: { n: 4, unit: 'gyros' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['tofu', 'white miso', 'dill', 'oregano'],
     added: '2026-07-26',
     order: 8,
     components: [
@@ -500,7 +525,7 @@ const RECIPES = [
         name: 'Miso Tofu Skewers',
         ingredients: [
           { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', buy: { q: 1, u: 'block' } },
-          { q: 0.66, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs', buy: { q: 165, u: 'g' } },
+          { q: 0.66, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 165, u: 'g' } },
           { q: 1, u: null, n: 'lemon', aisle: 'Produce', buyAs: 'lemons', buy: { q: 1, u: null } },
           { q: 2, u: 'tbsp', n: 'white miso', aisle: 'Condiments & Sauces', buy: { q: 35, u: 'g' } },
           { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
@@ -519,7 +544,7 @@ const RECIPES = [
         name: 'Tzatziki',
         ingredients: [
           { q: 0.5, u: null, n: 'cucumbers', aisle: 'Produce', buy: { q: 0.5, u: null } },
-          { q: 1, u: 'cup', n: 'plant-based yogurt', aisle: 'Dairy & Eggs', buy: { q: 250, u: 'g' } },
+          { q: 1, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 250, u: 'g' } },
           { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.1, u: 'head' } },
           { q: 1, u: 'handful', n: 'fresh dill', aisle: 'Produce', note: 'large handful', buy: { q: 0.5, u: 'bunch' } },
           { q: 0.5, u: null, n: 'lemon', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.5, u: null } },
@@ -553,6 +578,8 @@ const RECIPES = [
     dish: '#3F6B45',
     time: '35 min',
     servings: { n: 2, unit: 'servings' },
+    tags: ['breakfast', 'lunch', 'dinner'],
+    keyIngredients: ['Swiss chard', 'eggs', 'harissa paste', 'cilantro'],
     added: '2026-07-26',
     order: 9,
     components: [
@@ -632,6 +659,8 @@ const RECIPES = [
     dish: '#8E6244',
     time: '15 min + chilling',
     servings: { n: 16, unit: 'bites' },
+    tags: ['snack', 'dessert', 'breakfast'],
+    keyIngredients: ['tahini', 'dried apricots', 'pistachios', 'coconut'],
     added: '2026-07-26',
     order: 10,
     components: [
@@ -666,6 +695,53 @@ const RECIPES = [
           'Chill in the fridge until firm, 30 minutes to 1 hour.',
         ],
         tip: 'They keep in an airtight container for a week in the fridge, or a month in the freezer.',
+      },
+    ],
+  },
+
+  {
+    slug: 'carrot-cake-baked-oats',
+    title: 'Carrot Cake Baked Oats',
+    dish: '#C1793A',
+    time: '45 min + overnight chill',
+    servings: { n: 6, unit: 'servings' },
+    tags: ['breakfast', 'snack', 'dessert'],
+    keyIngredients: ['banana', 'carrot', 'rolled oats', 'cinnamon'],
+    added: '2026-07-27',
+    order: 11,
+    components: [
+      {
+        name: 'Bake',
+        ingredients: [
+          { q: 2, u: null, n: 'ripe bananas', aisle: 'Produce', note: 'medium, mashed' },
+          { q: 2, u: 'cup', n: 'rolled oats', aisle: 'Dry Goods & Grains', buy: { q: 180, u: 'g' } },
+          { q: 30, u: 'g', n: 'vanilla protein powder', aisle: 'Dry Goods & Grains', note: 'or ¼ cup wholemeal flour, if you\'d rather skip the protein powder' },
+          { q: 0.5, u: 'tsp', n: 'cinnamon', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tsp', n: 'baking powder', aisle: 'Dry Goods & Grains', note: 'flat' },
+          { q: 1, u: null, n: 'carrot', aisle: 'Produce', note: 'medium, grated' },
+          { q: 0.25, u: 'cup', n: 'pecans or walnuts', aisle: 'Nuts & Seeds', note: 'crushed', buy: { q: 30, u: 'g' } },
+          { q: 1.5, u: 'tbsp', n: 'honey', aisle: 'Sweeteners', note: 'or maple syrup', buy: { q: 32, u: 'g' } },
+          { q: 1.5, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', note: 'use closer to 2 cups if your bananas are on the larger side', buy: { q: 360, u: 'mL' } },
+        ],
+        steps: [
+          'Heat the oven to 180°C (350°F).',
+          'In a greased, oven-safe baking dish (about 15–20cm square), combine the mashed banana, oats, protein powder (or flour), cinnamon, baking powder, grated carrot, nuts, honey and milk. Mix until well combined.',
+          'Bake for 35–40 minutes, until golden and firm to the touch.',
+        ],
+      },
+      {
+        name: 'Yogurt Topping',
+        ingredients: [
+          { q: 160, u: 'g', n: 'yogurt', aisle: 'Dairy & Eggs' },
+          { q: 50, u: 'g', n: 'cream cheese', aisle: 'Dairy & Eggs', note: 'reduced fat' },
+        ],
+        steps: [
+          'Let the baked oats cool in the dish, then loosen the edges with a knife.',
+          'Mix the yogurt and cream cheese together, then spread over the top.',
+          'Refrigerate and serve the next day.',
+          'Cut into 4–6 servings. Serve cold, or reheat a slice in the microwave for about 1 minute if you\'d like it warm.',
+        ],
+        tip: 'Any leftover crushed nuts make a nice finish scattered over the yogurt topping.',
       },
     ],
   },

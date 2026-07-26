@@ -87,10 +87,15 @@ button { background: none; border: none; cursor: pointer; }
 
 .backlink {
   display: inline-flex; align-items: center; gap: .5rem;
-  font-size: .82rem; letter-spacing: .04em; color: var(--muted);
+  font-size: .92rem; letter-spacing: .04em; color: var(--muted);
+  /* Generous tap area for mobile/tablet — negative margin keeps the
+     visible position unchanged while the hit target grows around it. */
+  padding: .65rem .5rem; margin: -.65rem -.5rem;
+  min-height: 2.75rem;
   transition: color .25s var(--ease), gap .25s var(--ease);
 }
 .backlink:hover { color: var(--herb); gap: .75rem; }
+.backlink:active { color: var(--herb); }
 
 .masthead h1 {
   font-family: var(--font-display);
@@ -618,9 +623,7 @@ button { background: none; border: none; cursor: pointer; }
   color: var(--herb); font-weight: 700;
   padding-bottom: .4rem; margin-bottom: .3rem;
   border-bottom: 1.5px solid var(--hairline);
-  display: flex; justify-content: space-between; align-items: baseline;
 }
-.aisle-name span { color: var(--faint); font-weight: 400; }
 
 /* Checkbox, ingredient, amount, everything explanatory pushed right */
 .g-item {
@@ -671,6 +674,107 @@ button { background: none; border: none; cursor: pointer; }
   0% { background: color-mix(in srgb, var(--good) 26%, var(--surface)); }
   100% { background: transparent; }
 }
+
+/* ── Shop mode ────────────────────────────────────────────── */
+/* A checking-off pass at the store — no editing, no notes, just a big
+   circle. Meant to be worked one-handed with a cart in the other. */
+
+.shop-view { padding: 1.2rem 0 5rem; }
+
+.shop-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+.shop-tabs {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--paper-deep);
+  border-radius: var(--r-pill);
+}
+.shop-tab {
+  padding: .55rem 1.1rem;
+  border-radius: var(--r-pill);
+  font-size: .86rem; font-weight: 700;
+  color: var(--ink-soft);
+  transition: background .24s var(--ease), color .24s var(--ease);
+}
+.shop-tab[aria-selected="true"] { background: var(--herb); color: #fff; }
+/* Same badge component as the grocery toolbar, but inline next to the
+   tab label instead of overlapping a corner — .is-on still controls
+   whether it shows at all. */
+.shop-tab .tool-count { position: static; margin-left: .35rem; }
+
+.shop-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: .9rem;
+  padding: .55rem .3rem;
+  border-radius: var(--r-sm);
+  transition: background .2s var(--ease);
+}
+.shop-item:hover { background: var(--paper); }
+.shop-item.is-bought .shop-name { color: var(--muted); text-decoration: line-through; }
+
+/* Big, thumb-friendly tap target — this is meant to be worked with a
+   cart in one hand, not fussed over. */
+.shop-circle {
+  width: 2.6rem; height: 2.6rem; flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--hairline);
+  background: var(--surface);
+  display: grid; place-items: center;
+  color: #fff;
+  transition: background .2s var(--ease), border-color .2s var(--ease), transform .15s var(--ease);
+}
+.shop-circle:active { transform: scale(.92); }
+.shop-circle svg { width: 1.1rem; height: 1.1rem; }
+.shop-item.is-bought .shop-circle { background: var(--herb); border-color: var(--herb); }
+
+.shop-name { font-size: 1rem; min-width: 0; }
+.shop-amt {
+  font-family: var(--font-mono); font-size: .85rem; color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.shop-done {
+  text-align: center; padding: 3.5rem 1.5rem;
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 50, 'opsz' 40;
+  font-size: 1.3rem; color: var(--herb-deep);
+}
+.shop-done strong { display: block; font-size: 1.6rem; margin-bottom: .3rem; }
+
+/* ── QR modal ─────────────────────────────────────────────── */
+
+.qr-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  background: rgba(30,43,36,.45);
+  backdrop-filter: blur(3px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s var(--ease);
+}
+.qr-overlay.is-on { opacity: 1; pointer-events: auto; }
+.qr-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 1.6rem;
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+  max-width: min(320px, 100%);
+  transform: translateY(10px);
+  transition: transform .25s var(--ease);
+}
+.qr-overlay.is-on .qr-card { transform: translateY(0); }
+.qr-card h3 {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 50, 'opsz' 40;
+  font-size: 1.1rem; font-weight: 600; color: var(--herb-deep);
+  margin-bottom: 1rem;
+}
+.qr-canvas { display: flex; justify-content: center; }
+.qr-canvas svg { width: 100%; height: auto; max-width: 220px; }
+.qr-hint { font-size: .82rem; color: var(--muted); margin: .9rem 0 1.1rem; }
 
 /* Toast */
 .toast {

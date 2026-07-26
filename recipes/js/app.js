@@ -13,6 +13,7 @@
   const PLAN_KEY = 'mbfr.plan.v2';
   const EDITS_KEY = 'mbfr.edits.v2';
   const SAVED_KEY = 'mbfr.saved.v1';
+  const BOUGHT_KEY = 'mbfr.bought.v1';
   const SPICE_AISLE = 'Spices & Dried Herbs';
 
   const $ = (id) => document.getElementById(id);
@@ -48,13 +49,23 @@
     toast: $('toast'),
     toastMsg: $('toastMsg'),
     toastUndo: $('toastUndo'),
+    shopList: $('shopList'),
+    shopTabBuy: $('shopTabBuy'),
+    shopTabBought: $('shopTabBought'),
+    shopBoughtCount: $('shopBoughtCount'),
+    shopUndoBtn: $('shopUndoBtn'),
+    qrOverlay: $('qrOverlay'),
+    qrTitle: $('qrTitle'),
+    qrCanvas: $('qrCanvas'),
+    qrClose: $('qrClose'),
   };
 
   /* ── State ───────────────────────────────────────────── */
 
   const state = {
-    topMode: 'recipes',   // 'recipes' | 'plan'
+    topMode: 'recipes',   // 'recipes' | 'plan' | 'shop'
     subMode: 'list',      // 'list' | 'tile' | 'orbit' — remembered across a Plan visit
+    shopTab: 'buy',        // 'buy' | 'bought'
     query: '',
     sort: 'az',
     // plan: [{ slug, servings }]
@@ -62,10 +73,13 @@
     // edits: { "name|unit": { amount, removed } }
     edits: load(EDITS_KEY, {}),
     saved: load(SAVED_KEY, []),
+    bought: new Set(load(BOUGHT_KEY, [])), // grocery keys checked off at the store — persisted, survives closing the app mid-trip
     selected: new Set(),  // grocery keys checked for bulk delete — transient, not persisted
     afIndex: -1,
     animate: true,        // only animate rows on a real content change
   };
+
+  function saveBought() { save(BOUGHT_KEY, Array.from(state.bought)); }
 
   function load(key, fallback) {
     try {
@@ -79,6 +93,16 @@
 
   /* ── Search index ────────────────────────────────────── */
 
+  /* "1 hr" and "40 min" both need their unit read, not just the
+     leading digits — shared by search's "under 30 minutes" filter and
+     the masthead's quickest/longest stats. */
+  function parseMinutes(t) {
+    const m = /([\d.]+)\s*(hr|hour|min)/i.exec(t || '');
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    return /^h/i.test(m[2]) ? n * 60 : n;
+  }
+
   const index = RECIPES.map((r) => {
     const ingredients = [];
     const body = [];
@@ -91,9 +115,13 @@
       slug: r.slug,
       recipe: r,
       title: r.title.toLowerCase(),
+      tags: (r.tags || []).map((t) => t.toLowerCase()),
+      keyIngredients: (r.keyIngredients || []).map((s) => s.toLowerCase()),
+      keyIngredientsLabel: r.keyIngredients || [],
       ingredients: ingredients.map((s) => s.toLowerCase()),
       ingredientLabel: dedupe(ingredients),
       body: body.join(' ').toLowerCase(),
+      minutes: parseMinutes(r.time),
     };
   });
 
@@ -107,41 +135,85 @@
     });
   }
 
-  function score(entry, q) {
-    if (!q) return 1;
+  /* Recognizes "under 30 minutes", "under 1 hr", etc. anywhere in the
+     query and pulls it out as a time filter — the rest of the words
+     still have to match normally, so "tofu under 30 minutes dinner"
+     combines a time cutoff with two independent word matches. */
+  const TIME_FILTER_RE = /\bunder\s+(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/i;
+
+  function parseSearchQuery(raw) {
+    let text = raw.trim().toLowerCase();
+    let maxMinutes = null;
+    const m = TIME_FILTER_RE.exec(text);
+    if (m) {
+      const n = parseFloat(m[1]);
+      maxMinutes = /^h/i.test(m[2]) ? n * 60 : n;
+      text = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).trim();
+    }
+    const words = text.split(/\s+/).filter(Boolean);
+    return { maxMinutes, words };
+  }
+
+  /* How well one search word matches a recipe — title beats a tag or a
+     key ingredient beats any other ingredient beats the method text. */
+  function wordScore(entry, w) {
     const t = entry.title;
-    if (t === q) return 1000;
-    if (t.startsWith(q)) return 900;
-    if (t.includes(q)) return 800;
-    if (t.split(/\s+/).some((w) => w.startsWith(q))) return 700;
+    if (t === w) return 1000;
+    if (t.startsWith(w)) return 900;
+    if (t.includes(w)) return 800;
+    if (t.split(/\s+/).some((x) => x.startsWith(w))) return 700;
+    if (entry.tags.indexOf(w) !== -1) return 650;
 
     let best = 0;
+    for (const ing of entry.keyIngredients) {
+      if (ing === w) { best = Math.max(best, 620); continue; }
+      if (ing.startsWith(w)) { best = Math.max(best, 600); continue; }
+      if (ing.includes(w)) best = Math.max(best, 580);
+    }
     for (const ing of entry.ingredients) {
-      if (ing === q) { best = Math.max(best, 600); continue; }
-      if (ing.startsWith(q)) { best = Math.max(best, 550); continue; }
-      if (ing.includes(q)) best = Math.max(best, 500);
+      if (ing === w) { best = Math.max(best, 560); continue; }
+      if (ing.startsWith(w)) { best = Math.max(best, 540); continue; }
+      if (ing.includes(w)) best = Math.max(best, 520);
     }
     if (best) return best;
-    if (entry.body.includes(q)) return 200;
+    if (entry.body.includes(w)) return 200;
     return 0;
   }
 
-  function matched(entry, q) {
-    if (!q || entry.title.includes(q)) return null;
-    const ing = entry.ingredientLabel.find((i) => i.toLowerCase().includes(q));
-    if (ing) return ing;
-    if (entry.body.includes(q)) return 'in the method';
+  /* The one thing to show as "why this matched", for whichever search
+     word isn't already obvious from the title. */
+  function matchedLabel(entry, words) {
+    for (const w of words) {
+      if (entry.title.includes(w)) continue;
+      if (entry.tags.indexOf(w) !== -1) return cap(w);
+      const key = entry.keyIngredientsLabel.find((i) => i.toLowerCase().includes(w));
+      if (key) return key;
+      const ing = entry.ingredientLabel.find((i) => i.toLowerCase().includes(w));
+      if (ing) return ing;
+      if (entry.body.includes(w)) return 'in the method';
+    }
     return null;
   }
 
   function results() {
-    const q = state.query.trim().toLowerCase();
-    const out = index
-      .map((e) => ({ entry: e, s: score(e, q), why: matched(e, q) }))
-      .filter((x) => x.s > 0);
+    const { maxMinutes, words } = parseSearchQuery(state.query);
 
-    if (q) out.sort((a, b) => b.s - a.s || a.entry.title.localeCompare(b.entry.title));
-    else out.sort((a, b) => sortCompare(a.entry.recipe, b.entry.recipe));
+    let list = index;
+    if (maxMinutes !== null) {
+      list = list.filter((e) => e.minutes !== null && e.minutes <= maxMinutes);
+    }
+
+    let out;
+    if (words.length) {
+      out = list
+        .map((e) => ({ entry: e, s: words.reduce((sum, w) => sum + wordScore(e, w), 0), allMatch: words.every((w) => wordScore(e, w) > 0) }))
+        .filter((x) => x.allMatch)
+        .map((x) => ({ entry: x.entry, s: x.s, why: matchedLabel(x.entry, words) }));
+      out.sort((a, b) => b.s - a.s || a.entry.title.localeCompare(b.entry.title));
+    } else {
+      out = list.map((e) => ({ entry: e, s: 1, why: null }));
+      out.sort((a, b) => sortCompare(a.entry.recipe, b.entry.recipe));
+    }
     return out;
   }
 
@@ -367,9 +439,12 @@
     const r = entry.recipe;
     const on = planHas(r.slug);
     const steps = r.components.length;
+    // Curated key ingredients, not every ingredient — oil/milk/salt
+    // aren't what make a dish recognizable.
+    const rest = entry.keyIngredientsLabel.filter((k) => !why || k.toLowerCase() !== why.toLowerCase());
     const keywords = why
-      ? `<span class="row-why">${esc(why)}</span> · ${esc(entry.ingredientLabel.slice(0, 5).join(' · '))}`
-      : esc(entry.ingredientLabel.slice(0, 6).join(' · '));
+      ? `<span class="row-why">${esc(why)}</span>${rest.length ? ' · ' + esc(rest.join(' · ')) : ''}`
+      : esc(entry.keyIngredientsLabel.join(' · '));
 
     return `
       <a class="recipe-row${on ? ' is-planned' : ''}" href="recipe.html?r=${encodeURIComponent(r.slug)}"
@@ -540,7 +615,7 @@
 
     el.groceryList.innerHTML = groups.map((g) => `
       <div class="aisle">
-        <div class="aisle-name">${esc(g.aisle)}<span>${g.items.length}</span></div>
+        <div class="aisle-name">${esc(g.aisle)}</div>
         ${g.items.map((it) => {
           const note = Array.from(it.notes)[0] || '';
           const checked = state.selected.has(it.key);
@@ -632,6 +707,80 @@
     });
   }
 
+  /* ── Shop mode ───────────────────────────────────────── */
+  /* A checking-off pass at the store: the same aisle-grouped grocery
+     list as Plan, but with no editing and no notes — just a big circle
+     to tap. Checking one moves it to the Bought tab; a small undo
+     stack (separate from Plan's) reverses an accidental tap. */
+
+  const SHOP_UNDO_LIMIT = 50;
+  const shopUndoStack = [];
+
+  function shopAisleHtml(g, isBought) {
+    return `
+      <div class="aisle">
+        <div class="aisle-name">${esc(g.aisle)}</div>
+        ${g.items.map((it) => `
+          <div class="shop-item${isBought ? ' is-bought' : ''}" data-key="${esc(it.key)}">
+            <button class="shop-circle" data-shop-toggle="${esc(it.key)}" aria-label="${isBought ? 'Bring back' : 'Got it'} — ${esc(it.name)}" aria-pressed="${isBought}">
+              ${isBought ? checkSvg() : ''}
+            </button>
+            <span class="shop-name">${esc(it.name)}</span>
+            <span class="shop-amt">${esc(fmtAmount(it.qty, it.unit) || 'some')}</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  function renderShop() {
+    const groups = compileGroceries();
+    const toBuy = groups.map((g) => ({ aisle: g.aisle, items: g.items.filter((it) => !state.bought.has(it.key)) })).filter((g) => g.items.length);
+    const bought = groups.map((g) => ({ aisle: g.aisle, items: g.items.filter((it) => state.bought.has(it.key)) })).filter((g) => g.items.length);
+
+    const toBuyCount = toBuy.reduce((n, g) => n + g.items.length, 0);
+    const boughtCount = bought.reduce((n, g) => n + g.items.length, 0);
+    const totalCount = toBuyCount + boughtCount;
+
+    el.shopBoughtCount.textContent = boughtCount || '';
+    el.shopBoughtCount.classList.toggle('is-on', boughtCount > 0);
+    el.shopUndoBtn.disabled = shopUndoStack.length === 0;
+
+    document.querySelectorAll('.shop-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.shoptab === state.shopTab)));
+
+    if (state.shopTab === 'buy') {
+      if (totalCount === 0) {
+        el.shopList.innerHTML = '<p class="muted-note">Add recipes to your plan and their grocery list shows up here to check off.</p>';
+      } else if (toBuyCount === 0) {
+        el.shopList.innerHTML = '<div class="shop-done"><strong>Great job!</strong> Now get your butt in the kitchen &lt;3</div>';
+      } else {
+        el.shopList.innerHTML = toBuy.map((g) => shopAisleHtml(g, false)).join('');
+      }
+    } else {
+      el.shopList.innerHTML = boughtCount
+        ? bought.map((g) => shopAisleHtml(g, true)).join('')
+        : '<p class="muted-note">Nothing bought yet — check things off in To Buy.</p>';
+    }
+  }
+
+  function toggleBought(key) {
+    if (state.bought.has(key)) {
+      state.bought.delete(key); // bringing an item back from the Bought tab
+    } else {
+      state.bought.add(key);
+      shopUndoStack.push(key);
+      if (shopUndoStack.length > SHOP_UNDO_LIMIT) shopUndoStack.shift();
+    }
+    saveBought();
+    renderShop();
+  }
+
+  function undoShop() {
+    const key = shopUndoStack.pop();
+    if (!key) return;
+    state.bought.delete(key);
+    saveBought();
+    renderShop();
+  }
+
   /* ── Saved plans ─────────────────────────────────────── */
 
   /* No backend here — a plan travels as a compressed payload in the
@@ -684,6 +833,7 @@
         <span class="saved-meta">${s.count} ${s.count === 1 ? 'recipe' : 'recipes'}</span>
         <button class="mini-btn" data-open="${i}">Open</button>
         <button class="mini-btn" data-link="${i}">Copy link</button>
+        <button class="mini-btn" data-qr="${i}">QR</button>
         <button class="icon-btn" data-forget="${i}" aria-label="Delete ${esc(s.name)}">${xSvg()}</button>
       </div>`).join('');
   }
@@ -766,16 +916,6 @@
   /* Every fact here is derived straight from RECIPES, so a new recipe
      just folds into the rotation automatically — nothing to maintain
      by hand. */
-
-  /* "1 hr" and "40 min" both need their unit read, not just the
-     leading digits (parseInt("1 hr") is 1, which made a 1-hour recipe
-     look "quicker" than a 25-minute one). */
-  function parseMinutes(t) {
-    const m = /([\d.]+)\s*(hr|hour|min)/i.exec(t || '');
-    if (!m) return null;
-    const n = parseFloat(m[1]);
-    return /^h/i.test(m[2]) ? n * 60 : n;
-  }
 
   function computeStats() {
     const stats = [`${RECIPES.length} Recipes Total`];
@@ -862,7 +1002,8 @@
     moveTopInk();
     el.controls.style.display = mode === 'recipes' ? '' : 'none';
     syncViews();
-    if (mode === 'plan' && window.OrbitAPI) window.OrbitAPI.pause();
+    if (mode === 'shop') renderShop();
+    if (mode !== 'recipes' && window.OrbitAPI) window.OrbitAPI.pause();
     else if (mode === 'recipes' && state.subMode === 'orbit') resumeOrbit();
     updateHash();
   }
@@ -882,6 +1023,7 @@
   function syncViews() {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
     if (state.topMode === 'plan') { $('view-plan').classList.add('is-active'); }
+    else if (state.topMode === 'shop') { $('view-shop').classList.add('is-active'); }
     else { $(`view-${state.subMode}`).classList.add('is-active'); }
   }
 
@@ -898,6 +1040,7 @@
     if (location.hash.startsWith('#list=')) return; // a shared-plan link owns the hash on load
     let h = '';
     if (state.topMode === 'plan') h = 'plan';
+    else if (state.topMode === 'shop') h = 'shop';
     else if (state.subMode !== 'list') h = state.subMode;
     history.replaceState(null, '', h ? `#${h}` : location.pathname);
   }
@@ -938,7 +1081,7 @@
       toast(shared.n ? `Opened "${shared.n}"` : 'Opened shared list');
     } else {
       const hash = location.hash.replace('#', '');
-      if (hash === 'plan') setTopMode('plan');
+      if (hash === 'plan' || hash === 'shop') setTopMode(hash);
       else if (hash === 'tile' || hash === 'orbit') setSubMode(hash);
     }
 
@@ -1096,9 +1239,19 @@
     el.publishBtn.addEventListener('click', publishPlan);
     el.planName.addEventListener('keydown', (e) => { if (e.key === 'Enter') publishPlan(); });
 
+    // Shop mode
+    el.shopTabBuy.addEventListener('click', () => { state.shopTab = 'buy'; renderShop(); });
+    el.shopTabBought.addEventListener('click', () => { state.shopTab = 'bought'; renderShop(); });
+    el.shopList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-shop-toggle]');
+      if (btn) toggleBought(btn.dataset.shopToggle);
+    });
+    el.shopUndoBtn.addEventListener('click', undoShop);
+
     el.savedList.addEventListener('click', (e) => {
       const open = e.target.closest('[data-open]');
       const link = e.target.closest('[data-link]');
+      const qr = e.target.closest('[data-qr]');
       const forget = e.target.closest('[data-forget]');
 
       if (open) {
@@ -1112,6 +1265,10 @@
         copyText(s.url).then(() => toast('Link copied'));
         return;
       }
+      if (qr) {
+        showQr(state.saved[+qr.dataset.qr]);
+        return;
+      }
       if (forget) {
         const i = +forget.dataset.forget;
         const name = state.saved[i].name;
@@ -1121,6 +1278,25 @@
         toast(`Deleted "${name}"`);
       }
     });
+
+    /* QR code for a saved list — generated on-device from the same
+       share link Copy Link uses, so scanning it opens the exact plan. */
+    function showQr(s) {
+      el.qrTitle.textContent = s.name;
+      el.qrCanvas.innerHTML = '';
+      try {
+        const qr = window.qrcode(0, 'M');
+        qr.addData(s.url);
+        qr.make();
+        el.qrCanvas.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+      } catch (err) {
+        el.qrCanvas.innerHTML = '<p class="muted-note">Couldn\'t generate a QR code — try Copy Link instead.</p>';
+      }
+      el.qrOverlay.classList.add('is-on');
+    }
+
+    el.qrClose.addEventListener('click', () => el.qrOverlay.classList.remove('is-on'));
+    el.qrOverlay.addEventListener('click', (e) => { if (e.target === el.qrOverlay) el.qrOverlay.classList.remove('is-on'); });
 
     const sentinel = document.querySelector('.masthead');
     if ('IntersectionObserver' in window && sentinel) {

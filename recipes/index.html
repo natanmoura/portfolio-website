@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/recipes.css?v=11" />
+  <link rel="stylesheet" href="css/recipes.css?v=12" />
   <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
@@ -28,6 +28,7 @@
         <span class="top-ink" id="topInk"></span>
         <button class="top-btn" role="tab" id="top-recipes" data-top="recipes" aria-selected="true">Recipes</button>
         <button class="top-btn" role="tab" id="top-plan" data-top="plan" aria-selected="false">Plan<span class="count" id="planCount"></span></button>
+        <button class="top-btn" role="tab" id="top-shop" data-top="shop" aria-selected="false">Shop</button>
       </div>
     </nav>
 
@@ -101,6 +102,19 @@
       </div>
     </section>
 
+    <section class="view shop-view" id="view-shop" role="tabpanel">
+      <div class="shop-head">
+        <div class="shop-tabs">
+          <button class="shop-tab" id="shopTabBuy" data-shoptab="buy" aria-selected="true">To Buy</button>
+          <button class="shop-tab" id="shopTabBought" data-shoptab="bought" aria-selected="false">Bought<span class="tool-count" id="shopBoughtCount"></span></button>
+        </div>
+        <button class="tool-btn" id="shopUndoBtn" disabled aria-label="Undo the last item checked off">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5H10.5a3 3 0 0 1 0 6H6"/><path d="M6.5 3 4 5.5 6.5 8"/></svg>
+        </button>
+      </div>
+      <div id="shopList"></div>
+    </section>
+
     <section class="view plan-view" id="view-plan" role="tabpanel">
       <div class="plan-grid">
 
@@ -158,9 +172,19 @@
     <button class="toast-undo" id="toastUndo" style="display:none">Undo</button>
   </div>
 
+  <div class="qr-overlay" id="qrOverlay">
+    <div class="qr-card">
+      <h3 id="qrTitle"></h3>
+      <div class="qr-canvas" id="qrCanvas"></div>
+      <p class="qr-hint">Scan with a phone camera to open this list</p>
+      <button class="ghost-btn" id="qrClose">Close</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="js/pagefade.js?v=1"></script>
   <script src="js/recipes-data.js?v=6"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/app.js?v=12"></script>
 
   <script type="importmap">
   {
