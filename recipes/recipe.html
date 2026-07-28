@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <script>document.documentElement.classList.add('pf-loading');</script>
-  <link rel="stylesheet" href="css/recipes.css?v=13" />
+  <link rel="stylesheet" href="css/recipes.css?v=14" />
   <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
@@ -37,10 +37,24 @@
         <div id="steps"></div>
       </div>
     </div>
+
+    <div class="qr-reveal">
+      <button class="qr-reveal-link" id="qrRevealBtn">View QR code — open this recipe on another device</button>
+    </div>
   </div>
 
+  <div class="qr-overlay" id="qrOverlay">
+    <div class="qr-card">
+      <h3 id="qrTitle"></h3>
+      <div class="qr-canvas" id="qrCanvas"></div>
+      <p class="qr-hint">Scan with a phone camera to open this recipe</p>
+      <button class="ghost-btn" id="qrClose">Close</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="js/pagefade.js?v=1"></script>
   <script src="js/recipes-data.js?v=6"></script>
-  <script src="js/cook.js?v=4"></script>
+  <script src="js/cook.js?v=5"></script>
 </body>
 </html>

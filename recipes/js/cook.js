@@ -58,12 +58,14 @@
   const elSteps = document.getElementById('steps');
   const elServe = document.getElementById('servings');
   const elPlanBtn = document.getElementById('planBtn');
+  const elQrReveal = document.querySelector('.qr-reveal');
 
   if (!recipe) {
     elTitle.textContent = 'Recipe not found';
     document.getElementById('cookGrid').innerHTML =
       '<p class="muted-note">That link points at a recipe that isn\'t here. <a href="index.html" class="inline-link">Back to all recipes</a>.</p>';
     if (elServe) elServe.style.display = 'none';
+    if (elQrReveal) elQrReveal.style.display = 'none';
     return;
   }
 
@@ -176,6 +178,39 @@
     save(PLAN_KEY, plan);
     renderPlanBtn();
   });
+
+  /* ── QR code ─────────────────────────────────────────── */
+  /* Subtle by design — this is for whoever already knows it's there
+     and wants this exact recipe on their phone, not a call to action. */
+
+  const elQrBtn = document.getElementById('qrRevealBtn');
+  const elQrOverlay = document.getElementById('qrOverlay');
+  const elQrTitle = document.getElementById('qrTitle');
+  const elQrCanvas = document.getElementById('qrCanvas');
+  const elQrClose = document.getElementById('qrClose');
+
+  function showRecipeQr() {
+    elQrTitle.textContent = recipe.title;
+    elQrCanvas.innerHTML = '';
+    try {
+      const qr = window.qrcode(0, 'M');
+      qr.addData(location.href);
+      qr.make();
+      elQrCanvas.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+    } catch (err) {
+      elQrCanvas.innerHTML = '<p class="muted-note">Couldn\'t generate a QR code.</p>';
+    }
+    elQrOverlay.classList.add('is-on');
+  }
+
+  function closeRecipeQr() { elQrOverlay.classList.remove('is-on'); }
+
+  if (elQrBtn) {
+    elQrBtn.addEventListener('click', showRecipeQr);
+    elQrClose.addEventListener('click', closeRecipeQr);
+    elQrOverlay.addEventListener('click', (e) => { if (e.target === elQrOverlay) closeRecipeQr(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRecipeQr(); });
+  }
 
   renderServings();
   renderIngredients();

@@ -850,7 +850,7 @@ button { background: none; border: none; cursor: pointer; }
   grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
   gap: clamp(1.5rem, 4vw, 3rem);
   align-items: start;
-  padding-bottom: 5rem;
+  padding-bottom: 1.5rem;
 }
 
 /* Ingredients sit on their own white card; instructions stay on the page */
@@ -912,6 +912,17 @@ button { background: none; border: none; cursor: pointer; }
   margin-top: .75rem; padding-left: 1.1rem;
   font-size: .84rem; color: var(--ink-soft); font-style: italic;
 }
+
+/* Quiet, easy to miss on purpose — this is a convenience for whoever
+   already knows it's there, not a call to action. */
+.qr-reveal { text-align: center; padding: 2.2rem 0 4rem; }
+.qr-reveal-link {
+  font-size: .78rem; color: var(--faint);
+  padding: .6rem .9rem; margin: -.6rem -.9rem; /* generous tap target, no visual footprint */
+  border-radius: var(--r-pill);
+  transition: color .22s var(--ease), background .22s var(--ease);
+}
+.qr-reveal-link:hover, .qr-reveal-link:active { color: var(--herb); background: var(--herb-tint); }
 
 /* ── Responsive ───────────────────────────────────────────── */
 
