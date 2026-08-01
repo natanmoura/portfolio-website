@@ -414,17 +414,17 @@ const RECIPES = [
 
   {
     slug: 'smashed-falafel-tacos',
-    title: 'Smashed Falafel Tacos',
+    title: 'Falafel Wraps',
     dish: '#A06B36',
     time: '30 min',
-    servings: { n: 4, unit: 'tacos' },
+    servings: { n: 4, unit: 'wraps' },
     tags: ['lunch', 'dinner'],
     keyIngredients: ['chickpeas', 'parsley', 'cilantro', 'cumin'],
     added: '2026-07-26',
     order: 7,
     components: [
       {
-        name: 'Falafel Patties',
+        name: 'Falafel',
         ingredients: [
           { q: 1, u: 'can', n: 'chickpeas', aisle: 'Canned & Jarred', note: 'drained, rinsed and dried', buy: { q: 1, u: 'can' } },
           { q: 0.5, u: 'cup', n: 'fresh parsley', aisle: 'Produce', note: 'packed', buy: { q: 0.5, u: 'bunch' } },
@@ -437,14 +437,13 @@ const RECIPES = [
           { q: 0.25, u: 'tsp', n: 'cayenne pepper', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs' },
-          { q: 1.5, u: 'tbsp', n: 'coconut oil', aisle: 'Oils & Vinegars', note: 'refined, for frying', buy: { q: 25, u: 'mL' } },
+          { q: 3, u: 'tbsp', n: 'coconut oil', aisle: 'Oils & Vinegars', note: 'refined, for frying', buy: { q: 45, u: 'mL' } },
         ],
         steps: [
           'Blitz the chickpeas, parsley, cilantro, garlic, onion, flour, lemon juice, cumin, cayenne, salt and pepper in a food processor until it forms a chunky paste.',
-          'Divide into 4 patties, about ⅓ cup each.',
-          'Heat the coconut oil in a skillet over medium heat so it forms a shallow layer.',
-          'Cook each patty like a pancake, flattening slightly with a spatula. 3–4 minutes on the first side.',
-          'Flip and cook the other side about 30 seconds.',
+          'Heat the coconut oil in a skillet over medium heat — enough to come partway up the sides of the falafel, not just a thin film.',
+          'Scoop the mixture into the hot oil in rounded mounds, about ⅓ cup each — a cookie scoop or two spoons makes quick work of this. Don\'t flatten them; a scooped shape holds together and browns much more evenly than a smashed patty.',
+          'Fry for 3–4 minutes, turning occasionally, until deeply golden and crisp on all sides.',
         ],
       },
       {
@@ -480,15 +479,15 @@ const RECIPES = [
         ],
       },
       {
-        name: 'Build the Tacos',
+        name: 'Build the Wraps',
         ingredients: [
-          { q: 4, u: null, n: 'flour tortillas', aisle: 'Bakery', note: 'small, taco sized', buyAs: 'tortillas' },
+          { q: 4, u: null, n: 'flour tortillas', aisle: 'Bakery', note: 'small', buyAs: 'tortillas' },
           { q: null, u: null, n: 'shredded lettuce', aisle: 'Produce', buyAs: 'lettuce', buy: { q: 0.25, u: 'head' } },
         ],
         steps: [
           'Warm the tortillas.',
-          'Add a falafel patty to each, then shredded lettuce.',
-          'Top with the tomato cucumber salad and a spoon of tzatziki.',
+          'Add a falafel to each, then shredded lettuce.',
+          'Top with the tomato cucumber salad and a spoon of tzatziki, then wrap it up.',
         ],
       },
     ],
