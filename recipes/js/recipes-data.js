@@ -789,13 +789,14 @@ const RECIPES = [
           { q: 60, u: 'g', n: 'butter', aisle: 'Dairy & Eggs' },
           { q: 1, u: null, n: 'onion', aisle: 'Produce', note: 'small, finely diced', buyAs: 'onion', buy: { q: 1, u: null } },
           { q: 0.5, u: 'cup', n: 'black olives', aisle: 'Canned & Jarred', note: 'sliced', buy: { q: 1, u: 'jar' } },
+          { q: 0.25, u: 'cup', n: 'raisins', aisle: 'Dry Goods & Grains', buy: { q: 40, u: 'g' } },
           { q: 1, u: 'tbsp', n: 'dried parsley', aisle: 'Spices & Dried Herbs' },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
         ],
         steps: [
           'Melt the butter and cook the onion until deep golden, about 6 minutes.',
           'Add the olives, then the cassava flour in batches, stirring constantly over medium-low heat until sandy and toasted the color of wet sand, about 8 minutes.',
-          'Off heat, stir in the parsley and salt.',
+          'Off heat, stir in the parsley, raisins and salt.',
         ],
       },
       {
