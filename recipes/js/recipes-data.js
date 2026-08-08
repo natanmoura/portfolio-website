@@ -744,6 +744,90 @@ const RECIPES = [
       },
     ],
   },
+
+  {
+    slug: 'vegetarian-feijoada',
+    title: 'Vegetarian Feijoada',
+    dish: '#8B4A3B',
+    time: '2 hr 15 min + soaking overnight',
+    servings: { n: 6, unit: 'servings' },
+    tags: ['dinner', 'lunch'],
+    keyIngredients: ['black beans', 'smoked paprika', 'liquid smoke', 'cassava flour'],
+    added: '2026-08-07',
+    order: 12,
+    components: [
+      {
+        name: 'Black Beans',
+        ingredients: [
+          { q: 500, u: 'g', n: 'dried black beans', aisle: 'Dry Goods & Grains' },
+          { q: 3, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 45, u: 'mL' } },
+          { q: 2, u: null, n: 'onion', aisle: 'Produce', note: 'large, chopped', buyAs: 'onion', buy: { q: 2, u: null } },
+          { q: 8, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.8, u: 'head' } },
+          { q: 1, u: 'tsp', n: 'cumin seeds', aisle: 'Spices & Dried Herbs' },
+          { q: 2, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
+          { q: 2, u: 'tbsp', n: 'tomato paste', aisle: 'Canned & Jarred', buy: { q: 1, u: 'can' } },
+          { q: 4, u: null, n: 'bay leaves', aisle: 'Spices & Dried Herbs', buy: { q: 1, u: 'jar' } },
+          { q: 1.5, u: 'tsp', n: 'liquid smoke', aisle: 'Condiments & Sauces', buy: { q: 1, u: 'jar' } },
+          { q: 1.5, u: 'tbsp', n: 'red wine vinegar', aisle: 'Oils & Vinegars', buy: { q: 23, u: 'mL' } },
+          { q: 2, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.5, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Cover the beans with several inches of cold water and soak overnight, then drain. Short on time? Boil for 2 minutes, cover, and rest for 1 hour instead.',
+          'Soften the onion in the olive oil over medium heat for 10–12 minutes — push past translucent until the edges go golden. This refogado is the flavor base, so don\'t rush it.',
+          'Add the garlic and cumin seeds, cook 1 minute until fragrant. Stir in the smoked paprika, then the tomato paste, and fry until it darkens to brick red and smells toasty, about 2 minutes.',
+          'Add the beans, bay leaves and liquid smoke. Cover with water by two inches. Bring to a boil, then simmer partly covered until the beans are creamy and beginning to break down, 75–90 minutes. Top up with hot water if it gets tight.',
+          'Remove the bay leaves. Scoop a ladle of beans into a bowl, mash to a paste, and stir it back in to thicken the pot. Simmer uncovered another 20 minutes to tighten.',
+          'Stir in the vinegar, salt and pepper. Taste and adjust — it should be savory and smoky with a sharp edge. A splash of soy sauce at the end helps if it tastes thin.',
+        ],
+        tip: 'Without meat or mushrooms, the beans lean on the refogado for depth. Better on day two.',
+      },
+      {
+        name: 'Farofa',
+        ingredients: [
+          { q: 1.5, u: 'cup', n: 'cassava flour (farinha de mandioca)', aisle: 'Dry Goods & Grains', buy: { q: 180, u: 'g' } },
+          { q: 60, u: 'g', n: 'butter', aisle: 'Dairy & Eggs' },
+          { q: 1, u: null, n: 'onion', aisle: 'Produce', note: 'small, finely diced', buyAs: 'onion', buy: { q: 1, u: null } },
+          { q: 0.5, u: 'cup', n: 'black olives', aisle: 'Canned & Jarred', note: 'sliced', buy: { q: 1, u: 'jar' } },
+          { q: 1, u: 'tbsp', n: 'dried parsley', aisle: 'Spices & Dried Herbs' },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Melt the butter and cook the onion until deep golden, about 6 minutes.',
+          'Add the olives, then the cassava flour in batches, stirring constantly over medium-low heat until sandy and toasted the color of wet sand, about 8 minutes.',
+          'Off heat, stir in the parsley and salt.',
+        ],
+      },
+      {
+        name: 'Garlic Rice',
+        ingredients: [
+          { q: 3, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.3, u: 'head' } },
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for the pan', buy: { q: 15, u: 'mL' } },
+          { q: 2, u: 'cup', n: 'long-grain white rice', aisle: 'Dry Goods & Grains', buy: { q: 370, u: 'g' }, buyNote: 'dry weight' },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a big pinch', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Sauté the garlic in the olive oil until pale gold, add the rice and toast 1 minute until the grains turn opaque.',
+          'Add 3½ cups water and a big pinch of salt, bring to a boil, then cover and cook on low for 15 minutes.',
+          'Rest 5 minutes off heat before fluffing.',
+        ],
+      },
+      {
+        name: 'Couve à Mineira',
+        ingredients: [
+          { q: 1, u: 'lb', n: 'collard greens', aisle: 'Produce', note: 'stems removed', buy: { q: 1, u: 'bunch' } },
+          { q: 3, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'sliced', buyAs: 'garlic', buy: { q: 0.3, u: 'head' } },
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for frying', buy: { q: 15, u: 'mL' } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Stack the collard leaves, roll them tight like a cigar, and slice into hair-thin ribbons.',
+          'Flash-fry with the garlic in the olive oil for 2 minutes — bright green, still with bite.',
+          'Salt and serve immediately.',
+        ],
+      },
+    ],
+  },
 ];
 
 if (typeof window !== 'undefined') {
