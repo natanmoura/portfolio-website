@@ -829,6 +829,352 @@ const RECIPES = [
       },
     ],
   },
+
+  {
+    slug: 'one-pan-dump-spanakopita',
+    title: 'One Pan Dump Spanakopita',
+    dish: '#6F7F38',
+    time: '45 min',
+    servings: { n: 4, unit: 'servings' },
+    tags: ['dinner', 'lunch'],
+    keyIngredients: ['baby spinach', 'feta', 'filo pastry', 'Greek yogurt'],
+    added: '2026-08-09',
+    order: 13,
+    components: [
+      {
+        name: 'Spinach Filling',
+        ingredients: [
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for frying', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: null, n: 'onion', aisle: 'Produce', note: 'finely diced', buy: { q: 1, u: null } },
+          { q: 250, u: 'g', n: 'baby spinach', aisle: 'Produce', buyAs: 'fresh spinach', buy: { q: 250, u: 'g' } },
+          { q: 200, u: 'g', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled', buy: { q: 200, u: 'g' } },
+          { q: 100, u: 'g', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 100, u: 'g' } },
+          { q: 2, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
+          { q: 1, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried' },
+          { q: 1, u: 'tsp', n: 'ground nutmeg', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a big pinch', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Fry the onion in the olive oil over medium-low heat for a few minutes.',
+          'Add the spinach, press it down and put a lid on for 2 minutes until it starts to wilt. Stir until fully wilted, then keep simmering 3 minutes to drive off some moisture. Turn off the heat.',
+          'Crumble over the feta, then add the Greek yogurt, oregano, black pepper, nutmeg and eggs. Stir until combined.',
+        ],
+      },
+      {
+        name: 'Assemble & Bake',
+        ingredients: [
+          { q: 8, u: null, n: 'filo pastry', aisle: 'Bakery', note: 'sheets', buy: { q: 1, u: 'pack' } },
+          { q: null, u: null, n: 'butter', aisle: 'Dairy & Eggs', note: 'melted, for brushing', buy: { q: 50, u: 'g' } },
+          { q: null, u: null, n: 'sesame seeds', aisle: 'Nuts & Seeds', note: 'for sprinkling', buy: { q: 30, u: 'g' } },
+          { q: null, u: null, n: 'honey', aisle: 'Sweeteners', note: 'to drizzle', buy: { q: 15, u: 'g' } },
+        ],
+        steps: [
+          'Crumple up the filo sheets and add them one by one, layering them up and brushing each individual layer with melted butter.',
+          'Sprinkle over the sesame seeds.',
+          'Bake at 180°C for 25–30 minutes, until golden and puffed up.',
+          'Drizzle over a little honey and serve.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'smoky-chipotle-tofu-sandwiches',
+    title: 'Smoky Chipotle Tofu Sandwiches',
+    dish: '#B0472A',
+    time: '40 min',
+    servings: { n: 4, unit: 'sandwiches' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['tofu', 'chipotle in adobo', 'cabbage', 'plantain chips'],
+    added: '2026-08-09',
+    order: 14,
+    components: [
+      {
+        name: 'Deli Slices',
+        ingredients: [
+          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: '16 oz, drained', buy: { q: 1, u: 'block' } },
+          { q: 3, u: 'tbsp', n: 'adobo sauce', aisle: 'Canned & Jarred', note: 'from a can of chipotle peppers', buyAs: 'chipotle peppers in adobo', buy: { q: 1, u: 'can' } },
+          { q: 2, u: 'tbsp', n: 'agave syrup', aisle: 'Sweeteners', buy: { q: 30, u: 'mL' } },
+          { q: 2, u: 'tbsp', n: 'apple cider vinegar', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
+          { q: 1, u: 'tbsp', n: 'tamari', aisle: 'Condiments & Sauces', note: 'or soy sauce', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: 'tbsp', n: 'avocado oil', aisle: 'Oils & Vinegars', buyAs: 'neutral oil', buy: { q: 15, u: 'mL' } },
+          { q: 0.5, u: 'tsp', n: 'vegetable bouillon paste', aisle: 'Condiments & Sauces', note: 'or half a crushed bouillon cube', buy: { q: 1, u: 'jar' } },
+          { q: 1, u: 'tsp', n: 'smoked paprika', aisle: 'Spices & Dried Herbs' },
+          { q: 0.5, u: 'tsp', n: 'ground coriander', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'tsp', n: 'allspice', aisle: 'Spices & Dried Herbs' },
+          { q: null, u: null, n: 'white pepper', aisle: 'Spices & Dried Herbs', note: 'a pinch', buy: { q: 1, u: 'jar' } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'In a large shallow bowl, whisk the adobo sauce, bouillon paste, agave, tamari, vinegar, oil and spices together until completely smooth. Set aside.',
+          'Slice the tofu crosswise into thin ⅛-inch slabs (1–2mm) using a sharp knife or mandoline.',
+          'Dip each slice into the sauce on both sides so it\'s evenly coated, reserving the remaining dressing.',
+          'Heat some oil in a large griddle or skillet over medium-low. Arrange the tofu in a single layer with a little space between each slice. Cook undisturbed 3 minutes, then flip and cook 2–3 minutes more, brushing a little more marinade on top as it finishes.',
+          'They\'re done once nicely browned and lightly crisp at the edges on both sides. Sprinkle with salt, transfer to a container, and repeat with the remaining slices.',
+        ],
+      },
+      {
+        name: 'Quick Pickled Slaw',
+        ingredients: [
+          { q: 2, u: 'cup', n: 'green cabbage', aisle: 'Produce', note: 'shredded', buyAs: 'cabbage', buy: { q: 0.5, u: 'head' } },
+          { q: 0.25, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'minced — parsley works too', buy: { q: 0.25, u: 'bunch' } },
+          { q: 1, u: 'tbsp', n: 'apple cider vinegar', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
+          { q: 2, u: 'tsp', n: 'avocado oil', aisle: 'Oils & Vinegars', buyAs: 'neutral oil', buy: { q: 10, u: 'mL' } },
+          { q: 2, u: 'tsp', n: 'agave syrup', aisle: 'Sweeteners', buy: { q: 10, u: 'mL' } },
+        ],
+        steps: [
+          'Combine the cabbage, cilantro, vinegar, oil, agave and a generous pinch of salt in a medium bowl.',
+          'Massage the cabbage with clean hands until it has softened.',
+        ],
+      },
+      {
+        name: 'Assembly',
+        ingredients: [
+          { q: 8, u: null, n: 'sourdough bread', aisle: 'Bakery', note: 'slices', buy: { q: 1, u: 'pack' } },
+          { q: 4, u: 'oz', n: 'plantain chips', aisle: 'Dry Goods & Grains', note: 'or baked plantains', buy: { q: 115, u: 'g' } },
+          { q: null, u: null, n: 'mayo', aisle: 'Condiments & Sauces', note: 'a bean spread or toum also work', buy: { q: 1, u: 'jar' } },
+        ],
+        steps: [
+          'Spread mayo onto two slices of toasted bread.',
+          'Layer a serving of tofu slices onto one slice, then some plantain pieces, then the slaw.',
+          'Top with the remaining slice of bread.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'cauliflower-chickpea-wraps',
+    title: 'Cauliflower Chickpea Wraps',
+    dish: '#8A7340',
+    time: '45 min',
+    servings: { n: 3, unit: 'wraps' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['cauliflower', 'chickpeas', 'tahini', 'avocado'],
+    added: '2026-08-09',
+    order: 15,
+    components: [
+      {
+        name: 'Tahini Yogurt Sauce',
+        ingredients: [
+          { q: 0.75, u: 'cup', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 190, u: 'g' } },
+          { q: 1.5, u: 'tbsp', n: 'tahini', aisle: 'Condiments & Sauces', note: 'hulled', buy: { q: 25, u: 'g' } },
+          { q: null, u: null, n: 'lemon juice', aisle: 'Produce', note: 'juice from half a lemon', buyAs: 'lemons', buy: { q: 0.5, u: null } },
+          { q: 1, u: 'tsp', n: 'maple syrup', aisle: 'Sweeteners', buy: { q: 5, u: 'mL' } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'While the tray is in the oven, whisk the yogurt, tahini, lemon juice, maple syrup and salt together.',
+        ],
+      },
+      {
+        name: 'Cauliflower & Chickpeas',
+        ingredients: [
+          { q: 1, u: 'head', n: 'cauliflower', aisle: 'Produce', note: 'small, cut into small pieces', buy: { q: 1, u: 'head' } },
+          { q: 1, u: 'can', n: 'chickpeas', aisle: 'Canned & Jarred', note: '420g, drained and rinsed', buy: { q: 1, u: 'can' } },
+          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars', note: 'a drizzle', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'garlic powder', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tsp', n: 'onion powder', aisle: 'Spices & Dried Herbs' },
+          { q: 2, u: 'tsp', n: 'paprika', aisle: 'Spices & Dried Herbs' },
+          { q: 2, u: 'tsp', n: 'dried parsley', aisle: 'Spices & Dried Herbs' },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Preheat the oven to 200°C (390°F).',
+          'Add the cauliflower and chickpeas to a baking tray. Drizzle with olive oil, add the spices, and toss to coat.',
+          'Bake for 35 minutes, then remove and cool for 5 minutes.',
+        ],
+      },
+      {
+        name: 'Assembly',
+        ingredients: [
+          { q: 3, u: null, n: 'flour tortillas', aisle: 'Bakery', note: 'large', buyAs: 'tortillas' },
+          { q: 1, u: null, n: 'avocado', aisle: 'Produce', note: 'ripe, sliced', buy: { q: 1, u: null } },
+          { q: 0.5, u: null, n: 'cucumbers', aisle: 'Produce', note: 'sliced', buy: { q: 0.5, u: null } },
+          { q: null, u: null, n: 'pickled onions', aisle: 'Canned & Jarred', buy: { q: 1, u: 'jar' } },
+          { q: null, u: null, n: 'fresh parsley', aisle: 'Produce', note: 'finely chopped', buy: { q: 0.2, u: 'bunch' } },
+          { q: null, u: null, n: 'sesame seeds', aisle: 'Nuts & Seeds', buy: { q: 30, u: 'g' } },
+        ],
+        steps: [
+          'Heat the tortillas in a pan over low heat, or microwave for 10 seconds, to soften.',
+          'Add a bit of everything to each wrap and fold it up.',
+          'If you like, press the wrap in a sandwich press or pan over high heat for 1 minute each side to lightly toast.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'brazilian-carrot-cake',
+    title: 'Brazilian Carrot Cake',
+    dish: '#6F3B24',
+    time: '1 hr + cooling',
+    servings: { n: 12, unit: 'servings' },
+    tags: ['dessert'],
+    keyIngredients: ['carrot', 'dark chocolate', 'condensed milk'],
+    added: '2026-08-09',
+    order: 16,
+    components: [
+      {
+        name: 'Cake',
+        ingredients: [
+          { q: 0.5, u: 'cup', n: 'neutral oil', aisle: 'Oils & Vinegars', buy: { q: 120, u: 'mL' } },
+          { q: 2, u: null, n: 'carrot', aisle: 'Produce', note: 'medium, about 350g, roughly chopped', buy: { q: 2, u: null } },
+          { q: 3, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
+          { q: 2, u: 'cup', n: 'sugar', aisle: 'Sweeteners', buy: { q: 360, u: 'g' } },
+          { q: 2, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose', buy: { q: 270, u: 'g' } },
+          { q: 1, u: 'tbsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
+          { q: 1, u: 'tsp', n: 'vanilla extract', aisle: 'Dry Goods & Grains', note: 'optional, not traditional', buy: { q: 1, u: 'jar' } },
+        ],
+        steps: [
+          'Preheat the oven to 180°C (350°F).',
+          'Blend the oil, carrots, eggs and sugar until completely smooth.',
+          'Pour into a large bowl. Gradually fold in the flour, then the baking powder.',
+          'Pour into a greased 9x13 pan. Bake 25–30 minutes, until a toothpick comes out clean.',
+          'Cool completely before making the brigadeiro.',
+        ],
+        tip: 'Weigh your carrots if you can — 350g gives you the right moisture every time.',
+      },
+      {
+        name: 'Brigadeiro Icing',
+        ingredients: [
+          { q: 1, u: 'can', n: 'sweetened condensed milk', aisle: 'Canned & Jarred', note: '397g', buy: { q: 1, u: 'can' } },
+          { q: 150, u: 'g', n: 'dark chocolate chips', aisle: 'Dry Goods & Grains', buy: { q: 150, u: 'g' } },
+          { q: 0.66, u: 'cup', n: 'heavy cream', aisle: 'Dairy & Eggs', buy: { q: 150, u: 'mL' } },
+          { q: 3.5, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', note: 'unsalted', buy: { q: 50, u: 'g' } },
+          { q: 0.125, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Combine all the brigadeiro ingredients in a saucepan over medium heat. Stir continuously until melted and thickened, 8–12 minutes. It should be thick but pourable.',
+          'Flip the cooled cake onto a wire rack set over a tray. Pour the brigadeiro over the top and smooth it out.',
+          'Let set 10 minutes, then transfer to a plate to slice.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'kale-brussels-sweet-potato-salad',
+    title: 'Kale Brussels Sweet Potato Salad',
+    dish: '#497238',
+    time: '40 min',
+    servings: { n: 2, unit: 'servings' },
+    tags: ['lunch', 'dinner'],
+    keyIngredients: ['kale', 'Brussels sprouts', 'sweet potato', 'balsamic'],
+    added: '2026-08-09',
+    order: 17,
+    components: [
+      {
+        name: 'Roasting Tray',
+        ingredients: [
+          { q: 1, u: 'cup', n: 'Brussels sprouts', aisle: 'Produce', note: 'halved', buy: { q: 250, u: 'g' } },
+          { q: 1, u: 'cup', n: 'sweet potato', aisle: 'Produce', note: 'cubed', buy: { q: 1, u: null } },
+          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: 'cubed', buy: { q: 1, u: 'block' } },
+          { q: 0.5, u: 'cup', n: 'chickpeas', aisle: 'Canned & Jarred', note: 'drained and rinsed', buy: { q: 1, u: 'can' } },
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'garlic powder', aisle: 'Spices & Dried Herbs' },
+          { q: 1, u: 'tsp', n: 'paprika', aisle: 'Spices & Dried Herbs' },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Preheat the oven to 200°C (400°F).',
+          'Toss the Brussels sprouts and sweet potato with the olive oil, salt, garlic powder and paprika. Roast 25–30 minutes, flipping halfway.',
+          'Use the same bowl to season the tofu and chickpeas, then roast them alongside for 25–30 minutes, until the chickpeas are crisp and the tofu is golden.',
+        ],
+      },
+      {
+        name: 'Massaged Kale',
+        ingredients: [
+          { q: 4, u: 'cup', n: 'kale', aisle: 'Produce', note: 'stems removed', buy: { q: 1, u: 'bunch' } },
+          { q: null, u: null, n: 'olive oil', aisle: 'Oils & Vinegars', note: 'a splash', buy: { q: 15, u: 'mL' } },
+          { q: null, u: null, n: 'lemon juice', aisle: 'Produce', note: 'a squeeze', buyAs: 'lemons', buy: { q: 0.5, u: null } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'While everything roasts, massage the kale with a drizzle of olive oil, a squeeze of lemon and a pinch of salt until softened.',
+        ],
+      },
+      {
+        name: 'Balsamic Dijon Dressing',
+        ingredients: [
+          { q: 3, u: 'tbsp', n: 'balsamic vinegar', aisle: 'Oils & Vinegars', buy: { q: 45, u: 'mL' } },
+          { q: 2, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'dijon mustard', aisle: 'Condiments & Sauces', buy: { q: 1, u: 'jar' } },
+          { q: 0.5, u: 'tsp', n: 'honey', aisle: 'Sweeteners', buy: { q: 5, u: 'g' } },
+          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: null, u: null, n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Whisk the balsamic, olive oil, Dijon, honey, salt and pepper together.',
+        ],
+      },
+      {
+        name: 'Assembly',
+        ingredients: [
+          { q: 0.25, u: 'cup', n: 'parmesan', aisle: 'Dairy & Eggs', note: 'shaved', buy: { q: 50, u: 'g' } },
+        ],
+        steps: [
+          'Pile up the kale, roasted Brussels and sweet potato, tofu, chickpeas and parmesan.',
+          'Toss with the dressing and serve warm or at room temperature.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'one-pan-marry-me-tofu',
+    title: 'One Pan Marry Me Tofu',
+    dish: '#B8443B',
+    time: '30 min',
+    servings: { n: 4, unit: 'servings' },
+    tags: ['dinner'],
+    keyIngredients: ['tofu', 'sun-dried tomatoes', 'coconut milk', 'nutritional yeast'],
+    added: '2026-08-09',
+    order: 18,
+    components: [
+      {
+        name: 'Tofu',
+        ingredients: [
+          { q: 12, u: 'oz', n: 'firm tofu', aisle: 'Tofu & Plant-Based', note: 'pressed 10 minutes, then cubed', buyAs: 'extra firm tofu', buy: { q: 1, u: 'block' } },
+          { q: 0.5, u: 'cup', n: 'vegetable broth', aisle: 'Canned & Jarred', buy: { q: 120, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.5, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Toss the cubed tofu in the vegetable broth, salt and pepper. Let it marinate while you prepare the sauce, or up to 1 day ahead.',
+        ],
+      },
+      {
+        name: 'Sauce',
+        ingredients: [
+          { q: 0.5, u: 'cup', n: 'sun-dried tomatoes', aisle: 'Canned & Jarred', note: 'in oil', buy: { q: 1, u: 'jar' } },
+          { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.4, u: 'head' } },
+          { q: 1, u: 'cup', n: 'onion', aisle: 'Produce', note: 'yellow, finely diced', buy: { q: 1, u: null } },
+          { q: 1, u: 'tbsp', n: 'Italian seasoning', aisle: 'Spices & Dried Herbs' },
+          { q: 1.5, u: 'tbsp', n: 'tomato paste', aisle: 'Canned & Jarred', buy: { q: 1, u: 'can' } },
+          { q: 1, u: 'tbsp', n: 'tamari', aisle: 'Condiments & Sauces', note: 'or soy sauce', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: 'can', n: 'coconut milk', aisle: 'Canned & Jarred', note: 'full-fat, 15 oz', buy: { q: 1, u: 'can' } },
+          { q: 3, u: 'tbsp', n: 'nutritional yeast', aisle: 'Dry Goods & Grains', buy: { q: 15, u: 'g' } },
+          { q: 1, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 0.5, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 2, u: 'cup', n: 'baby spinach', aisle: 'Produce', buyAs: 'fresh spinach', buy: { q: 60, u: 'g' } },
+          { q: 1, u: 'tbsp', n: 'lemon juice', aisle: 'Produce', buyAs: 'lemons', buy: { q: 0.35, u: null } },
+          { q: null, u: null, n: 'fresh parsley', aisle: 'Produce', note: 'for garnish', buy: { q: 0.15, u: 'bunch' } },
+        ],
+        steps: [
+          'Heat a large skillet over medium heat and add the sun-dried tomatoes with their oil. Add the garlic and onion and sauté 2–3 minutes until fragrant.',
+          'Add the Italian seasoning and tomato paste, and stir about 30 seconds to caramelize the paste.',
+          'Add the tamari, coconut milk and nutritional yeast, and stir to combine. Bring to a boil, then reduce to a gentle simmer.',
+          'Gently stir in the tofu and its marinade. Simmer uncovered over low heat until the tofu takes on the colour of the sauce, about 5 minutes. Stir occasionally but gently so the tofu doesn\'t break apart.',
+          'Stir in the lemon juice and spinach. Cook just until the spinach wilts.',
+          'Top with chopped parsley right before serving.',
+        ],
+      },
+    ],
+  },
 ];
 
 if (typeof window !== 'undefined') {
