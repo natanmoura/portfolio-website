@@ -1175,6 +1175,54 @@ const RECIPES = [
       },
     ],
   },
+
+  {
+    slug: 'apple-cake',
+    title: 'Apple Cake',
+    dish: '#9E5A5F',
+    time: '45 min',
+    servings: { n: 12, unit: 'pieces' },
+    tags: ['dessert', 'snack'],
+    keyIngredients: ['apples', 'milk', 'butter'],
+    added: '2026-08-09',
+    order: 19,
+    components: [
+      {
+        name: 'Cake',
+        ingredients: [
+          { q: 1, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose, sifted', buy: { q: 135, u: 'g' } },
+          { q: 0.5, u: 'cup', n: 'sugar', aisle: 'Sweeteners', buy: { q: 90, u: 'g' } },
+          { q: 0.75, u: 'tbsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
+          { q: 3, u: null, n: 'eggs', aisle: 'Dairy & Eggs', note: 'large, room temperature' },
+          { q: 0.5, u: 'cup', n: 'avocado oil', aisle: 'Oils & Vinegars', note: 'or any neutral oil', buyAs: 'neutral oil', buy: { q: 120, u: 'mL' } },
+          { q: 3, u: null, n: 'apples', aisle: 'Produce', note: 'medium, peeled and diced small — about 2–2½ cups', buy: { q: 3, u: null } },
+        ],
+        steps: [
+          'Heat the oven to 375°F. Spray a 7-inch springform pan and line it with parchment.',
+          'Combine the flour, sugar and baking powder in a bowl. Add the eggs and oil, stirring until smooth.',
+          'Fold in the diced apples until coated.',
+          'Pour into the pan and bake for 35–40 minutes, until a toothpick comes out clean.',
+        ],
+        tip: 'Pears, peaches or berries work in place of the apples.',
+      },
+      {
+        name: 'Milk Topping',
+        ingredients: [
+          { q: 0.5, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', buy: { q: 120, u: 'mL' } },
+          { q: 2, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', buy: { q: 30, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'sugar', aisle: 'Sweeteners', buy: { q: 25, u: 'g' } },
+          { q: null, u: null, n: 'powdered sugar', aisle: 'Sweeteners', note: 'for dusting', buy: { q: 1, u: 'pack' } },
+        ],
+        steps: [
+          'About 5 minutes before the cake is done, heat the milk, butter and sugar in a small pot over medium, whisking until the butter and sugar dissolve.',
+          'Take the cake out and poke 25–30 evenly spaced holes down through it with a skewer.',
+          'Pour the warm milk mixture over the top and let it soak in as the cake cools.',
+          'Release the springform, peel off the parchment and move the cake to a plate. Cool 10–15 minutes, then dust with powdered sugar.',
+        ],
+        tip: 'Keeps 2–3 days in the fridge.',
+      },
+    ],
+  },
 ];
 
 if (typeof window !== 'undefined') {
