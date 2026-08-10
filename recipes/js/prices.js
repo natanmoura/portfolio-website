@@ -17,10 +17,10 @@ const PRICE_STORES = {
   "saveonfoods": {
     "name": "Save-On-Foods",
     "currency": "CAD",
-    "updated": "2026-07-26",
+    "updated": "2026-08-10",
     "items": {
       "cilantro": {
-        "v": 1.69,
+        "v": 2.69,
         "u": "each"
       },
       "cucumbers": {
@@ -52,8 +52,8 @@ const PRICE_STORES = {
         "u": "each"
       },
       "red onion": {
-        "v": 0.0066,
-        "u": "g"
+        "v": 2.21,
+        "u": "each"
       },
       "swiss chard": {
         "v": 4.99,
@@ -92,8 +92,72 @@ const PRICE_STORES = {
         "u": "can"
       },
       "red wine vinegar": {
-        "v": 0.00998,
+        "v": 0.00898,
         "u": "mL"
+      },
+      "avocado": {
+        "v": 2,
+        "u": "each"
+      },
+      "bell peppers": {
+        "v": 2.11,
+        "u": "each"
+      },
+      "fresh basil": {
+        "v": 2.99,
+        "u": "each"
+      },
+      "fresh mint": {
+        "v": 2.99,
+        "u": "each"
+      },
+      "jalapeno": {
+        "v": 0.39,
+        "u": "each"
+      },
+      "onion": {
+        "v": 0.94,
+        "u": "each"
+      },
+      "peaches": {
+        "v": 1.63,
+        "u": "each"
+      },
+      "potatoes": {
+        "v": 1.93,
+        "u": "each"
+      },
+      "extra firm tofu": {
+        "v": 3.99,
+        "u": "block"
+      },
+      "cream cheese": {
+        "v": 0.01978,
+        "u": "g"
+      },
+      "dried black beans": {
+        "v": 0.00931,
+        "u": "g"
+      },
+      "rolled oats": {
+        "v": 0.0049,
+        "u": "g"
+      },
+      "tomato paste": {
+        "v": 1.5,
+        "u": "can"
+      },
+      "walnuts": {
+        "v": 0.0369,
+        "u": "g"
+      },
+      "bbq sauce": {
+        "v": 4.69,
+        "u": "jar"
+      },
+      "collard greens": {
+        "v": 4.99,
+        "u": "each"
       }
     }
   }
