@@ -1177,8 +1177,8 @@ const RECIPES = [
   },
 
   {
-    slug: 'apple-cake',
-    title: 'Apple Cake',
+    slug: 'german-apple-cake',
+    title: 'German Apple Cake',
     dish: '#9E5A5F',
     time: '45 min',
     servings: { n: 12, unit: 'pieces' },
