@@ -1223,6 +1223,43 @@ const RECIPES = [
       },
     ],
   },
+
+  {
+    slug: 'basque-cheesecake',
+    title: 'Basque Cheesecake',
+    dish: '#A85C2E',
+    time: '1 hr + overnight chill',
+    servings: { n: 12, unit: 'slices' },
+    tags: ['dessert'],
+    keyIngredients: ['cream cheese', 'whipping cream', 'vanilla'],
+    added: '2026-08-09',
+    order: 20,
+    components: [
+      {
+        name: 'Cheesecake',
+        ingredients: [
+          { q: 750, u: 'g', n: 'cream cheese', aisle: 'Dairy & Eggs', note: 'blocks, room temperature', buyNote: 'full fat blocks' },
+          { q: 1, u: 'cup', n: 'caster sugar', aisle: 'Sweeteners', note: 'superfine — regular granulated works too', buyAs: 'sugar', buy: { q: 200, u: 'g' } },
+          { q: 1.25, u: 'cup', n: 'whipping cream', aisle: 'Dairy & Eggs', note: 'out of the fridge 15 minutes ahead', buyAs: 'heavy cream', buy: { q: 300, u: 'mL' } },
+          { q: 0.25, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose', buy: { q: 30, u: 'g' } },
+          { q: 1, u: 'tsp', n: 'vanilla extract', aisle: 'Dry Goods & Grains', note: 'bean extract or paste', buy: { q: 1, u: 'jar' } },
+          { q: 200, u: 'g', n: 'eggs', aisle: 'Dairy & Eggs', note: 'lightly whisked, room temperature — about 4–5 large', buy: { q: 5, u: null } },
+        ],
+        steps: [
+          'Scrunch up two 40cm (16") sheets of parchment and press them into a 20cm (8") springform pan, folding the edges down over the rim.',
+          'Beat the cream cheese on medium for 2 minutes until smooth. Add the sugar and beat on low for 10 seconds.',
+          'In a separate bowl, whisk ¼ cup of the cream with the flour until it forms a lump-free paste, then whisk in the rest of the cream and the vanilla.',
+          'Pour the cream mixture into the cream cheese while beating on low.',
+          'Slowly pour in the whisked eggs, still on low, and stop the moment they\'re incorporated.',
+          'Pour into the pan. Bang the pan on the counter and pop the surface bubbles with a sharp knife. Repeat 3–5 times.',
+          'Bake at 220°C/425°F (200°C fan-forced) for 45 minutes, until the surface is deep golden brown and the centre still wobbles. It can take up to 65 minutes depending on the oven, so go by colour rather than the clock.',
+          'Cool on the counter for at least 2 hours, then refrigerate uncovered for at least 8 hours, preferably overnight.',
+          'Release the springform, move the cheesecake to a plate and cut it like a cake. Serve plain.',
+        ],
+        tip: 'Use full-fat cream cheese and cream, not low-fat, or it won\'t set. Weighing the eggs matters more than counting them. Keeps 5 days in the fridge and doesn\'t freeze.',
+      },
+    ],
+  },
 ];
 
 if (typeof window !== 'undefined') {
