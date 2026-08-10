@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Karla:wght@300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <script>document.documentElement.classList.add('pf-loading');</script>
-  <link rel="stylesheet" href="css/recipes.css?v=14" />
+  <link rel="stylesheet" href="css/recipes.css?v=16" />
   <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
@@ -23,6 +23,7 @@
       </a>
       <h1 id="title">…</h1>
       <p class="recipe-meta" id="meta"></p>
+      <nav class="recipe-tags" id="recipeTags" aria-label="Tags"></nav>
       <div class="recipe-bar">
         <div class="servings" id="servings"></div>
         <button class="plan-btn plan-fixed" id="planBtn"></button>
@@ -37,6 +38,8 @@
         <div id="steps"></div>
       </div>
     </div>
+
+    <p class="recipe-source" id="recipeSource" hidden></p>
 
     <div class="qr-reveal">
       <button class="qr-reveal-link" id="qrRevealBtn">View QR code — open this recipe on another device</button>
@@ -54,7 +57,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="js/pagefade.js?v=1"></script>
-  <script src="js/recipes-data.js?v=15"></script>
-  <script src="js/cook.js?v=5"></script>
+  <script src="js/recipes-data.js?v=17"></script>
+  <script src="js/cook.js?v=6"></script>
 </body>
 </html>

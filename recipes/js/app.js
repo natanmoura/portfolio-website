@@ -1394,6 +1394,15 @@
       if (window.OrbitAPI) window.OrbitAPI.refreshCard();
     });
     window.OrbitPlanHas = planHas;
+
+    /* Arriving from a tag on a recipe page — land with that search already
+       run. Has to come after the search listener is wired, or the input
+       event fires into nothing and the list stays unfiltered. */
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) {
+      el.search.value = q;
+      el.search.dispatchEvent(new Event('input'));
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

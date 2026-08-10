@@ -842,6 +842,23 @@ button { background: none; border: none; cursor: pointer; }
   color: var(--dish); margin-top: .9rem;
 }
 .recipe-meta { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin-top: .6rem; }
+/* Tags sit between the time and the servings stepper. Deliberately
+   understated — they're an exit toward similar recipes, not a filter
+   bar. Tap target is padded well past the visible pill. */
+.recipe-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+.recipe-tags:empty { display: none; }
+.recipe-tag {
+  display: inline-flex; align-items: center; min-height: 38px;
+  font-size: .72rem; text-transform: lowercase; color: var(--faint);
+  padding: 0 .85rem; border-radius: var(--r-pill);
+  background: var(--paper-deep); border: 1px solid transparent;
+  transition: color .22s var(--ease), background .22s var(--ease), border-color .22s var(--ease);
+}
+.recipe-tag:hover, .recipe-tag:active {
+  color: var(--herb); background: var(--herb-tint);
+  border-color: color-mix(in srgb, var(--herb) 22%, transparent);
+}
+
 .recipe-bar { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
 .servings { margin-top: 0; }
 
@@ -911,6 +928,22 @@ button { background: none; border: none; cursor: pointer; }
 .tip {
   margin-top: .75rem; padding-left: 1.1rem;
   font-size: .84rem; color: var(--ink-soft); font-style: italic;
+}
+
+/* Credit where it's due, and a way back to the original. Sits quiet
+   under the method — it's a reference, not part of the cooking. */
+.recipe-source {
+  text-align: center; font-size: .78rem; color: var(--faint);
+  padding-top: 2.6rem; margin-bottom: -1.4rem;
+}
+.recipe-source a {
+  color: var(--faint); text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--faint) 35%, transparent);
+  text-underline-offset: .22em;
+  transition: color .22s var(--ease), text-decoration-color .22s var(--ease);
+}
+.recipe-source a:hover, .recipe-source a:active {
+  color: var(--herb); text-decoration-color: var(--herb);
 }
 
 /* Quiet, easy to miss on purpose — this is a convenience for whoever

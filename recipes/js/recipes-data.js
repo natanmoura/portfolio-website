@@ -22,6 +22,13 @@
    Discrete buy units (null/bunch/can/block/head/jar/pack) round up
    to whole numbers, since you can't buy 1.3 lemons.
 
+     source     { name, url } where the recipe came from — a blog,
+                an Instagram account, whoever's it originally was.
+                Optional: plenty of these arrived as screenshots with
+                no attribution left on them, and a guessed source is
+                worse than none. Only fill it in when it's actually
+                known.
+
      tags           meal categories, for search/filtering — a recipe
                     can carry more than one. One of MEAL_TAGS below.
      keyIngredients curated list of the 3-4 ingredients that actually
@@ -30,7 +37,11 @@
                     into search, so it's picked by hand, not derived.
    ═══════════════════════════════════════════════════════════════ */
 
-const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'drinks', 'side'];
+/* Kept deliberately short. These are the handful of words you'd actually
+   reach for when deciding what to cook — not a filing system. A new one
+   earns its place only when several recipes want it and none of the
+   existing ones fit. */
+const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'drinks', 'side', 'sauce'];
 
 const AISLES = [
   'Produce',
@@ -60,6 +71,7 @@ const RECIPES = [
     keyIngredients: ['fresh spinach', 'feta', 'scallions'],
     added: '2026-07-12',
     order: 1,
+    source: { name: '@cosetteskitchen', url: 'https://www.instagram.com/cosetteskitchen/' },
     components: [
       {
         name: 'Spinach',
@@ -113,6 +125,7 @@ const RECIPES = [
     keyIngredients: ['sushi rice', 'cilantro', 'lime', 'edamame'],
     added: '2026-07-26',
     order: 2,
+    source: { name: '@plantbasedrd', url: 'https://www.instagram.com/plantbasedrd/', note: 'inspired by' },
     components: [
       {
         name: 'The Rice',
@@ -1186,6 +1199,7 @@ const RECIPES = [
     keyIngredients: ['apples', 'milk', 'butter'],
     added: '2026-08-09',
     order: 19,
+    source: { name: 'The Modern Nonna', url: 'https://themodernnonna.com/easy-apple-cake/' },
     components: [
       {
         name: 'Cake',
@@ -1234,6 +1248,7 @@ const RECIPES = [
     keyIngredients: ['cream cheese', 'whipping cream', 'vanilla'],
     added: '2026-08-09',
     order: 20,
+    source: { name: 'RecipeTin Eats', url: 'https://www.recipetineats.com/basque-cheesecake/' },
     components: [
       {
         name: 'Cheesecake',
@@ -1271,6 +1286,7 @@ const RECIPES = [
     keyIngredients: ['potatoes', 'tofu', 'bell peppers', 'bbq sauce'],
     added: '2026-08-09',
     order: 21,
+    source: { name: '@fitgreenmind', url: 'https://www.instagram.com/fitgreenmind/' },
     components: [
       {
         name: 'Tray Bake',
@@ -1306,6 +1322,237 @@ const RECIPES = [
           'Toss the tofu with the bbq sauce.',
           'Plate everything with sliced avocado and a drizzle of spicy mayo.',
         ],
+      },
+    ],
+  },
+
+  {
+    slug: 'peach-salsa',
+    title: 'Peach Salsa',
+    dish: '#AF5533',
+    time: '15 min',
+    servings: { n: 6, unit: 'servings' },
+    tags: ['side', 'snack', 'sauce'],
+    keyIngredients: ['peaches', 'tomatoes', 'jalapeño', 'lime'],
+    added: '2026-08-09',
+    order: 22,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/peach-salsa-fresh-summer-salsa-in-10-minutes/' },
+    components: [
+      {
+        name: 'Salsa',
+        ingredients: [
+          { q: 9, u: null, n: 'peaches', aisle: 'Produce', note: 'diced', buy: { q: 9, u: null } },
+          { q: 5, u: null, n: 'tomatoes', aisle: 'Produce', note: 'medium, diced' },
+          { q: 1, u: null, n: 'jalapeño', aisle: 'Produce', note: 'large, seeded and finely diced', buy: { q: 1, u: null } },
+          { q: 0.25, u: 'cup', n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.25, u: null } },
+          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.1, u: 'head' } },
+          { q: 0.5, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'chopped', buy: { q: 0.5, u: 'bunch' } },
+          { q: 0.25, u: 'cup', n: 'fresh basil', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
+          { q: 0.25, u: 'cup', n: 'fresh mint', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
+          { q: 2, u: null, n: 'lime', aisle: 'Produce', note: 'juice and zest', buyAs: 'limes', buy: { q: 2, u: null }, buyNote: 'zest — buy whole' },
+          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'flaky, or to taste', buy: { q: null, u: null } },
+          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', note: 'freshly ground', buy: { q: null, u: null } },
+          { q: 1, u: 'tsp', n: 'tajin', aisle: 'Spices & Dried Herbs', note: 'optional' },
+        ],
+        steps: [
+          'Add the diced peaches and tomatoes to a large bowl.',
+          'Add the jalapeño, red onion, garlic, cilantro, basil and mint.',
+          'Pour over the lime juice and zest, then season with salt, pepper and tajin if using.',
+          'Stir gently until combined, then taste and adjust.',
+          'Chill 15–20 minutes before serving, with tortilla chips.',
+        ],
+        tip: 'Best the day it\'s made — the peaches and tomatoes keep releasing water. Keeps 2 days in an airtight container.',
+      },
+    ],
+  },
+
+  {
+    slug: 'walnut-pesto',
+    title: 'Walnut Pesto',
+    dish: '#5F7A24',
+    time: '15 min',
+    servings: { n: 2, unit: 'cups' },
+    tags: ['sauce', 'side'],
+    keyIngredients: ['fresh basil', 'walnuts', 'parmesan'],
+    added: '2026-08-09',
+    order: 23,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/walnut-pesto-recipe-thats-budget-friendly/' },
+    components: [
+      {
+        name: 'Pesto',
+        ingredients: [
+          { q: 2, u: 'cup', n: 'fresh basil', aisle: 'Produce', note: 'packed', buy: { q: 2, u: 'bunch' } },
+          { q: 1, u: 'cup', n: 'walnuts', aisle: 'Nuts & Seeds', note: 'toasted', buy: { q: 120, u: 'g' } },
+          { q: 0.5, u: 'cup', n: 'parmesan', aisle: 'Dairy & Eggs', note: 'freshly grated', buy: { q: 50, u: 'g' } },
+          { q: 2, u: null, n: 'garlic cloves', aisle: 'Produce', note: '1–2, to taste', buyAs: 'garlic', buy: { q: 0.2, u: 'head' } },
+          { q: 0.5, u: null, n: 'lemon', aisle: 'Produce', note: 'juiced', buyAs: 'lemons', buy: { q: 1, u: null } },
+          { q: 0.5, u: 'cup', n: 'extra virgin olive oil', aisle: 'Oils & Vinegars', buyAs: 'olive oil', buy: { q: 120, u: 'mL' } },
+          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'flaky', buy: { q: null, u: null } },
+          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', note: 'freshly cracked', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Put the basil, walnuts, parmesan, garlic, lemon juice, salt and pepper in a food processor.',
+          'Pulse a few times to combine.',
+          'With the processor running, drizzle in the olive oil until it comes together. Stop while there\'s still a little texture left.',
+          'Taste and adjust the seasoning.',
+        ],
+        tip: 'Keeps a week in the fridge, or freeze it in an ice cube tray. If it stiffens up in the fridge, stir in a teaspoon or two of olive oil to loosen it.',
+      },
+    ],
+  },
+
+  {
+    slug: 'baked-oats-with-rhubarb',
+    title: 'Baked Oats with Rhubarb',
+    dish: '#A83E55',
+    time: '1 hr + cooling',
+    servings: { n: 6, unit: 'servings' },
+    tags: ['breakfast', 'snack', 'dessert'],
+    keyIngredients: ['rhubarb', 'rolled oats', 'pecans', 'brown sugar'],
+    added: '2026-08-10',
+    order: 24,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/baked-oats-with-rhubarb-for-easy-breakfasts/' },
+    components: [
+      {
+        name: 'Bake',
+        ingredients: [
+          { q: 5, u: 'cup', n: 'rhubarb', aisle: 'Produce', note: 'roughly chopped', buy: { q: 600, u: 'g' } },
+          { q: 0.25, u: 'cup', n: 'butter', aisle: 'Dairy & Eggs', note: 'salted', buy: { q: 60, u: 'g' } },
+          { q: 0.33, u: 'cup', n: 'brown sugar', aisle: 'Sweeteners', buy: { q: 70, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'vanilla extract', aisle: 'Dry Goods & Grains', note: '2–3 tbsp as written, though 2–3 tsp is the more usual amount here' },
+          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 1, u: 'tsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
+          { q: 2.75, u: 'cup', n: 'rolled oats', aisle: 'Dry Goods & Grains', buy: { q: 250, u: 'g' } },
+          { q: 1, u: 'cup', n: 'pecans', aisle: 'Nuts & Seeds', buy: { q: 120, u: 'g' } },
+          { q: 1.25, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', note: 'full fat', buy: { q: 300, u: 'mL' } },
+        ],
+        steps: [
+          'Heat the oven to 375°F.',
+          'Put the rhubarb in a 9×9 oven-safe pan, holding back ½ cup for the top.',
+          'Add 1 cup boiling water along with the butter, brown sugar, vanilla, salt and baking powder. Stir until the butter has melted.',
+          'Stir in the oats, pecans and milk until evenly combined.',
+          'Scatter the reserved rhubarb over the top and bake for 45 minutes, until golden and set.',
+          'Cool 10–15 minutes before serving.',
+        ],
+        tip: 'Good warm with yogurt, cinnamon, berries or a scatter of seeds. Leftovers keep in the fridge and reheat well by the portion.',
+      },
+    ],
+  },
+
+  {
+    slug: 'lemon-poppy-seed-protein-pancakes',
+    title: 'Lemon Poppy Seed Protein Pancakes',
+    dish: '#8A7A22',
+    time: '25 min',
+    servings: { n: 6, unit: 'pancakes' },
+    tags: ['breakfast'],
+    keyIngredients: ['cottage cheese', 'lemon', 'poppy seeds'],
+    added: '2026-08-10',
+    order: 25,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/protein-pancakes-recipe-with-lemon-poppy-seeds/' },
+    components: [
+      {
+        name: 'Pancakes',
+        ingredients: [
+          { q: 0.75, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose', buy: { q: 95, u: 'g' } },
+          { q: 0.33, u: 'cup', n: 'cornstarch', aisle: 'Dry Goods & Grains', buy: { q: 40, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'sugar', aisle: 'Sweeteners', note: 'granulated', buy: { q: 25, u: 'g' } },
+          { q: 1, u: 'tbsp', n: 'baking powder', aisle: 'Dry Goods & Grains' },
+          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 1.5, u: 'tbsp', n: 'poppy seeds', aisle: 'Nuts & Seeds', buy: { q: 25, u: 'g' } },
+          { q: 1, u: 'cup', n: 'cottage cheese', aisle: 'Dairy & Eggs', note: 'or thick 10% Greek yogurt', buy: { q: 250, u: 'g' } },
+          { q: 2, u: null, n: 'lemon', aisle: 'Produce', note: 'juice and zest', buyAs: 'lemons', buy: { q: 2, u: null }, buyNote: 'zest — buy whole' },
+          { q: 1, u: 'tbsp', n: 'vanilla extract', aisle: 'Dry Goods & Grains' },
+          { q: 1, u: null, n: 'eggs', aisle: 'Dairy & Eggs', note: 'large' },
+          { q: 3, u: 'tsp', n: 'butter', aisle: 'Dairy & Eggs', note: 'melted, plus more for the pan', buy: { q: 30, u: 'g' } },
+        ],
+        steps: [
+          'Whisk the flour, cornstarch, sugar, baking powder, salt and poppy seeds together in a large bowl.',
+          'In a second bowl, whisk the cottage cheese, lemon zest and juice, vanilla, egg and melted butter, pressing out the larger curds.',
+          'Pour the wet into the dry and stir gently until no dry streaks remain.',
+          'Stir in 2–3 tbsp warm water to loosen the batter. Don\'t overmix.',
+          'Heat a buttered non-stick skillet over medium. Scoop in about ¼ cup batter per pancake.',
+          'Cook 2–3 minutes until the edges set and bubbles come up, then flip and cook another 2–3 minutes until golden.',
+        ],
+        tip: 'Around 20g of protein a serving, all from the cottage cheese — no protein powder. Serve with mashed raspberries, whipped cream and maple syrup. They keep 4 days in the fridge or 2 months frozen with parchment between them.',
+      },
+    ],
+  },
+
+  {
+    slug: 'granola',
+    title: 'Granola',
+    dish: '#7A5A2E',
+    time: '40 min',
+    servings: { n: 6, unit: 'cups' },
+    tags: ['breakfast', 'snack'],
+    keyIngredients: ['rolled oats', 'pecans', 'almonds', 'maple syrup'],
+    added: '2026-08-10',
+    order: 26,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/gluten-free-granola-healthy-easy/' },
+    components: [
+      {
+        name: 'Granola',
+        ingredients: [
+          { q: 3, u: 'cup', n: 'rolled oats', aisle: 'Dry Goods & Grains', note: 'gluten-free, if that matters to you', buy: { q: 270, u: 'g' } },
+          { q: 1, u: 'cup', n: 'pecans', aisle: 'Nuts & Seeds', note: 'roughly chopped', buy: { q: 120, u: 'g' } },
+          { q: 1, u: 'cup', n: 'almonds', aisle: 'Nuts & Seeds', note: 'roughly chopped', buy: { q: 140, u: 'g' } },
+          { q: 1, u: 'cup', n: 'unsweetened shredded coconut', aisle: 'Dry Goods & Grains', note: 'flakes', buy: { q: 80, u: 'g' } },
+          { q: 0.25, u: 'cup', n: 'hemp hearts', aisle: 'Nuts & Seeds', buy: { q: 40, u: 'g' } },
+          { q: 1, u: 'tsp', n: 'cinnamon', aisle: 'Spices & Dried Herbs' },
+          { q: 0.5, u: 'tsp', n: 'ground cardamom', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'tsp', n: 'ground cloves', aisle: 'Spices & Dried Herbs' },
+          { q: 0.25, u: 'tsp', n: 'ground ginger', aisle: 'Spices & Dried Herbs' },
+          { q: 0.5, u: 'cup', n: 'maple syrup', aisle: 'Sweeteners', note: 'pure', buy: { q: 120, u: 'mL' } },
+          { q: 0.33, u: 'cup', n: 'peanut butter', aisle: 'Condiments & Sauces', note: 'natural', buy: { q: 90, u: 'g' } },
+        ],
+        steps: [
+          'Heat the oven to 325°F and line a large baking sheet with parchment.',
+          'Combine the oats, pecans, almonds, coconut flakes, hemp hearts, cinnamon, cardamom, cloves and ginger in a large bowl. Stir until evenly distributed.',
+          'Warm the peanut butter in the microwave for 20–30 seconds until it goes smooth.',
+          'Pour the maple syrup and warm peanut butter over the dry mix and stir until thoroughly coated.',
+          'Spread it out on the sheet in an even layer, pressing gently with the back of a spoon if you want bigger clusters.',
+          'Bake 25–30 minutes. Stir once halfway through only if you want it looser.',
+          'Cool completely on the sheet without stirring — that\'s what sets the clusters. Break up and store airtight.',
+        ],
+        tip: 'Keeps 2 weeks at room temperature, or 3 months in the freezer. Honey works in place of the maple syrup, but it tastes noticeably different.',
+      },
+    ],
+  },
+
+  {
+    slug: 'blueberry-lemon-dutch-baby',
+    title: 'Blueberry Lemon Dutch Baby',
+    dish: '#4C5A93',
+    time: '30 min',
+    servings: { n: 4, unit: 'servings' },
+    tags: ['breakfast', 'dessert'],
+    keyIngredients: ['blueberries', 'lemon', 'eggs'],
+    added: '2026-08-10',
+    order: 27,
+    source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/blueberry-lemon-dutch-baby/' },
+    components: [
+      {
+        name: 'Dutch Baby',
+        ingredients: [
+          { q: 4, u: null, n: 'eggs', aisle: 'Dairy & Eggs', note: 'large' },
+          { q: 0.5, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', buy: { q: 65, u: 'g' } },
+          { q: 0.5, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', buy: { q: 120, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'vanilla extract', aisle: 'Dry Goods & Grains' },
+          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
+          { q: 3, u: 'tbsp', n: 'sugar', aisle: 'Sweeteners', buy: { q: 40, u: 'g' } },
+          { q: 4, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', note: '2 tbsp melted for the batter, 2 tbsp for the pan', buy: { q: 60, u: 'g' } },
+          { q: 1, u: null, n: 'lemon', aisle: 'Produce', note: 'large, zested', buyAs: 'lemons', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
+          { q: 1, u: 'cup', n: 'blueberries', aisle: 'Produce', note: 'frozen work too', buy: { q: 150, u: 'g' } },
+          { q: null, u: null, n: 'powdered sugar', aisle: 'Sweeteners', note: 'for dusting', buy: { q: 1, u: 'pack' } },
+        ],
+        steps: [
+          'Heat the oven to 450°F with a 10–12 inch cast iron skillet inside it.',
+          'Blend the eggs, flour, milk, vanilla, sugar, salt, 2 tbsp melted butter and the lemon zest until smooth.',
+          'Carefully pull the hot pan out. Add the remaining 2 tbsp butter and the blueberries, pour in the batter, and return it to the oven for 15–17 minutes.',
+          'Dust with powdered sugar and serve with maple syrup.',
+        ],
+        tip: 'It puffs up dramatically in the oven and deflates as it cools — that\'s meant to happen, so get it to the table quickly. Raspberries or blackberries work in place of the blueberries.',
       },
     ],
   },

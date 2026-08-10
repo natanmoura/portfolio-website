@@ -151,6 +151,42 @@
       </section>`).join('');
   }
 
+  /* ── Tags ────────────────────────────────────────────── */
+  /* Each one is a shortcut back to the list, pre-searched for that
+     tag. Small and low-contrast on purpose — a way out if you want
+     one, not a thing to read past on your way to the ingredients. */
+
+  function renderTags() {
+    const elTags = document.getElementById('recipeTags');
+    if (!elTags) return;
+    const tags = recipe.tags || [];
+    if (!tags.length) return;
+    elTags.innerHTML = tags.map((t) =>
+      `<a class="recipe-tag" href="index.html?q=${encodeURIComponent(t)}">${esc(t)}</a>`
+    ).join('');
+  }
+
+  renderTags();
+
+  /* ── Source ──────────────────────────────────────────── */
+  /* Where the recipe came from, so the trail back to whoever
+     actually wrote it doesn't get lost. Silent when unknown —
+     most of the early ones arrived as screenshots. */
+
+  function renderSource() {
+    const el = document.getElementById('recipeSource');
+    if (!el) return;
+    const src = recipe.source;
+    if (!src || !src.name) return;
+    const label = src.note ? `${esc(src.note)} ` : 'from ';
+    el.innerHTML = src.url
+      ? `${label}<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>`
+      : `${label}${esc(src.name)}`;
+    el.hidden = false;
+  }
+
+  renderSource();
+
   /* One handler for every collapse toggle on the page */
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-toggle]');
