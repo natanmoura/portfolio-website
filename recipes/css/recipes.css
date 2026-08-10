@@ -513,7 +513,13 @@ button { background: none; border: none; cursor: pointer; }
   background: color-mix(in srgb, var(--dish) 7%, var(--surface));
 }
 .chosen-top { display: flex; align-items: center; gap: .5rem; }
-.chosen-name { flex: 1; font-weight: 700; font-size: .9rem; color: var(--dish); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chosen-name {
+  flex: 1; font-weight: 700; font-size: .9rem; color: var(--dish); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: .3rem 0; margin: -.3rem 0; /* taller tap target, no layout shift */
+  transition: opacity .18s var(--ease);
+}
+.chosen-name:hover, .chosen-name:active { opacity: .72; }
 
 /* Stepper + its note. The note always occupies its own reserved line
    (visibility toggles, layout doesn't) so nothing around it shifts. */

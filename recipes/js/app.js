@@ -660,7 +660,7 @@
       return `
         <div class="chosen" style="--dish:${r.dish}">
           <div class="chosen-top">
-            <span class="chosen-name">${esc(r.title)}</span>
+            <a class="chosen-name" href="recipe.html?r=${encodeURIComponent(p.slug)}">${esc(r.title)}</a>
             <button class="icon-btn" data-unplan="${p.slug}" aria-label="Remove ${esc(r.title)}">${xSvg()}</button>
           </div>
           <div class="chosen-servings">
