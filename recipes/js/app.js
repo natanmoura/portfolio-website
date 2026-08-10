@@ -96,6 +96,84 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ }
   }
 
+  /* ── Cost estimates ──────────────────────────────────── */
+
+  /* What a recipe costs in ingredients, priced against whatever store
+     is active in prices.js. Rebuilt from real receipts after a shop,
+     so coverage grows on its own — nothing to maintain by hand.
+
+     This is the cost of what the recipe USES, not what you'd spend at
+     the till. A recipe wanting 3 tbsp of parsley is charged its share
+     of the bunch, not the whole $2.99, since the rest goes elsewhere.
+     Costing it the other way makes every herb-touching recipe look
+     absurd. */
+
+  const priceBook = (window.PRICE_STORES || {})[window.ACTIVE_STORE] || null;
+
+  /* Prices come as a rate per g, per mL, or per whole item. Recipe buy
+     amounts use those plus kg/L and the discrete units, so the two
+     have to be reconciled before multiplying. */
+  const MASS = { g: 1, kg: 1000 };
+  const VOLUME = { mL: 1, ml: 1, L: 1000, l: 1000 };
+
+  function amountInPriceUnit(qty, unit, priceUnit) {
+    if (priceUnit === 'g') return unit in MASS ? qty * MASS[unit] : null;
+    if (priceUnit === 'mL' || priceUnit === 'ml') return unit in VOLUME ? qty * VOLUME[unit] : null;
+    // Everything else is priced per whole thing — a bunch, a can, a
+    // head, a jar. Those are interchangeable here: the rate already
+    // means "per one of these", whatever the recipe calls it.
+    if (unit in MASS || unit in VOLUME) return null;
+    return qty;
+  }
+
+  function recipeCost(r) {
+    if (!priceBook) return null;
+    let total = 0;
+    let priced = 0;
+    let unpriced = 0;
+
+    r.components.forEach((c) => c.ingredients.forEach((ing) => {
+      const buy = ing.buy || { q: ing.q, u: ing.u };
+      // Salt, pepper, anything that shows as "some" — no quantity to
+      // cost, and nobody buys it for one dish. Not a coverage gap.
+      if (buy.q === null || buy.q === undefined) return;
+
+      const key = (ing.buyAs || ing.n || '').toLowerCase();
+      const entry = priceBook.items[key];
+      if (!entry) { unpriced++; return; }
+
+      const amount = amountInPriceUnit(buy.q, buy.u, entry.u);
+      if (amount === null) { unpriced++; return; }
+
+      total += amount * entry.v;
+      priced++;
+    }));
+
+    if (!priced) return null;
+    return {
+      total, priced, unpriced,
+      complete: unpriced === 0,
+      coverage: priced / (priced + unpriced),
+    };
+  }
+
+  /* Below this, an estimate is worse than no estimate. A recipe with
+     one priced ingredient out of twenty-two would show "$0.23", which
+     reads like a number rather than the near-total blank it is — and
+     a wrong price is more damaging than an absent one. Recipes stay
+     quiet until the price book knows enough about them. */
+  const MIN_COVERAGE = 0.6;
+
+  /* "$8.40" when everything's priced, "$8.40+" when most of it is —
+     the plus is doing real work, so a partial estimate never reads as
+     a final number. */
+  function costLabel(r) {
+    const c = recipeCost(r);
+    if (!c || c.coverage < MIN_COVERAGE) return '';
+    const money = '$' + c.total.toFixed(2);
+    return c.complete ? money : money + '+';
+  }
+
   /* ── Search index ────────────────────────────────────── */
 
   /* "1 hr" and "40 min" both need their unit read, not just the
@@ -444,6 +522,7 @@
     const r = entry.recipe;
     const on = planHas(r.slug);
     const steps = r.components.length;
+    const cost = costLabel(r);
     // Curated key ingredients, not every ingredient — oil/milk/salt
     // aren't what make a dish recognizable.
     const rest = entry.keyIngredientsLabel.filter((k) => !why || k.toLowerCase() !== why.toLowerCase());
@@ -457,7 +536,7 @@
         <span class="row-main">
           <span class="row-title">${esc(r.title)}</span>
           <span class="row-keywords">${keywords}</span>
-          <span class="row-meta">${r.servings.n} ${esc(r.servings.unit)} · ${esc(r.time)} · ${steps} ${steps === 1 ? 'step' : 'steps'}</span>
+          <span class="row-meta">${r.servings.n} ${esc(r.servings.unit)} · ${esc(r.time)} · ${steps} ${steps === 1 ? 'step' : 'steps'}${cost ? ` · <span class="row-cost">${esc(cost)}</span>` : ''}</span>
         </span>
         <span class="row-side">
           <button class="plan-btn${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
@@ -508,12 +587,13 @@
   function tileHtml(entry) {
     const r = entry.recipe;
     const on = planHas(r.slug);
+    const cost = costLabel(r);
     return `
       <div class="tile-item" style="--dish:${r.dish}" data-tile="${r.slug}">
         <button class="tile-toggle${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
           <span class="tile-check" aria-hidden="true">${checkSvg()}</span>
           <span class="tile-title">${esc(r.title)}</span>
-          <span class="tile-time">${esc(r.time)}</span>
+          <span class="tile-time">${esc(r.time)}${cost ? ` · ${esc(cost)}` : ''}</span>
         </button>
         <a class="tile-open" href="recipe.html?r=${encodeURIComponent(r.slug)}" aria-label="Open ${esc(r.title)}">${arrowSvg()}</a>
       </div>`;

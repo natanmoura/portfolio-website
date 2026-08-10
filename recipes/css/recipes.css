@@ -271,6 +271,10 @@ button { background: none; border: none; cursor: pointer; }
   display: block; font-family: var(--font-mono); font-size: .68rem;
   letter-spacing: .05em; text-transform: uppercase; color: var(--faint); margin-top: .4rem;
 }
+/* A shade darker than the rest of the meta line. It's an estimate off
+   the last shop, not a price tag — worth reading, not worth shouting. */
+.row-cost { color: var(--muted); }
+
 .row-side { display: flex; align-items: center; }
 
 /* Buttons that swap their label (Add to plan / In plan, Copy list /
