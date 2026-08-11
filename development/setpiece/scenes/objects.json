@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "name": "objects blockout",
+  "unitScale": 1,
+  "fields": [],
+  "cameraPath": null,
+  "stations": [
+    {
+      "id": "st1",
+      "name": "station",
+      "projection": "perspective",
+      "src": "assets/objects.png",
+      "width": 4000,
+      "height": 3000,
+      "focal": 1977.8381736370097,
+      "principal": [1994.6509052858503, 580.5647028670251],
+      "rotation": [
+        -0.7066654098600351, -0.0058177059420378265, 0.7075239591737656, 0,
+        -0.004111241128485949, 0.9999830770055922, 0.004116236000458162, 0,
+        -0.7075359328004, 0, -0.706677368957198, 0,
+        0, 0, 0, 1
+      ],
+      "position": [0, 10, 0]
+    }
+  ],
+  "nodes": [
+    { "id": "left_tower", "type": "box", "name": "left tower",
+      "position": [31.56, 0, 10.89], "size": [17.74, 14.7, 4.85], "rotationY": 0.0115,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "table_block", "type": "box", "name": "table block",
+      "position": [15.76, 0, 12.13], "size": [10.45, 4.37, 6.85], "rotationY": 0.0237,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "barn", "type": "box", "name": "barn",
+      "position": [16.12, 0, 28.81], "size": [10.88, 6.47, 9.66], "rotationY": 0.0507,
+      "material": { "mode": "projected", "station": "st1" } },
+    { "id": "barn_roof", "type": "roof", "name": "barn roof",
+      "position": [16.12, 6.47, 28.81], "size": [10.88, 1.99, 9.66], "rotationY": 0.0507,
+      "params": { "style": "gable" },
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "pyramid", "type": "pyramid", "name": "pyramid",
+      "position": [18.51, 0, 3.33], "size": [7.62, 5.49, 3.5], "rotationY": -0.004,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "wedge", "type": "pyramid", "name": "wedge",
+      "position": [5.69, 0, 11.77], "size": [3.05, 5.32, 5.42], "rotationY": -0.12,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "cylinder", "type": "cylinder", "name": "cylinder",
+      "position": [10.65, 0, 41.53], "size": [1.2, 14.35, 1.2], "rotationY": 0,
+      "material": { "mode": "projected", "station": "st1" } },
+    { "id": "post", "type": "cylinder", "name": "post",
+      "position": [11.12, 0, 67.11], "size": [0.35, 24.03, 0.35], "rotationY": 0,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "elbow_pipe", "type": "pipe", "name": "elbow pipe",
+      "position": [51.13, 0, 5.89], "size": [0.9, 7.75, 0.9], "rotationY": 0,
+      "material": { "mode": "projected", "station": "st1" } },
+
+    { "id": "sphere", "type": "sphere", "name": "sphere",
+      "position": [4.14, 0, 17.95], "size": [2.4, 3.79, 2.4], "rotationY": 0,
+      "material": { "mode": "projected", "station": "st1" } }
+  ]
+}

@@ -1,0 +1,252 @@
+/* Yes M'lady — visual tokens.
+   Deep greens, aubergine, aged gold, ember red in the places that matter.
+   Nothing saturated. Everything lit from one side. */
+
+:root {
+  /* ink and ground */
+  --ink-000: #050706;
+  --ink-100: #0a0f0c;
+  --ink-200: #101713;
+  --ink-300: #16211b;
+  --ink-400: #1d2c24;
+
+  /* deep green */
+  --moss-100: #16241c;
+  --moss-200: #22392c;
+  --moss-300: #33513f;
+  --moss-400: #4a6b55;
+
+  /* aubergine / violet */
+  --wine-100: #170f20;
+  --wine-200: #24173234;
+  --wine-300: #2b1b3d;
+  --wine-400: #452b5f;
+  --wine-500: #6b4791;
+
+  /* aged gold */
+  --gold-100: #6b5220;
+  --gold-200: #8a6a24;
+  --gold-300: #b08c3c;
+  --gold-400: #c9a24a;
+  --gold-500: #e0c47f;
+  --gold-600: #f4e4b4;
+
+  /* ember, used sparingly and always on purpose */
+  --ember-300: #7d2a22;
+  --ember-400: #a8352b;
+  --ember-500: #d15a3c;
+  --ember-600: #f08a5d;
+
+  /* parchment and text */
+  --parch-100: #b9ae95;
+  --parch-200: #cfc3a6;
+  --parch-300: #e7dcc3;
+  --parch-400: #f6efdd;
+
+  --text: var(--parch-300);
+  --text-dim: #8f8874;
+  --text-faint: #5f5b4e;
+
+  /* type */
+  --f-display: 'Cinzel', 'Trajan Pro', 'Palatino Linotype', 'Book Antiqua', serif;
+  --f-serif: 'Cormorant Garamond', 'EB Garamond', Georgia, 'Iowan Old Style', serif;
+  --f-body: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+
+  /* rhythm */
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 12px;
+
+  --edge: rgba(201, 162, 74, 0.22);
+  --edge-soft: rgba(201, 162, 74, 0.1);
+  --edge-strong: rgba(224, 196, 127, 0.45);
+
+  --shadow-deep: 0 24px 60px -18px rgba(0, 0, 0, 0.85);
+  --shadow-lift: 0 10px 30px -12px rgba(0, 0, 0, 0.7);
+
+  /* set by the atmosphere layer, consumed by chrome so UI matches the hour */
+  --amb-warm: 0.35;
+  --amb-key: #c9a24a;
+  --amb-fill: #2b1b3d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink-000);
+  color: var(--text);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: rgba(201, 162, 74, 0.28);
+  color: var(--parch-400);
+}
+
+/* ---- gold, extruded and lit ------------------------------------------- */
+/* Three stacked layers. A dark bevel behind, the gradient face, a sheen that
+   travels across on a slow loop so the metal never looks like flat paint. */
+
+.gold {
+  position: relative;
+  display: inline-block;
+  font-family: var(--f-display);
+  letter-spacing: 0.06em;
+  color: transparent;
+  background-image: linear-gradient(
+    172deg,
+    #fff8e0 0%,
+    #f0dda6 14%,
+    #c9a24a 34%,
+    #7f6222 50%,
+    #b8933f 62%,
+    #f2e2b0 78%,
+    #8a6a24 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+
+.gold::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: #2a2011;
+  background: none;
+  -webkit-text-fill-color: #2a2011;
+  text-shadow:
+    0 1px 0 #4a3a18,
+    0 2px 0 #3d2f14,
+    0 3px 0 #30250f,
+    0 4px 0 #241b0b,
+    0 6px 10px rgba(0, 0, 0, 0.6),
+    0 0 26px rgba(201, 162, 74, 0.18);
+}
+
+.gold::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background-image: linear-gradient(
+    100deg,
+    transparent 38%,
+    rgba(255, 250, 230, 0.85) 48%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 250, 230, 0.8) 52%,
+    transparent 62%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: sheen 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  0%,
+  62% {
+    background-position: 190% 0;
+  }
+  92%,
+  100% {
+    background-position: -90% 0;
+  }
+}
+
+.gold.-quiet::after {
+  animation-duration: 16s;
+  opacity: 0.5;
+}
+.gold.-still::after {
+  display: none;
+}
+
+/* ---- shared chrome ----------------------------------------------------- */
+
+.plate {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(22, 36, 28, 0.62), rgba(10, 15, 12, 0.78)),
+    radial-gradient(120% 90% at 50% 0%, rgba(107, 71, 145, 0.18), transparent 70%);
+  border: 1px solid var(--edge-soft);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(224, 196, 127, 0.08);
+  backdrop-filter: blur(6px) saturate(0.9);
+}
+
+.rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, var(--edge), transparent);
+  margin: 14px 0;
+}
+
+.eyebrow {
+  font-family: var(--f-display);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.serif {
+  font-family: var(--f-serif);
+}
+
+.dim {
+  color: var(--text-dim);
+}
+.faint {
+  color: var(--text-faint);
+}
+.ember {
+  color: var(--ember-500);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* scrollbars, kept out of the way */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 162, 74, 0.18);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

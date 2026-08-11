@@ -26,6 +26,24 @@
       "port": 5174
     },
     {
+      "name": "dragon-express",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Dropbox/Projects/dragon-express", "--", "--port", "5180"],
+      "port": 5180
+    },
+    {
+      "name": "yes-mlady",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Dropbox/Projects/website/development/yes-mlady/app", "--", "--port", "5181"],
+      "port": 5181
+    },
+    {
+      "name": "awesome-town",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/website/development/awesome-town/tools/serve.js", "5182"],
+      "port": 5182
+    },
+    {
       "name": "resume",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Setpiece — drawing to blocked 3D</title>
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header id="bar">
+  <h1>Setpiece</h1>
+  <label class="btn">Drawing<input type="file" id="load-image" accept="image/*" hidden></label>
+  <label class="btn">Perspective grid<input type="file" id="load-grid" accept="image/*" hidden></label>
+  <button class="btn primary" id="btn-solve">Solve camera</button>
+  <span class="sep"></span>
+  <button class="btn" id="btn-overlay">Overlay</button>
+  <button class="btn" id="btn-grid3d">Ground grid</button>
+  <span class="sep"></span>
+  <div id="modes" class="segmented">
+    <button data-mode="block" class="on">Block</button>
+    <button data-mode="card">Card</button>
+    <button data-mode="vpX">Lines A</button>
+    <button data-mode="vpZ">Lines B</button>
+  </div>
+  <span class="sep"></span>
+  <button class="btn" id="btn-fly">Fly</button>
+  <button class="btn" id="btn-match">Match cam</button>
+  <span class="grow"></span>
+  <select class="btn" id="pick-scene">
+    <option value="">Examples...</option>
+    <option value="objects">Objects (this drawing)</option>
+    <option value="candyworld-lines">Candyworld line art</option>
+    <option value="demo">Courtyard</option>
+  </select>
+  <label class="btn">Open<input type="file" id="load-scene" accept=".json,application/json" hidden></label>
+  <button class="btn" id="btn-json">scene.json</button>
+  <button class="btn" id="btn-glb">.glb</button>
+</header>
+
+<main>
+  <section id="pane-image">
+    <div id="image-stage">
+      <img id="source" alt="">
+      <canvas id="overlay"></canvas>
+    </div>
+    <p id="solve-status" class="status">Load a drawing, and optionally a perspective grid to calibrate
+      from, then press Solve camera.</p>
+  </section>
+
+  <section id="pane-3d">
+    <canvas id="view"></canvas>
+    <div id="hud"></div>
+  </section>
+
+  <aside id="pane-side">
+    <div class="group">
+      <h2>Camera</h2>
+      <div id="cam-info" class="sel-name none">not solved</div>
+      <label>World scale <input type="range" id="cam-height" min="1" max="200" step="1" value="10"><output id="cam-height-out">10</output></label>
+      <p class="hint">Pure scale: it does not change the picture, only how large the world is.
+        Raise it for a drawing looking down from above, or elevated objects end up
+        behind the camera.</p>
+    </div>
+
+    <div class="group">
+      <h2>Selected</h2>
+      <div id="sel-name" class="sel-name none">nothing selected</div>
+      <label>Depth <input type="range" id="sel-depth" min="-60" max="60" step="0.25" value="0" disabled><output id="sel-depth-out">0</output></label>
+      <p class="hint">Slides the object toward or away from camera. It stays exactly where it is
+        on screen, so this can never break the match to the drawing. <b>[</b> and <b>]</b> for
+        fine steps.</p>
+      <button class="btn wide" id="sel-clear">Deselect</button>
+    </div>
+
+    <div class="group">
+      <h2>Objects</h2>
+      <div id="nodes" class="nodes"></div>
+    </div>
+  </aside>
+</main>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

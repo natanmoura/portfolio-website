@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "courtyard demo",
+  "unitScale": 1,
+  "stations": [],
+  "fields": [],
+  "cameraPath": null,
+  "nodes": [
+    { "id": "ground", "type": "ground", "name": "ground",
+      "position": [0, 0, -20], "size": [160, 0, 160], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#6f6a63" } },
+
+    { "id": "bldgL", "type": "box", "name": "left building",
+      "position": [-10, 0, -18], "size": [7, 8, 14], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#a89b88" } },
+    { "id": "roofL", "type": "roof", "name": "left roof",
+      "position": [-10, 8, -18], "size": [7, 2.6, 14], "rotationY": 0,
+      "params": { "style": "gable" },
+      "material": { "mode": "flat", "color": "#7d5c4a" } },
+
+    { "id": "bldgR", "type": "box", "name": "right building",
+      "position": [10, 0, -18], "size": [7, 6.5, 14], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#9d9280" } },
+    { "id": "roofR", "type": "roof", "name": "right roof",
+      "position": [10, 6.5, -18], "size": [7, 2.2, 14], "rotationY": 0,
+      "params": { "style": "shed" },
+      "material": { "mode": "flat", "color": "#6f5142" } },
+
+    { "id": "col1", "type": "column", "name": "column 1",
+      "position": [-4, 0, -12], "size": [1.1, 5, 1.1], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#cfc6b4" } },
+    { "id": "col2", "type": "column", "name": "column 2",
+      "position": [4, 0, -12], "size": [1.1, 5, 1.1], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#cfc6b4" } },
+    { "id": "col3", "type": "column", "name": "column 3",
+      "position": [-4, 0, -17], "size": [1.1, 5, 1.1], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#c4bba9" } },
+    { "id": "col4", "type": "column", "name": "column 4",
+      "position": [4, 0, -17], "size": [1.1, 5, 1.1], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#c4bba9" } },
+
+    { "id": "gate", "type": "arch", "name": "gateway",
+      "position": [0, 0, -26], "size": [9, 7.5, 1.6], "rotationY": 0,
+      "params": { "openWidth": 0.55, "springHeight": 4.2 },
+      "material": { "mode": "flat", "color": "#b9ae99" } },
+    { "id": "dome", "type": "sphere", "name": "dome",
+      "position": [0, 7.5, -26], "size": [4, 4, 4], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#8fa3a8" } },
+
+    { "id": "steps", "type": "stairs", "name": "steps",
+      "position": [0, 0, -7], "size": [9, 1.6, 4], "rotationY": 0,
+      "params": { "steps": 7 },
+      "material": { "mode": "flat", "color": "#8c8577" } },
+
+    { "id": "pipe1", "type": "pipe", "name": "overhead pipe",
+      "position": [0, 6.4, -14], "size": [0.45, 18, 0.45],
+      "rotationY": 0, "rotationZ": 1.5708,
+      "material": { "mode": "flat", "color": "#5d6468" } },
+
+    { "id": "barrel", "type": "cylinder", "name": "barrel",
+      "position": [6.2, 0, -9], "size": [1.4, 1.8, 1.4], "rotationY": 0,
+      "material": { "mode": "flat", "color": "#7a6650" } },
+    { "id": "crate", "type": "box", "name": "crate",
+      "position": [-6.4, 0, -9.5], "size": [1.6, 1.6, 1.6], "rotationY": 0.5,
+      "material": { "mode": "flat", "color": "#8a7358" } }
+  ]
+}

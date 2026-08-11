@@ -1,0 +1,534 @@
+// City generation. Pure data in, pure data out, no three.js here.
+//
+// Two rules keep this predictable to edit:
+//
+// 1. Every module draws from its own stream, seeded from (seed, lot, index).
+//    Traits are rolled as a fixed block of tickets no matter what the sliders
+//    say, and the sliders only decide how to read those tickets. So turning
+//    "lit modules" up lights modules that were already there instead of
+//    reshuffling the city, and the same goes for every other distribution.
+//
+// 2. Edits live as sparse overrides keyed by module id, so a global reroll
+//    happens around them rather than through them.
+
+import { Rng, hashCoords, hashModule } from './rng.js';
+import { getPalette } from './palettes.js';
+import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
+
+export const BODY_KINDS = ['box', 'octagon', 'cylinder', 'pillars', 'pillars8', 'sphere', 'spin'];
+export const ROOF_KINDS = ['flat', 'pyramid', 'gable', 'cone', 'dome'];
+export const MODULE_KINDS = [...BODY_KINDS, 'pyramid', 'gable', 'cone', 'dome', 'flag'];
+
+export const KIND_LABEL = {
+  box: 'Cube',
+  octagon: 'Octagon',
+  cylinder: 'Cylinder',
+  pillars: 'Pillars 4',
+  pillars8: 'Pillars 8',
+  sphere: 'Sphere',
+  spin: 'Spin',
+  flat: 'Flat',
+  pyramid: 'Pyramid',
+  gable: 'Gable',
+  cone: 'Cone',
+  dome: 'Dome',
+  flag: 'Flag',
+};
+
+// Family drives building cohesion: a round building reaches for round parts.
+export const FAMILY = {
+  box: 'boxy',
+  pillars: 'boxy',
+  pillars8: 'boxy',
+  octagon: 'round',
+  cylinder: 'round',
+  sphere: 'round',
+  spin: 'round',
+  pyramid: 'boxy',
+  gable: 'boxy',
+  cone: 'round',
+  dome: 'round',
+  flat: 'boxy',
+  flag: 'boxy',
+};
+
+// Roofs that come to a point can carry a spire.
+export const POINTED_ROOFS = new Set(['pyramid', 'cone']);
+
+export const ROOFS_BY_FAMILY = {
+  boxy: ['flat', 'pyramid', 'gable'],
+  round: ['flat', 'cone', 'dome'],
+};
+
+export const ROOF_SET = new Set(['pyramid', 'gable', 'cone', 'dome']);
+
+export const DEFAULTS = {
+  seed: 8114,
+  cols: 10,
+  rows: 10,
+  cell: 6.4,
+  density: 0.86,
+  lotFill: 0.72,
+  lotJitter: 0.16,
+  minFloors: 2,
+  maxFloors: 12,
+  centerBias: 0.6,
+  floorHeight: 2.2,
+  floorJitter: 0.28,
+  setbackChance: 0.3,
+  setbackAmount: 0.2,
+  cohesion: 0.75,
+  collageChance: 0.68,
+  imageChance: 0.62,
+  sameImageChance: 0.3,
+  zoomJitter: 0.3,
+  slabChance: 0.16,
+  rotateChance: 0.25,
+  glowChance: 0.22,
+  glowStrength: 1,
+  glowTint: 0.65,
+  glowImage: 0.7,
+  palette: 'newsprint',
+  duotone: 0,
+  spireChance: 0.35,
+  // Billboard behaviour, as a share of the lit faces.
+  scrollShare: 0.28,
+  swapShare: 0.32,
+  flickerShare: 0.16,
+  // Terrain
+  terrainHeight: 0,
+  terrainScale: 0.6,
+  terrainDetail: 3,
+  // How much of each module kind exists across the town.
+  moduleMix: { box: 44, octagon: 13, cylinder: 11, pillars: 7, pillars8: 5, sphere: 4, spin: 16 },
+  roofMix: { flat: 28, pyramid: 18, gable: 20, cone: 16, dome: 18 },
+};
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const mix = (a, b, t) => a + (b - a) * t;
+
+export function buildingId(gx, gz) {
+  return `b${gx}_${gz}`;
+}
+export function moduleId(gx, gz, i) {
+  return `b${gx}_${gz}_m${i}`;
+}
+
+// --- weighted picks --------------------------------------------------------
+
+function pickWeighted(weights, keys, ticket, allow) {
+  let total = 0;
+  for (const k of keys) {
+    if (allow && !allow.has(k)) continue;
+    total += Math.max(0, weights[k] || 0);
+  }
+  if (total <= 0) return allow ? [...allow][0] || keys[0] : keys[0];
+  let acc = ticket * total;
+  for (const k of keys) {
+    if (allow && !allow.has(k)) continue;
+    acc -= Math.max(0, weights[k] || 0);
+    if (acc <= 0) return k;
+  }
+  return keys[keys.length - 1];
+}
+
+// --- tickets ---------------------------------------------------------------
+// A fixed block of uniform values per module, always rolled in the same order
+// and the same quantity. Parameters read these, never the generator.
+
+function tickets(rng) {
+  const t = {
+    kindRoll: rng.float(),
+    kindPick: rng.float(),
+    familyPick: rng.float(),
+    slab: rng.float(),
+    height: rng.float(),
+    rot: rng.float(),
+    blades: rng.float(),
+    spinDir: rng.float(),
+    spinSpeed: rng.float(),
+    spinIs: rng.float(),
+    glow: rng.float(),
+    glowStrength: rng.float(),
+    glowColour: rng.float(),
+    pattern: rng.float(),
+    colourA: rng.float(),
+    colourB: rng.float(),
+    setback: rng.float(),
+    wrap: rng.float(),
+    zoom: rng.float(),
+    panU: rng.float(),
+    panV: rng.float(),
+    roofKind: rng.float(),
+    scroll: rng.float(),
+    swap: rng.float(),
+    flicker: rng.float(),
+    spire: rng.float(),
+    images: [],
+    hasImage: [],
+  };
+  for (let i = 0; i < MAX_SLOTS; i++) t.images.push(rng.float());
+  for (let i = 0; i < MAX_SLOTS; i++) t.hasImage.push(rng.float());
+  return t;
+}
+
+// --- colour ----------------------------------------------------------------
+
+const PATTERNS = ['solid', 'alternate', 'half', 'mirror', 'caps', 'banded'];
+
+// Two colours per module, laid out geometrically. Which slots count as caps
+// depends on the shape, so a colour break lands where the form breaks.
+function capSlots(kind, n) {
+  const flat = flatSlots(kind);
+  if (flat.length) return new Set(flat);
+  if (ROOF_SET.has(kind)) return new Set([n - 1]);
+  return new Set();
+}
+
+function paintSlots(kind, n, pattern, a, b) {
+  const caps = capSlots(kind, n);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let useB = false;
+    switch (pattern) {
+      case 'alternate':
+        useB = i % 2 === 1;
+        break;
+      case 'half':
+        useB = i >= Math.ceil(n / 2);
+        break;
+      case 'mirror':
+        useB = i % 4 >= 2;
+        break;
+      case 'caps':
+        useB = caps.has(i);
+        break;
+      case 'banded':
+        useB = Math.floor(i / 2) % 2 === 1;
+        break;
+      default:
+        useB = false;
+    }
+    out.push(useB ? b : a);
+  }
+  return out;
+}
+
+// A sloped roof carries no collage, but a cube used as a cap is still a cube.
+// Spires are structure, not surface.
+function imagesAllowed(kind) {
+  return !ROOF_SET.has(kind) && kind !== 'flag';
+}
+
+// Three colours per building, spread across the palette rather than adjacent
+// to each other, so a scheme reads as a choice.
+function buildingScheme(rng, palette) {
+  const pool = [...palette.faces];
+  const scheme = [];
+  for (let i = 0; i < 3 && pool.length; i++) {
+    scheme.push(pool.splice(Math.floor(rng.float() * pool.length), 1)[0]);
+  }
+  while (scheme.length < 3) scheme.push(scheme[0] || '#cccccc');
+  return scheme;
+}
+
+// --- modules ---------------------------------------------------------------
+
+function makeModule(t, params, palette, ctx, index, id) {
+  const { signature, family, scheme, collage, imageCount, isRoof } = ctx;
+
+  let kind;
+  if (isRoof) {
+    const allow = new Set(ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy);
+    kind = pickWeighted(params.roofMix, ROOF_KINDS, t.roofKind, allow);
+    if (kind === 'flat') kind = 'box';
+  } else if (t.kindRoll < params.cohesion) {
+    kind = signature;
+  } else if (t.kindRoll < params.cohesion + (1 - params.cohesion) * 0.7) {
+    const siblings = new Set(BODY_KINDS.filter((k) => FAMILY[k] === family));
+    kind = pickWeighted(params.moduleMix, BODY_KINDS, t.familyPick, siblings);
+  } else {
+    kind = pickWeighted(params.moduleMix, BODY_KINDS, t.kindPick);
+  }
+
+  const slabbed = !isRoof && index > 0 && t.slab < params.slabChance && kind !== 'spin';
+  const n = slotCount(kind, 1 + Math.floor(t.blades * 3));
+  const pattern = PATTERNS[Math.floor(t.pattern * PATTERNS.length)];
+  const a = scheme[Math.floor(t.colourA * 3)];
+  const bChoices = scheme.filter((c) => c !== a);
+  const b = bChoices[Math.floor(t.colourB * bChoices.length)] || a;
+  const colours = paintSlots(kind, n, pattern, a, b);
+
+  // Which images a module would carry is rolled regardless of its shape, and
+  // then filtered by what the shape allows. Keeping the roll means switching a
+  // sloped roof to a cube reveals its collage rather than losing it for good.
+  const wrapOne = t.wrap < params.sameImageChance;
+  const sharedImage = imageCount ? Math.floor(t.images[0] * imageCount) : null;
+  const allowed = imagesAllowed(kind);
+  const blocked = new Set(flatSlots(kind));
+
+  const faces = [];
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const wants = collage && imageCount > 0 && i < n && t.hasImage[i] < params.imageChance;
+    const raw = wants ? (wrapOne ? sharedImage : Math.floor(t.images[i] * imageCount)) : null;
+    const shown = allowed && !blocked.has(i) ? raw : null;
+    faces.push({
+      imageRaw: raw,
+      image: shown,
+      color: shown != null ? '#ffffff' : colours[Math.min(i, n - 1)] || a,
+      zoom: 1 + t.zoom * params.zoomJitter,
+      panU: 0.25 + t.panU * 0.5,
+      panV: 0.25 + t.panV * 0.5,
+    });
+  }
+
+  const spins = kind === 'spin' || (kind === 'cylinder' && t.spinIs < 0.45);
+
+  // The glow ticket travels to the shader rather than being resolved here, so
+  // the "lit modules" slider switches existing modules on and off instead of
+  // shifting the random stream and rebuilding the city around it. An explicit
+  // edit pins the ticket outside 0..1 to force lit or unlit.
+  return {
+    id,
+    index,
+    kind,
+    slab: slabbed,
+    rotY: t.rot < params.rotateChance ? Math.PI / 2 : 0,
+    blades: 1 + Math.floor(t.blades * 3),
+    spinSpeed: spins ? mix(0.18, 0.85, t.spinSpeed) * (t.spinDir < 0.5 ? 1 : -1) : 0,
+    glowTicket: t.glow,
+    glowColor: palette.glow[Math.floor(t.glowColour * palette.glow.length)],
+    glowStrength: mix(0.6, 1.4, t.glowStrength),
+    // Billboard tickets, read against the global shares in the shader.
+    anim: [t.scroll, t.swap, t.flicker],
+    pattern,
+    scheme: [a, b],
+    faces,
+  };
+}
+
+// --- lot -------------------------------------------------------------------
+
+export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
+  const palette = getPalette(params.palette);
+  const id = buildingId(gx, gz);
+  const bOver = overrides[id] || {};
+  if (bOver.deleted) return null;
+
+  const seed = (params.seed + (bOver.seedNudge || 0)) >>> 0;
+  const brng = new Rng(hashCoords(seed, gx, gz));
+  if (!bOver.forced && !brng.chance(params.density)) return null;
+
+  // Building-level identity, rolled before anything the sliders can shift.
+  const signature = pickWeighted(params.moduleMix, BODY_KINDS, brng.float());
+  const family = FAMILY[signature] || 'boxy';
+  const scheme = buildingScheme(brng, palette);
+  const collage = brng.float() < params.collageChance;
+  const shapeRoll = brng.float();
+  const sizeRollW = brng.float();
+  const sizeRollD = brng.float();
+  const roofRoll = brng.float();
+  const roofSizeRoll = brng.float();
+
+  const dist = lotDistance(params, gx, gz);
+  const shape = clamp(mix(shapeRoll, Math.pow(1 - dist, 1.6), params.centerBias), 0, 1);
+  const floors = Math.max(1, Math.round(mix(params.minFloors, params.maxFloors, shape)));
+
+  const base = params.cell * params.lotFill;
+  let w = base * (1 + (sizeRollW * 2 - 1) * params.lotJitter);
+  let d = base * (1 + (sizeRollD * 2 - 1) * params.lotJitter);
+
+  const ctx = { signature, family, scheme, collage, imageCount, isRoof: false };
+  let modules = [];
+  for (let i = 0; i < floors; i++) {
+    const t = tickets(new Rng(hashModule(seed, gx, gz, i)));
+    if (i > 0 && t.setback < params.setbackChance) {
+      const k = 1 - params.setbackAmount * mix(0.5, 1, t.setback / Math.max(1e-6, params.setbackChance));
+      w *= k;
+      d *= k;
+    }
+    const m = makeModule(t, params, palette, ctx, i, moduleId(gx, gz, i));
+    m.h = m.slab
+      ? params.floorHeight * mix(0.14, 0.26, t.height)
+      : params.floorHeight * (1 + (t.height * 2 - 1) * params.floorJitter);
+    if (m.kind === 'spin') m.h *= 1.25;
+    if (m.kind === 'sphere') m.h = Math.min(m.h, Math.min(w, d) * 1.1);
+    m.w = m.slab ? w * 1.12 : w;
+    m.d = m.slab ? d * 1.12 : d;
+    modules.push(m);
+  }
+
+  const roofKind = pickWeighted(
+    params.roofMix,
+    ROOF_KINDS,
+    roofRoll,
+    new Set(ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy)
+  );
+  if (roofKind !== 'flat') {
+    const i = modules.length;
+    const t = tickets(new Rng(hashModule(seed, gx, gz, i)));
+    const m = makeModule(t, params, palette, { ...ctx, isRoof: true }, i, moduleId(gx, gz, i));
+    m.h = params.floorHeight * mix(0.5, 1.15, roofSizeRoll);
+    m.w = w * mix(1.0, 1.12, roofSizeRoll);
+    m.d = d * mix(1.0, 1.12, roofSizeRoll);
+    m.rotY = roofSizeRoll < 0.5 ? 0 : Math.PI / 2;
+    modules.push(m);
+
+    // A roof that comes to a point can carry a spire.
+    if (POINTED_ROOFS.has(m.kind) && t.spire < params.spireChance) {
+      const j = modules.length;
+      const st = tickets(new Rng(hashModule(seed, gx, gz, j)));
+      const spire = makeModule(st, params, palette, { ...ctx, isRoof: true }, j, moduleId(gx, gz, j));
+      spire.kind = 'flag';
+      spire.h = params.floorHeight * mix(0.7, 1.3, st.height);
+      spire.w = Math.min(w, d) * 0.6;
+      spire.d = spire.w;
+      spire.rotY = st.rot * Math.PI * 2;
+      spire.spinSpeed = 0;
+      // Repaint for the flag's own two slots.
+      const cols = paintSlots('flag', 2, spire.pattern, spire.scheme[0], spire.scheme[1]);
+      spire.faces.forEach((f, k) => {
+        f.image = null;
+        f.color = cols[Math.min(k, 1)];
+      });
+      modules.push(spire);
+    }
+  }
+
+  // Building-level floor edits, then per-module overrides.
+  const delta = bOver.floorsDelta || 0;
+  if (delta) modules = adjustFloors(modules, delta, params, palette, ctx, seed, gx, gz);
+
+  modules.forEach((m, i) => {
+    m.id = moduleId(gx, gz, i);
+    m.index = i;
+  });
+  modules = modules.map((m) => applyOverride(m, overrides[m.id])).filter((m) => !m.deleted);
+  if (!modules.length) return null;
+  modules.forEach((m, i) => {
+    m.index = i;
+    // Convenience for the editor. The shader makes the same comparison.
+    m.glow = m.glowTicket < params.glowChance;
+  });
+
+  const scale = bOver.footprintScale || 1;
+  if (scale !== 1) {
+    modules.forEach((m) => {
+      m.w *= scale;
+      m.d *= scale;
+    });
+  }
+
+  const originX = -((params.cols - 1) * params.cell) / 2;
+  const originZ = -((params.rows - 1) * params.cell) / 2;
+  const x = originX + gx * params.cell + (bOver.offsetX || 0);
+  const z = originZ + gz * params.cell + (bOver.offsetZ || 0);
+  const height = restack(modules);
+
+  // Sit on the lowest corner of the footprint so nothing floats on a slope.
+  let y = 0;
+  if (groundAt) {
+    const hw = w / 2;
+    const hd = d / 2;
+    y = Math.min(
+      groundAt(x - hw, z - hd),
+      groundAt(x + hw, z - hd),
+      groundAt(x + hw, z + hd),
+      groundAt(x - hw, z + hd)
+    );
+  }
+
+  return {
+    id,
+    gx,
+    gz,
+    x,
+    y,
+    z,
+    rotY: bOver.rotY || 0,
+    height,
+    signature,
+    family,
+    scheme,
+    collage,
+    modules,
+  };
+}
+
+function adjustFloors(modules, delta, params, palette, ctx, seed, gx, gz) {
+  const top = modules[modules.length - 1];
+  const hasRoof = ROOF_SET.has(top.kind);
+  const body = hasRoof ? modules.slice(0, -1) : modules;
+  if (delta < 0) {
+    const keep = Math.max(1, body.length + delta);
+    return hasRoof ? [...body.slice(0, keep), top] : body.slice(0, keep);
+  }
+  const added = [];
+  for (let i = 0; i < delta; i++) {
+    const idx = body.length + i;
+    const t = tickets(new Rng(hashModule(seed, gx, gz, idx + 500)));
+    const src = body[body.length - 1] || modules[0];
+    const m = makeModule(t, params, palette, ctx, idx, moduleId(gx, gz, idx));
+    m.h = src.h;
+    m.w = src.w;
+    m.d = src.d;
+    added.push(m);
+  }
+  return hasRoof ? [...body, ...added, top] : [...body, ...added];
+}
+
+function lotDistance(params, gx, gz) {
+  const cx = (params.cols - 1) / 2;
+  const cz = (params.rows - 1) / 2;
+  const maxD = Math.hypot(cx, cz) || 1;
+  return clamp(Math.hypot(gx - cx, gz - cz) / maxD, 0, 1);
+}
+
+// Stack bottom-up, so a module made taller by hand pushes what is above it up.
+export function restack(modules) {
+  let y = 0;
+  for (const m of modules) {
+    m.y = y + m.h / 2;
+    y += m.h;
+  }
+  return y;
+}
+
+function applyOverride(module, override) {
+  if (!override) return module;
+  const { faces, ...rest } = override;
+  // Changing the shape, the pattern or the pair of colours re-lays the colour
+  // across the slots. Explicit per-face edits are applied after, so they win.
+  const repaint =
+    rest.pattern !== undefined || rest.scheme !== undefined || rest.kind !== undefined;
+  Object.assign(module, rest);
+  if (repaint) {
+    const n = slotCount(module.kind, module.blades);
+    const [a, b] = module.scheme;
+    const colours = paintSlots(module.kind, n, module.pattern, a, b);
+    const allowed = imagesAllowed(module.kind);
+    const blockedSlots = new Set(flatSlots(module.kind));
+    module.faces.forEach((f, i) => {
+      f.image = allowed && !blockedSlots.has(i) ? f.imageRaw ?? null : null;
+      if (f.image == null) f.color = colours[Math.min(i, n - 1)] || a;
+      else f.color = '#ffffff';
+    });
+  }
+  if (faces) {
+    faces.forEach((f, i) => {
+      if (f) module.faces[i] = { ...module.faces[i], ...f };
+    });
+  }
+  return module;
+}
+
+export function generateCity(params, overrides = {}, imageCount = 0, groundAt = null) {
+  const buildings = [];
+  for (let gz = 0; gz < params.rows; gz++) {
+    for (let gx = 0; gx < params.cols; gx++) {
+      const b = generateLot(params, overrides, imageCount, gx, gz, groundAt);
+      if (b) buildings.push(b);
+    }
+  }
+  return { params: { ...params }, palette: getPalette(params.palette), buildings };
+}
