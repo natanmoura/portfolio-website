@@ -211,6 +211,8 @@ export class CityBuilder {
     // Where the building meets the ground. The wave shader lifts and tilts
     // about this, so a whole stack rides the swell as one piece.
     const baseY = new Float32Array(vertices);
+    // Flutter weight, non-zero only along the free edge of a flag.
+    const wind = new Float32Array(vertices);
 
     const triangles = vertices / 3;
     const pickBuilding = new Uint16Array(triangles);
@@ -219,14 +221,26 @@ export class CityBuilder {
 
     let v = 0;
     for (const { bi, b, m, shape } of parts) {
-      // The module offset is purely vertical, so the building rotation leaves
-      // it alone and both turns collapse into one angle.
+      // Both turns collapse into one angle, then the bend tilt is layered on
+      // top in world space. Small angles, so a linearised tilt is enough and
+      // avoids a full matrix per vertex.
       const angle = (m.rotY || 0) + (b.rotY || 0);
       const ca = Math.cos(angle);
       const sa = Math.sin(angle);
-      const ox = b.x;
+      const bx = m.bendX || 0;
+      const bz = m.bendZ || 0;
+      const tx = m.tiltX || 0;
+      const tz = m.tiltZ || 0;
+      const tilted = tx !== 0 || tz !== 0;
+      // Lean the module about its own centre. Rotation about X by tx sends +Y
+      // toward +Z, about Z by tz sends +Y toward -X.
+      const cx = Math.cos(tx);
+      const sx = Math.sin(tx);
+      const cz = Math.cos(tz);
+      const sz = Math.sin(tz);
+      const ox = b.x + bx;
       const oy = (b.y || 0) + m.y;
-      const oz = b.z;
+      const oz = b.z + bz;
 
       const labels = slotLabels(m.kind, m.blades);
       // Emissive is written as if lit. The shader decides whether it is, by
@@ -259,12 +273,31 @@ export class CityBuilder {
           const ny = shape.nor[i * 3 + 1];
           const nz = shape.nor[i * 3 + 2];
           const k = v * 3;
-          pos[k] = ca * px + sa * pz + ox;
-          pos[k + 1] = py + oy;
-          pos[k + 2] = -sa * px + ca * pz + oz;
-          nor[k] = ca * nx + sa * nz;
-          nor[k + 1] = ny;
-          nor[k + 2] = -sa * nx + ca * nz;
+          let rx = ca * px + sa * pz;
+          let ry = py;
+          let rz = -sa * px + ca * pz;
+          let mx = ca * nx + sa * nz;
+          let my = ny;
+          let mz = -sa * nx + ca * nz;
+          if (tilted) {
+            // Rz then Rx, applied to both the point and its normal.
+            let a = cz * rx - sz * ry;
+            let bqy = sz * rx + cz * ry;
+            rx = a;
+            ry = cx * bqy - sx * rz;
+            rz = sx * bqy + cx * rz;
+            a = cz * mx - sz * my;
+            const nyy = sz * mx + cz * my;
+            mx = a;
+            my = cx * nyy - sx * mz;
+            mz = sx * nyy + cx * mz;
+          }
+          pos[k] = rx + ox;
+          pos[k + 1] = ry + oy;
+          pos[k + 2] = rz + oz;
+          nor[k] = mx;
+          nor[k + 1] = my;
+          nor[k + 2] = mz;
           col[k] = cr;
           col[k + 1] = cg;
           col[k + 2] = cb;
@@ -283,6 +316,7 @@ export class CityBuilder {
           spin[v * 4 + 2] = oz;
           spin[v * 4 + 3] = speed;
           baseY[v] = b.y || 0;
+          wind[v] = shape.wind ? shape.wind[i] : 0;
 
           if (v % 3 === 0) {
             const t = v / 3;
@@ -306,6 +340,7 @@ export class CityBuilder {
     geo.setAttribute('aAnim', new THREE.BufferAttribute(anim, 3));
     geo.setAttribute('aSpin', new THREE.BufferAttribute(spin, 4));
     geo.setAttribute('aBaseY', new THREE.BufferAttribute(baseY, 1));
+    geo.setAttribute('aWind', new THREE.BufferAttribute(wind, 1));
     geo.computeBoundingSphere();
     // Spinning modules sweep past their resting bounds and waves lift the
     // whole town, so give culling generous slack.

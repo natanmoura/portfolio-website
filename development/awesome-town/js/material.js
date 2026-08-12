@@ -15,7 +15,7 @@
 // transform so their shadows turn with them.
 
 import * as THREE from 'three';
-import { WAVE_GLSL, WAVE_BODY, WAVE_BODY_NORMAL, waveFrequency } from './wave.js';
+import { WAVE_GLSL, WAVE_BODY, WAVE_BODY_NORMAL, WIND_BODY, waveFrequency } from './wave.js';
 
 // Uniforms the ground shares with the city, so the town rides the same water
 // its reflection would.
@@ -25,21 +25,24 @@ export const shared = {
   uWaveFreq: { value: 0.08 },
   uWaveSpeed: { value: 0.6 },
   uWaveRock: { value: 1 },
+  uWind: { value: 0.35 },
 };
 
 const PARS_VERTEX = `
   attribute float aLayer;
   attribute float aGlow;
   attribute float aBaseY;
+  attribute float aWind;
+  uniform float uWind;
   attribute vec3 aEmissive;
   attribute vec3 aAnim;
   attribute vec4 aSpin;
   attribute vec2 aUv;
   uniform float uTime;
-  varying float vLayer;
-  varying float vGlow;
-  varying vec3 vEmissive;
-  varying vec3 vAnim;
+  flat varying float vLayer;
+  flat varying float vGlow;
+  flat varying vec3 vEmissive;
+  flat varying vec3 vAnim;
   varying vec2 vAtlasUv;
   ${WAVE_GLSL}
 `;
@@ -83,10 +86,14 @@ const PARS_FRAGMENT = `
   uniform float uScrollShare;
   uniform float uSwapShare;
   uniform float uFlickerShare;
-  varying float vLayer;
-  varying float vGlow;
-  varying vec3 vEmissive;
-  varying vec3 vAnim;
+  // These are constant across a face, so interpolating them is not just
+  // wasteful, it is wrong: a layer index of 5 can arrive as 4.999997 and
+  // truncate to 4 for some pixels of a triangle, which pulls the wrong rect
+  // out of the lookup and makes the image tear. flat fixes that at the source.
+  flat varying float vLayer;
+  flat varying float vGlow;
+  flat varying vec3 vEmissive;
+  flat varying vec3 vAnim;
   varying vec2 vAtlasUv;
   float ccLum(vec3 c) { return clamp(dot(c, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0); }
   float ccHash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
@@ -108,11 +115,12 @@ const MAP = `
   if (ccHasImage) {
     float ccLayer = vLayer;
     vec2 ccLocal = vAtlasUv;
+    bool ccScrolling = false;
 
     if (ccLit > 0.5) {
       if (step(vAnim.x, uScrollShare) > 0.5) {
-        float ccSpeed = (vAnim.x * 2.0 - 1.0) * 0.11;
-        ccLocal.x = fract(ccLocal.x + uTime * ccSpeed);
+        ccScrolling = true;
+        ccLocal.x += uTime * (vAnim.x * 2.0 - 1.0) * 0.11;
       }
       if (step(vAnim.y, uSwapShare) > 0.5 && uLayerCount > 1.0) {
         float ccEvery = 5.0 + vAnim.y * 5.0;
@@ -125,9 +133,19 @@ const MAP = `
       }
     }
 
-    vec4 ccRect = texelFetch(uRects, ivec2(int(ccLayer), 0), 0);
-    vec2 ccUv = ccRect.xy + clamp(ccLocal, 0.0, 1.0) * ccRect.zw;
-    vec4 ccSample = texture(uAtlas, vec3(ccUv, ccLayer));
+    int ccIndex = int(ccLayer + 0.5);
+    vec4 ccRect = texelFetch(uRects, ivec2(ccIndex, 0), 0);
+    // Mip selection has to come off the unwrapped uv. Derivatives taken after
+    // a fract blow up at the seam, the sampler drops to the sharpest level for
+    // that pixel quad, and the result is the sparkle that shows up as soon as
+    // a billboard starts scrolling.
+    vec2 ccDx = dFdx(vAtlasUv) * ccRect.zw;
+    vec2 ccDy = dFdy(vAtlasUv) * ccRect.zw;
+    // Only a scrolling face wraps. A still one clamps, because a cover crop
+    // can land exactly on 1.0 and fract would send it back to the far edge.
+    vec2 ccWrapped = ccScrolling ? fract(ccLocal) : clamp(ccLocal, 0.0, 1.0);
+    vec2 ccUv = ccRect.xy + ccWrapped * ccRect.zw;
+    vec4 ccSample = textureGrad(uAtlas, vec3(ccUv, float(ccIndex)), ccDx, ccDy);
     float ccL = pow(ccLum(ccSample.rgb), 0.4545);
     vec3 ccDuo = mix(uDuoInk, uDuoPaper, smoothstep(0.02, 0.98, ccL));
     ccTexel = mix(ccSample.rgb, ccDuo, uDuoAmount);
@@ -214,6 +232,7 @@ export class CityMaterial {
            vEmissive = aEmissive;
            vAnim = aAnim;
            vAtlasUv = aUv;
+           ${WIND_BODY}
            ${SPIN_POSITION}
            ${WAVE_BODY}`
         );
@@ -236,13 +255,15 @@ export class CityMaterial {
           'void main() {',
           `attribute vec4 aSpin;
            attribute float aBaseY;
+           attribute float aWind;
            uniform float uTime;
+           uniform float uWind;
            ${WAVE_GLSL}
            void main() {`
         )
         .replace(
           '#include <begin_vertex>',
-          `#include <begin_vertex>\n${SPIN_POSITION}\n${WAVE_BODY}`
+          `#include <begin_vertex>\n${WIND_BODY}\n${SPIN_POSITION}\n${WAVE_BODY}`
         );
     };
     material.customProgramCacheKey = () => 'awesome-town-depth';
@@ -261,8 +282,15 @@ export class CityMaterial {
     this.uniforms.uFlickerShare.value = flicker;
   }
 
+  // Wrapped, because a float32 clock that only ever grows loses the precision
+  // these animations are built on. By a few thousand seconds a scroll offset
+  // starts stepping instead of sliding.
   setTime(t) {
-    shared.uTime.value = t;
+    shared.uTime.value = t % 3600;
+  }
+
+  setWind(strength) {
+    shared.uWind.value = strength;
   }
 
   setWaves(amp, scale, speed, rock) {

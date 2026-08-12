@@ -88,9 +88,21 @@ export function rangeRow({ label, value, min, max, step, hard, live = true, onIn
   return { row, set: show, slider, num };
 }
 
+// Five tabs rather than one long scroll. Everything that shapes the town in
+// one place, everything about how it looks in another, the world it sits in
+// third, and the housekeeping kept out of the way entirely.
+export const TABS = [
+  { id: 'town', label: 'Town' },
+  { id: 'look', label: 'Look' },
+  { id: 'world', label: 'World' },
+  { id: 'scene', label: 'Scene' },
+  { id: 'keys', label: 'Keys' },
+];
+
 export const CONTROL_DEFS = [
   {
     section: 'City',
+    tab: 'town',
     items: [
       {
         key: 'seed',
@@ -105,7 +117,55 @@ export const CONTROL_DEFS = [
     ],
   },
   {
+    section: 'Streets',
+    tab: 'town',
+    items: [
+      {
+        key: 'roadPattern',
+        label: 'Pattern',
+        type: 'select',
+        options: [],
+        help: 'Which real street plan the town is cut from. Grid is Manhattan, Boulevards drives diagonals through a grid, Radial is spokes and rings, Old town wanders.',
+      },
+      R('roadSkew', 'Skew', 0, 1, 0.01, 'How far roads drift off parallel. Zero is a clean grid, high gives the triangular blocks you get where avenues cut across.', { live: false, hard: [0, 1] }),
+      R('blockWidth', 'Block width', 0.6, 6, 0.05, 'Spacing of the streets running one way, in block sizes.', { live: false }),
+      R('blockDepth', 'Block depth', 0.6, 6, 0.05, 'Spacing of the streets running the other way. Unequal values give long thin blocks.', { live: false }),
+      R('highwayWidth', 'Highway width', 1, 14, 0.1, 'Width of the main roads. Every third street is one.', { live: false }),
+      R('streetWidth', 'Street width', 0.5, 8, 0.1, 'Width of the smaller streets cutting between them.', { live: false }),
+      R('setback', 'Setback', 0, 6, 0.05, 'Gap between the kerb and the buildings facing it.', { live: false }),
+      R('frontageSpacing', 'Frontage gap', 0.6, 3, 0.01, 'How far apart buildings sit along a street. One packs them shoulder to shoulder.', { live: false, hard: [0.4, 12] }),
+      R('blockDepthRatio', 'Building depth', 0.3, 2.5, 0.01, 'How deep buildings are relative to their street frontage.', { live: false }),
+      {
+        key: 'showRoads',
+        label: 'Show roads',
+        type: 'check',
+        cheap: true,
+        help: 'Draws the tarmac. Turn it off to see the massing alone.',
+      },
+    ],
+  },
+  {
+    section: 'Traffic',
+    tab: 'town',
+    items: [
+      R('carCount', 'Cars', 0, 400, 1, 'How many vehicles drive the streets. They follow their road exactly and keep to a lane.', { live: false, hard: [0, 1200] }),
+      R('flyerCount', 'Flyers', 0, 300, 1, 'How many fly. They use the roads as corridors but weave off the centreline.', { live: false, hard: [0, 1200] }),
+      R('mainRoadBias', 'Highway bias', 0, 1, 0.01, 'How much ground traffic prefers the main roads over the side streets.', { live: false, hard: [0, 1] }),
+      R('carSpeed', 'Speed', 0, 40, 0.1, 'How fast traffic moves.', { cheap: true }),
+      R('carSize', 'Size', 0.2, 4, 0.01, 'Scale of the vehicles against the buildings.', { live: false }),
+      R('flyerHeight', 'Flying height', 2, 60, 0.5, 'How high the flyers cruise above the ground.', { live: false }),
+      {
+        key: 'showCars',
+        label: 'Show traffic',
+        type: 'check',
+        cheap: true,
+        help: 'Hides every vehicle without forgetting them.',
+      },
+    ],
+  },
+  {
     section: 'Massing',
+    tab: 'town',
     items: [
       R('minFloors', 'Floors min', 1, 30, 1, 'Shortest a building can be, before the roof.', { hard: [1, 200] }),
       R('maxFloors', 'Floors max', 1, 60, 1, 'Tallest a building can be, before the roof.', { hard: [1, 200] }),
@@ -116,10 +176,12 @@ export const CONTROL_DEFS = [
       R('lotJitter', 'Lot variance', 0, 0.6, 0.01, 'How much footprints differ building to building. Zero makes every block the same.', { hard: [0, 0.98] }),
       R('setbackChance', 'Setbacks', 0, 1, 0.01, 'Odds a building steps inward on the way up. Rolled per floor.', { hard: [0, 1] }),
       R('setbackAmount', 'Setback depth', 0, 0.6, 0.01, 'How far each step goes in. Small is a taper, large is a ziggurat.', { hard: [0, 0.98] }),
+      R('bend', 'Bend', 0, 1, 0.01, 'Leans each building along one direction, more the higher it goes, so the stack curves instead of shearing. A little is whimsical, a lot is a fairground.', { hard: [0, 4] }),
     ],
   },
   {
     section: 'Module mix',
+    tab: 'town',
     items: [
       {
         key: 'moduleMix',
@@ -138,6 +200,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Surfaces',
+    tab: 'look',
     items: [
       R('collageChance', 'Collaged buildings', 0, 1, 0.01, 'Odds a building carries images at all. The rest are pure colour, to rest the eye.', { hard: [0, 1] }),
       R('imageChance', 'Image vs colour', 0, 1, 0.01, 'Within a collaged building, odds a face takes an image over a colour.', { hard: [0, 1] }),
@@ -146,10 +209,12 @@ export const CONTROL_DEFS = [
       R('slabChance', 'Cornice slabs', 0, 1, 0.01, 'Odds of a thin overhanging slab between floors. Breaks up a tall stack and catches a shadow.', { hard: [0, 1] }),
       R('rotateChance', 'Quarter turns', 0, 1, 0.01, 'Odds a module is turned ninety degrees, changing which face meets the street.', { hard: [0, 1] }),
       R('spireChance', 'Spires', 0, 1, 0.01, 'Odds a pointed roof gets a flag on a pole.', { hard: [0, 1] }),
+      R('wind', 'Wind', 0, 2, 0.01, 'How hard the flags flutter. Poles stay put, cloth moves most at its free edge.', { cheap: true }),
     ],
   },
   {
     section: 'Palette',
+    tab: 'look',
     items: [
       {
         key: 'palette',
@@ -163,6 +228,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Glow',
+    tab: 'look',
     items: [
       R('glowChance', 'Lit modules', 0, 1, 0.01, 'How many modules are lit from within. Switches existing ones on and off, so the town never changes shape.', { cheap: true, hard: [0, 1] }),
       R('glowStrength', 'Glow strength', 0, 3, 0.01, 'How hard lit modules push. Past 1.5 the images inside start to wash out.', { cheap: true }),
@@ -172,6 +238,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Billboards',
+    tab: 'look',
     items: [
       R('scrollShare', 'Scrolling', 0, 1, 0.01, 'Share of lit faces whose image crawls sideways, like a running sign.', { cheap: true, hard: [0, 1] }),
       R('swapShare', 'Changing', 0, 1, 0.01, 'Share of lit faces that cut to a different picture every five to ten seconds.', { cheap: true, hard: [0, 1] }),
@@ -180,6 +247,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Terrain',
+    tab: 'world',
     items: [
       R('terrainHeight', 'Hill height', 0, 20, 0.1, 'How far the ground rises and falls. Buildings stay planted on a slope.', { live: false, hard: [0, 300] }),
       R('terrainScale', 'Hill size', 0.1, 4, 0.01, 'How wide the bumps are. Large gives a few broad hills the town drapes over.', { live: false, hard: [0.02, 40] }),
@@ -188,6 +256,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Water',
+    tab: 'world',
     items: [
       R('waveHeight', 'Swell', 0, 4, 0.01, 'How far the water lifts the town. Each building rides its own patch as one piece.', { cheap: true, hard: [0, 60] }),
       R('waveScale', 'Wave size', 0.2, 4, 0.01, 'How far apart the crests are. Small is chop, large is a long ocean swell.', { cheap: true, hard: [0.03, 40] }),
@@ -197,6 +266,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Light and sky',
+    tab: 'world',
     items: [
       R('hour', 'Hour', 0, 24, 0.1, 'Time of day. Sky, shadows, glow and bloom all follow it. Golden hour is near 6 and 18.', { cheap: true, hard: [0, 24] }),
       R('sunAzimuth', 'Sun compass', -180, 180, 1, 'Swings the arc of the sun around the town without changing the hour.', { cheap: true, hard: [-360, 360] }),
@@ -251,6 +321,71 @@ export const CONTROL_DEFS = [
       },
     ],
   },
+  {
+    section: 'Looks',
+    tab: 'world',
+    items: [
+      R('tilt', 'Miniature', 0, 1, 0.01, 'Throws everything outside a band of focus out. The town stops reading as a city and starts reading as a model on a table.', { cheap: true, hard: [0, 1] }),
+      R('tiltCenter', 'Focus height', 0, 1, 0.01, 'Where on screen the sharp band sits.', { cheap: true, hard: [0, 1] }),
+      R('tiltRange', 'Focus depth', 0.02, 1, 0.01, 'How tall the sharp band is. Narrow sells the miniature harder.', { cheap: true, hard: [0.01, 1] }),
+      R('halftone', 'Halftone', 0, 1, 0.01, 'Breaks the image into a print screen of dots, which suits the collage the town is made of.', { cheap: true, hard: [0, 1] }),
+      R('halftoneScale', 'Dot size', 1, 14, 0.1, 'How coarse the dot screen is.', { cheap: true, hard: [0.5, 60] }),
+      R('posterize', 'Posterise', 0, 1, 0.01, 'Collapses the picture to a handful of tones, like a screen print.', { cheap: true, hard: [0, 1] }),
+      R('posterizeSteps', 'Tones', 2, 16, 1, 'How many tones survive posterising.', { cheap: true, hard: [2, 64] }),
+      R('edge', 'Ink outline', 0, 1, 0.01, 'Draws a line where the picture changes, so the town reads as an illustration rather than a render.', { cheap: true, hard: [0, 1] }),
+      R('edgeWidth', 'Line weight', 0.4, 4, 0.05, 'How thick the ink is.', { cheap: true, hard: [0.2, 12] }),
+      {
+        key: 'edgeColor',
+        toggleKey: 'edgeOn',
+        label: 'Ink colour',
+        type: 'colorToggle',
+        cheap: true,
+        help: 'What the outline is drawn in. Near-black reads as pen, a palette colour reads as printing.',
+      },
+      R('contrast', 'Contrast', 0.3, 2.2, 0.01, 'Pushes the tones apart around the midpoint.', { cheap: true, hard: [0, 6] }),
+      R('saturation', 'Saturation', 0, 2.5, 0.01, 'Zero is greyscale, past one is poster ink.', { cheap: true, hard: [0, 8] }),
+      {
+        key: 'shadowTint',
+        toggleKey: 'shadowTintOn',
+        label: 'Shadow tint',
+        type: 'colorToggle',
+        cheap: true,
+        help: 'Colours the dark end of the range. Cool shadows against warm light is most of what makes a frame feel graded.',
+      },
+      {
+        key: 'highlightTint',
+        toggleKey: 'highlightTintOn',
+        label: 'Light tint',
+        type: 'colorToggle',
+        cheap: true,
+        help: 'Colours the bright end. Push it against the shadow tint rather than with it.',
+      },
+      R('vignette', 'Vignette', 0, 1, 0.01, 'Darkens the corners and pulls the eye to the middle.', { cheap: true, hard: [0, 1] }),
+      R('grain', 'Grain', 0, 1, 0.01, 'Film grain over the whole frame. A little stops flat colour looking digital.', { cheap: true, hard: [0, 1] }),
+    ],
+  },
+  {
+    section: 'Tour',
+    tab: 'world',
+    items: [
+      { key: 'tourTools', type: 'mount' },
+      R('flybySpeed', 'Speed', 1, 60, 0.5, 'How fast the tour drives the town.', { cheap: true }),
+      R('flybyHeight', 'Eye height', 0.5, 60, 0.1, 'Low is a car on the street, high is a drone over the roofs.', { cheap: true }),
+      R('flybyLookAhead', 'Look ahead', 2, 80, 0.5, 'How far down the road the camera aims. Short feels urgent, long feels smooth.', { cheap: true }),
+      R('flybyBank', 'Bank', 0, 2, 0.01, 'How hard the camera leans into a turn.', { cheap: true, hard: [0, 6] }),
+      R('flybyPitch', 'Aim', -10, 20, 0.1, 'Raises or lowers where the camera is pointed relative to the road.', { cheap: true }),
+    ],
+  },
+  {
+    section: 'Scenes',
+    tab: 'scene',
+    items: [{ key: 'sceneTools', type: 'mount' }],
+  },
+  {
+    section: 'Shortcuts',
+    tab: 'keys',
+    items: [{ key: 'shortcuts', type: 'mount' }],
+  },
 ];
 
 export class Controls {
@@ -262,11 +397,44 @@ export class Controls {
     this.inputs = new Map();
     this.ranges = new Map();
     this.mounts = new Map();
-    defs.forEach((group) => root.append(this.renderSection(group)));
+    this.pages = new Map();
+    this.tab = 'town';
+
+    this.tabBar = h('nav', { class: 'tabbar' });
+    this.pageWrap = h('div', { class: 'pages' });
+    root.append(this.tabBar, this.pageWrap);
+
+    for (const tab of TABS) {
+      const page = h('div', { class: 'page' });
+      this.pages.set(tab.id, page);
+      this.pageWrap.append(page);
+      const button = h(
+        'button',
+        { class: 'tabbtn', 'data-tab': tab.id, onclick: () => this.show(tab.id) },
+        tab.label
+      );
+      this.tabBar.append(button);
+    }
+
+    defs.forEach((group) => {
+      const page = this.pages.get(group.tab) || this.pages.get('town');
+      page.append(this.renderSection(group));
+    });
+    this.show('town');
+  }
+
+  show(id) {
+    this.tab = id;
+    this.pages.forEach((page, key) => page.classList.toggle('on', key === id));
+    this.tabBar.querySelectorAll('.tabbtn').forEach((b) => {
+      b.classList.toggle('on', b.dataset.tab === id);
+    });
   }
 
   renderSection(group) {
-    const body = h('div', { class: 'sec-body' }, group.items.map((def) => this.renderItem(def)));
+    const body = h('div', { class: 'sec-body' }, (group.items || []).map((def) => this.renderItem(def)));
+    // Open by default. Collapsing is there for when a section is in the way,
+    // not as the resting state.
     const head = h(
       'button',
       {
@@ -276,7 +444,8 @@ export class Controls {
           head.classList.toggle('closed', closed);
         },
       },
-      group.section
+      h('span', { class: 'sec-name' }, group.section),
+      h('span', { class: 'sec-mark' })
     );
     return h('section', { class: 'sec' }, head, body);
   }
@@ -297,6 +466,13 @@ export class Controls {
       const mount = h('div', { class: 'wheel-mount' });
       this.mounts.set(def.key, mount);
       return h('div', { class: 'wheel-block' }, h('h3', { class: 'grp' }, def.label), mount);
+    }
+
+    // A hole for main.js to fill: scene management, the shortcut list.
+    if (def.type === 'mount') {
+      const mount = h('div', { class: 'mount' });
+      this.mounts.set(def.key, mount);
+      return mount;
     }
 
     if (def.type === 'check') {

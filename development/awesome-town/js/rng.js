@@ -11,6 +11,16 @@ export function hashString(str) {
   return h >>> 0;
 }
 
+// Streams keyed by a site id string, for layouts where lots are not on a grid.
+export function hashId(seed, id) {
+  const h = hashString(id);
+  return hashCoords(seed, h & 0xffff, h >>> 16);
+}
+
+export function hashIdModule(seed, id, index) {
+  return hashCoords(hashId(seed, id), index, 0x5bf03635);
+}
+
 // A stream per module rather than per building, so a module's traits depend
 // only on where it is and never on how many rolls happened before it. That is
 // what keeps a slider like "lit modules" from reshuffling the city.

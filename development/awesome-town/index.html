@@ -19,33 +19,12 @@
 
 <header id="bar">
   <h1>Awesome Town<em>City Builder</em></h1>
-
-  <select id="scene-list" class="btn"
-    data-help-title="Scenes"
-    data-help="Every scene you have saved on this machine. Picking one loads its sliders and all of its hand edits. A scene is only a few kilobytes, since the city is rebuilt from them rather than stored as geometry."></select>
-  <button class="btn" id="btn-scene-save"
-    data-help="Saves over the scene currently loaded. If nothing is loaded it asks for a name.">Save</button>
-  <button class="btn" id="btn-scene-saveas"
-    data-help="Saves the current state under a new name and switches to it, leaving the one you started from untouched.">Save as</button>
-  <button class="btn" id="btn-scene-delete"
-    data-help="Removes the selected scene from the menu. This cannot be undone, so export first if you want to keep a copy.">Delete</button>
-
   <span id="status" class="status"></span>
   <span class="grow"></span>
-
   <button class="btn" id="btn-frame"
-    data-help="Pulls the camera back to fit the whole city in view. The F key does the same.">Frame</button>
-  <button class="btn" id="btn-clear-edits"
-    data-help="Throws away every hand edit and leaves the sliders where they are, so the city goes back to pure generation.">Clear edits</button>
-  <button class="btn" id="btn-reset"
-    data-help="Puts every slider back to its default and drops all hand edits. Asks first.">Reset</button>
-  <span class="sep"></span>
-  <label class="btn" data-help-title="Import"
-    data-help="Loads a scene file from disk and adds it to the menu. Drag a .json onto the window to do the same.">Import<input type="file" id="load-json" accept=".json,application/json" hidden></label>
-  <button class="btn" id="btn-export"
-    data-help="Writes the current scene to a JSON file you can keep alongside the project or hand to another machine.">Export</button>
+    data-help="Pulls the camera back to fit the whole town. The F key does the same.">Frame</button>
   <button class="btn primary" id="btn-shot"
-    data-help="Saves the current view as a PNG at the size of the viewport. The selection outline is hidden for the shot.">Snapshot</button>
+    data-help="Saves the current view as a PNG at the size of the viewport.">Snapshot</button>
 </header>
 
 <main>
@@ -55,22 +34,6 @@
   </div>
   <aside id="inspector" class="panel empty"></aside>
 </main>
-
-<footer id="keys">
-  <kbd>click</kbd> module
-  <kbd>shift+click</kbd> building
-  <kbd>dbl-click</kbd> new image on that face
-  <kbd>I</kbd> image
-  <kbd>shift+I</kbd> all faces
-  <kbd>M</kbd> shape
-  <kbd>G</kbd> glow
-  <kbd>[ ]</kbd> height
-  <kbd>, .</kbd> width
-  <kbd>1-9</kbd> face
-  <kbd>R</kbd> reroll building
-  <kbd>del</kbd> remove
-  <kbd>F</kbd> frame
-</footer>
 
 <div id="loading">
   <div class="load-inner">

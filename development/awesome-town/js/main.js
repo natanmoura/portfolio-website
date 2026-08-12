@@ -12,7 +12,7 @@ import { Stage } from './scene.js';
 import { Picker } from './select.js';
 import { Controls, CONTROL_DEFS, h } from './ui.js';
 import { Inspector } from './inspector.js';
-import { initTooltips } from './tooltip.js';
+import { initTooltips, withHelp } from './tooltip.js';
 import { MixWheel } from './piechart.js';
 import { Scenes } from './scenes.js';
 import { slotCount } from './geometry.js';
@@ -27,6 +27,9 @@ import {
 } from './generate.js';
 import { PALETTES, PALETTE_KEYS, getPalette } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
+import { ROAD_PATTERNS, PATTERN_LABEL } from './layout.js';
+import { Traffic } from './traffic.js';
+import { Flyby } from './flyby.js';
 
 const APP_NAME = 'Awesome Town';
 
@@ -50,7 +53,52 @@ const ENV_DEFAULTS = {
   waveScale: 1.4,
   waveSpeed: 0.6,
   waveRock: 1,
+  wind: 0.35,
+  tilt: 0,
+  tiltCenter: 0.5,
+  tiltRange: 0.28,
+  halftone: 0,
+  halftoneScale: 4,
+  posterize: 0,
+  posterizeSteps: 6,
+  vignette: 0.18,
+  grain: 0.05,
+  edge: 0,
+  edgeWidth: 1.2,
+  edgeOn: false,
+  edgeColor: '#120d0a',
+  contrast: 1,
+  saturation: 1,
+  shadowTintOn: false,
+  shadowTint: '#8fa8d8',
+  highlightTintOn: false,
+  highlightTint: '#ffe6c0',
+  showCars: true,
+  flybySpeed: 16,
+  flybyHeight: 3.2,
+  flybyLookAhead: 16,
+  flybyBank: 0.8,
+  flybyPitch: 1.5,
 };
+
+const SHORTCUTS = [
+  ['click', 'select a module'],
+  ['shift + click', 'select the whole building'],
+  ['double click', 'new image on that face'],
+  ['I', 'new image on the selected face'],
+  ['shift + I', 'new image on every face'],
+  ['M', 'next shape'],
+  ['G', 'light it or unlight it'],
+  ['[  ]', 'shorter, taller'],
+  [',  .', 'narrower, wider'],
+  ['1 - 9', 'pick a face'],
+  ['B', 'switch module and building'],
+  ['R', 'reroll the building'],
+  ['delete', 'remove it'],
+  ['F', 'frame the whole town'],
+  ['T', 'start or stop the tour'],
+  ['esc', 'deselect'],
+];
 
 const WHEEL_COLORS = {
   box: '#e0663a',
@@ -58,6 +106,7 @@ const WHEEL_COLORS = {
   cylinder: '#3f6f6a',
   pillars: '#7a3b2e',
   pillars8: '#a8623f',
+  post: '#5a3f7a',
   sphere: '#c9c0a4',
   spin: '#2f5df0',
   flag: '#c9412f',
@@ -93,6 +142,9 @@ let builder;
 let picker;
 let controls;
 let inspector;
+let traffic;
+let flyby;
+let tourButton;
 let wheels = {};
 
 boot();
@@ -115,6 +167,9 @@ async function boot() {
   builder = new CityBuilder(pool, materials);
   stage.scene.add(builder.root);
   picker = new Picker(stage, builder);
+  traffic = new Traffic();
+  stage.scene.add(traffic.group);
+  flyby = new Flyby(stage);
   pool.onChange(() => materials.setAtlas(pool));
 
   rebuildAll();
@@ -188,20 +243,24 @@ function rebuildAll() {
     stage.setExtent(p);
   }
   state.city = generateCity(p, state.overrides, pool.length, groundAt);
+  stage.ground.setRoads(state.city.layout.roads, p);
+  traffic.build(state.city.layout.roads, p, getPalette(p.palette));
+  flyby.build(state.city.layout.roads, p);
   builder.build(state.city);
   if (stage) builder.sortPending(stage.camera);
   reindex();
 }
 
 function rebuildLot(id) {
-  const match = /^b(\d+)_(\d+)$/.exec(id);
-  if (!match) return;
-  const gx = Number(match[1]);
-  const gz = Number(match[2]);
-  const building = generateLot(state.params, state.overrides, pool.length, gx, gz, groundAt);
+  const layout = state.city.layout;
+  const site = layout.sites.find((s) => s.id === id);
+  if (!site) return;
 
   const list = state.city.buildings;
   const at = list.findIndex((b) => b.id === id);
+  const previous = at >= 0 ? list[at] : null;
+  const building = generateLot(site, state.params, state.overrides, pool.length, groundAt, layout.half);
+
   if (building) {
     if (at >= 0) list[at] = building;
     else list.push(building);
@@ -211,7 +270,10 @@ function rebuildLot(id) {
   reindex();
 
   if (builder.isolatedId === id && building) builder.rebuildSolo();
-  else builder.rebuildChunkAt(gx, gz);
+  else {
+    const anchor = building || previous;
+    if (anchor) builder.rebuildChunkAt(anchor.gx, anchor.gz);
+  }
 }
 
 function reindex() {
@@ -233,6 +295,7 @@ function applyEnv() {
   materials.setBillboards(p.scrollShare, p.swapShare, p.flickerShare);
   materials.setDuotone(p.duotone, palette.ink, palette.paper);
   materials.setWaves(p.waveHeight, p.waveScale, p.waveSpeed, p.waveRock);
+  materials.setWind(p.wind);
   Object.assign(waveState, {
     amp: p.waveHeight,
     freq: waveFrequency(p.waveScale),
@@ -250,6 +313,9 @@ function applyEnv() {
   stage.setBloom(p.bloomOn);
   stage.setShadows(p.shadows);
   stage.setGridVisible(p.showGrid);
+  stage.ground.setRoadsVisible(p.showRoads);
+  traffic.setNight(night);
+  traffic.setVisible(p.showCars);
   statsEl.classList.toggle('on', !!p.showStats);
 
   // The shader gates glow by comparing each module's ticket against the
@@ -432,8 +498,23 @@ function bindPointer() {
     // Lift the building out of its chunk so later edits rebuild only it.
     builder.isolate(hit.buildingId);
     const building = byBuilding.get(hit.buildingId);
+    const module = byModule.get(hit.moduleId)?.module;
     if (state.selection.mode === 'building') picker.showBuilding(building);
-    else picker.showModule(building, byModule.get(hit.moduleId)?.module, hit.point, hit.normal);
+    else picker.showModule(building, module, hit.point, hit.normal);
+
+    // Orbit around what you picked, rather than around wherever the pivot
+    // happened to be left.
+    if (building) {
+      const centre =
+        state.selection.mode === 'building'
+          ? new THREE.Vector3(building.x, (building.y || 0) + building.height / 2, building.z)
+          : new THREE.Vector3(building.x, (building.y || 0) + (module ? module.y : 0), building.z);
+      const size =
+        state.selection.mode === 'building'
+          ? building.height
+          : Math.max(module ? module.w : 2, module ? module.h : 2);
+      stage.focusOn(centre, size * 4.5);
+    }
     refreshInspector();
   });
 
@@ -458,6 +539,14 @@ function bindKeys() {
 
     if (e.key === 'Escape') return deselect();
     if (e.key === 'f' || e.key === 'F') return frameCity();
+    if (e.key === 't' || e.key === 'T') {
+      const on = flyby.toggle();
+      if (tourButton) {
+        tourButton.textContent = on ? 'stop the tour' : 'start the tour';
+        tourButton.classList.toggle('on', on);
+      }
+      return;
+    }
     if (!entry) return;
     const { module } = entry;
     const id = module.id;
@@ -534,8 +623,9 @@ function bindDropZone() {
 // --- panels ----------------------------------------------------------------
 
 function buildUI() {
-  const paletteDef = CONTROL_DEFS.flatMap((s) => s.items).find((i) => i.key === 'palette');
-  paletteDef.options = PALETTE_KEYS.map((k) => [k, PALETTES[k].label]);
+  const defs = CONTROL_DEFS.flatMap((s) => s.items);
+  defs.find((i) => i.key === 'palette').options = PALETTE_KEYS.map((k) => [k, PALETTES[k].label]);
+  defs.find((i) => i.key === 'roadPattern').options = ROAD_PATTERNS.map((k) => [k, PATTERN_LABEL[k]]);
 
   controls = new Controls(
     document.getElementById('controls'),
@@ -579,31 +669,133 @@ function buildUI() {
 
   document.getElementById('btn-frame').onclick = () => frameCity();
   document.getElementById('btn-shot').onclick = snapshot;
-  document.getElementById('btn-export').onclick = exportJSON;
-  document.getElementById('btn-clear-edits').onclick = () => {
-    state.overrides = {};
-    deselect();
-    markAll();
+
+  buildSceneTools();
+  buildTourTools();
+  buildShortcuts();
+  refreshSceneMenu();
+  updateStatus();
+}
+
+// Everything to do with saving, loading and starting over, gathered in one
+// place instead of strung along the top bar.
+function buildSceneTools() {
+  const mount = controls.mounts.get('sceneTools');
+  const select = h('select', { id: 'scene-list', class: 'wide' });
+  select.onchange = () => {
+    const scene = Scenes.get(select.value);
+    if (scene) applyScene(scene, select.value);
   };
-  document.getElementById('btn-reset').onclick = () => {
-    if (!confirm('Reset every slider and every hand edit?')) return;
-    state.params = structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS });
-    state.overrides = {};
-    state.sceneName = '';
-    deselect();
-    syncPanels();
-    extentKey = '';
-    markAll();
-  };
-  document.getElementById('load-json').onchange = (e) => {
+
+  const fileInput = h('input', { type: 'file', id: 'load-json', accept: '.json,application/json', hidden: '' });
+  fileInput.onchange = (e) => {
     const file = e.target.files[0];
     if (file) loadFile(file);
     e.target.value = '';
   };
 
-  bindSceneMenu();
-  refreshSceneMenu();
-  updateStatus();
+  const save = (askName) => {
+    const name = askName || !state.sceneName ? prompt('Save scene as', suggestName()) : state.sceneName;
+    if (!name) return;
+    Scenes.save(name, state.params, state.overrides);
+    state.sceneName = name;
+    refreshSceneMenu();
+    updateStatus();
+  };
+
+  mount.replaceChildren(
+    withHelp(select, 'Every scene saved on this machine. Picking one loads its sliders and all its hand edits.', 'Saved scenes'),
+    h(
+      'div',
+      { class: 'chips' },
+      withHelp(h('button', { class: 'chip', onclick: () => save(false) }, 'save'), 'Saves over the scene you have open, or asks for a name if none is.', 'Save'),
+      withHelp(h('button', { class: 'chip', onclick: () => save(true) }, 'save as'), 'Saves under a new name and switches to it.', 'Save as'),
+      withHelp(
+        h('button', {
+          class: 'chip',
+          onclick: () => {
+            const name = select.value || state.sceneName;
+            if (!name || !confirm(`Delete the scene "${name}"?`)) return;
+            Scenes.remove(name);
+            if (state.sceneName === name) state.sceneName = '';
+            refreshSceneMenu();
+            updateStatus();
+          },
+        }, 'delete'),
+        'Removes the selected scene. Export first if you want a copy.',
+        'Delete'
+      )
+    ),
+    h('h3', { class: 'grp' }, 'File'),
+    h(
+      'div',
+      { class: 'chips' },
+      withHelp(h('label', { class: 'chip' }, 'import', fileInput), 'Loads a scene file from disk. Dragging a .json onto the window does the same.', 'Import'),
+      withHelp(h('button', { class: 'chip', onclick: exportJSON }, 'export'), 'Writes the current scene to a JSON file.', 'Export')
+    ),
+    h('h3', { class: 'grp' }, 'Start over'),
+    h(
+      'div',
+      { class: 'chips' },
+      withHelp(
+        h('button', {
+          class: 'chip',
+          onclick: () => {
+            state.overrides = {};
+            deselect();
+            markAll();
+          },
+        }, 'clear edits'),
+        'Drops every hand edit and leaves the sliders alone.',
+        'Clear edits'
+      ),
+      withHelp(
+        h('button', {
+          class: 'chip danger',
+          onclick: () => {
+            if (!confirm('Reset every slider and every hand edit?')) return;
+            state.params = structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS });
+            state.overrides = {};
+            state.sceneName = '';
+            deselect();
+            syncPanels();
+            extentKey = '';
+            markAll();
+          },
+        }, 'reset everything'),
+        'Puts every slider back to its default and drops all edits.',
+        'Reset'
+      )
+    )
+  );
+}
+
+function buildTourTools() {
+  const mount = controls.mounts.get('tourTools');
+  const button = withHelp(
+    h('button', { class: 'chip wide-chip' }, 'start the tour'),
+    'Drives the camera along the main roads, leaning into the turns. Orbiting is handed back when you stop. The T key does the same.',
+    'Tour'
+  );
+  button.onclick = () => {
+    const on = flyby.toggle();
+    button.textContent = on ? 'stop the tour' : 'start the tour';
+    button.classList.toggle('on', on);
+  };
+  tourButton = button;
+  mount.replaceChildren(h('div', { class: 'chips' }, button));
+}
+
+function buildShortcuts() {
+  const mount = controls.mounts.get('shortcuts');
+  mount.replaceChildren(
+    h('p', { class: 'hint' }, 'With a module selected.'),
+    h(
+      'dl',
+      { class: 'keys' },
+      SHORTCUTS.flatMap(([key, what]) => [h('dt', {}, h('kbd', {}, key)), h('dd', {}, what)])
+    )
+  );
 }
 
 function syncPanels() {
@@ -614,45 +806,6 @@ function syncPanels() {
 
 // --- scenes ----------------------------------------------------------------
 
-function bindSceneMenu() {
-  const select = document.getElementById('scene-list');
-  select.onchange = () => {
-    const name = select.value;
-    if (!name) return;
-    const scene = Scenes.get(name);
-    if (!scene) return;
-    applyScene(scene, name);
-  };
-
-  document.getElementById('btn-scene-save').onclick = () => {
-    const name = state.sceneName || prompt('Save scene as', suggestName());
-    if (!name) return;
-    Scenes.save(name, state.params, state.overrides);
-    state.sceneName = name;
-    refreshSceneMenu();
-    updateStatus();
-  };
-
-  document.getElementById('btn-scene-saveas').onclick = () => {
-    const name = prompt('Save scene as', suggestName());
-    if (!name) return;
-    Scenes.save(name, state.params, state.overrides);
-    state.sceneName = name;
-    refreshSceneMenu();
-    updateStatus();
-  };
-
-  document.getElementById('btn-scene-delete').onclick = () => {
-    const name = document.getElementById('scene-list').value || state.sceneName;
-    if (!name) return;
-    if (!confirm(`Delete the scene "${name}"?`)) return;
-    Scenes.remove(name);
-    if (state.sceneName === name) state.sceneName = '';
-    refreshSceneMenu();
-    updateStatus();
-  };
-}
-
 function suggestName() {
   const palette = getPalette(state.params.palette).label;
   return `${palette} ${state.params.seed}`;
@@ -662,6 +815,7 @@ document.title = `${APP_NAME} City Builder`;
 
 function refreshSceneMenu() {
   const select = document.getElementById('scene-list');
+  if (!select) return;
   const names = Scenes.list();
   select.replaceChildren(
     h('option', { value: '' }, names.length ? 'Scenes' : 'No saved scenes'),
@@ -755,8 +909,10 @@ function animate() {
   waveClock = clock.elapsedTime;
   waveState.time = waveClock;
   builder.update(waveClock);
+  traffic.update(dt, waveClock, groundAt, state.params);
+  flyby.update(dt, state.params, groundAt);
   if (state.params.waveHeight > 0 && state.selection) refreshHighlight();
-  stage.render();
+  stage.render(dt, waveClock);
 
   frameAccum += dt;
   frameCount++;
@@ -772,7 +928,7 @@ function animate() {
 // Console handle, for poking at the city by hand.
 Object.defineProperty(window, 'cc', {
   get: () => ({
-    state, stage, builder, materials, pool, picker, inspector, controls, wheels,
+    state, stage, builder, materials, pool, picker, inspector, controls, wheels, traffic, flyby,
     actions, flush, markAll, applyEnv, frameCity,
   }),
 });

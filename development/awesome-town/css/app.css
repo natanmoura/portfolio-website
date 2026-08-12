@@ -88,7 +88,7 @@ html, body {
 
 main {
   position: absolute;
-  inset: var(--bar-h) 0 var(--keys-h) 0;
+  inset: var(--bar-h) 0 0 0;
   display: grid;
   grid-template-columns: var(--pw) 1fr var(--pw);
 }
@@ -108,29 +108,111 @@ main {
 }
 #inspector { border-right: 0; border-left: 1px solid var(--line); }
 
-/* --- collapsible sections ----------------------------------------------- */
+/* --- tabs ---------------------------------------------------------------- */
 
-.sec { border-bottom: 1px solid var(--line); }
-
-.sec-head {
-  width: 100%;
-  text-align: left;
+.tabbar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.tabbtn {
   appearance: none;
   border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--dim);
   font: inherit;
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 9px 10px 7px;
+  padding: 9px 2px 7px;
   cursor: pointer;
 }
-.sec-head::before { content: "– "; }
-.sec-head.closed::before { content: "+ "; }
-.sec-head:hover { color: var(--text); }
-.sec-body { padding: 0 10px 10px; }
+.tabbtn:hover { color: var(--text); }
+.tabbtn.on { color: var(--text); border-bottom-color: var(--accent); }
+
+.page { display: none; }
+.page.on { display: block; }
+
+/* --- collapsible sections ----------------------------------------------- */
+
+.sec { border-bottom: 1px solid var(--line); }
+
+/* Section names sit a level above the row labels inside them: brighter,
+   spaced, with an accent tick. The labels under them stay dim, so the eye
+   reads the group before it reads the controls. */
+.sec-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 11px 10px 8px;
+  cursor: pointer;
+}
+.sec-head::before {
+  content: "";
+  width: 3px;
+  height: 11px;
+  border-radius: 1px;
+  background: var(--accent);
+  flex: none;
+}
+.sec-head.closed::before { background: var(--line); }
+.sec-name { flex: 1; }
+.sec-mark {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--dim);
+  border-bottom: 1.5px solid var(--dim);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.15s ease;
+}
+.sec-head.closed .sec-mark { transform: rotate(-45deg) translate(-1px, 1px); }
+.sec-head:hover .sec-mark { border-color: var(--text); }
+.sec-body { padding: 0 10px 12px; }
 .sec-body.closed { display: none; }
+
+/* --- shortcut list ------------------------------------------------------- */
+
+dl.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 9px;
+  margin: 8px 0 0;
+  align-items: baseline;
+}
+dl.keys dt { margin: 0; }
+dl.keys dd { margin: 0; color: var(--dim); font-size: 11px; line-height: 1.4; }
+dl.keys kbd {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 2px 5px;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+select.wide { width: 100%; margin-bottom: 6px; }
+.chip.wide-chip { width: 100%; padding: 7px 8px; font-size: 11px; }
+.chip.danger { border-color: #6d2a2a; color: #ff8f8f; }
+.chip.danger:hover { border-color: var(--accent); }
+.mount { padding-top: 2px; }
 
 /* --- rows --------------------------------------------------------------- */
 

@@ -11,11 +11,12 @@
 // 2. Edits live as sparse overrides keyed by module id, so a global reroll
 //    happens around them rather than through them.
 
-import { Rng, hashCoords, hashModule } from './rng.js';
+import { Rng, hashId, hashIdModule } from './rng.js';
 import { getPalette } from './palettes.js';
+import { buildLayout } from './layout.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 
-export const BODY_KINDS = ['box', 'octagon', 'cylinder', 'pillars', 'pillars8', 'sphere', 'spin'];
+export const BODY_KINDS = ['box', 'octagon', 'cylinder', 'pillars', 'pillars8', 'post', 'sphere', 'spin'];
 export const ROOF_KINDS = ['flat', 'pyramid', 'gable', 'cone', 'dome'];
 export const MODULE_KINDS = [...BODY_KINDS, 'pyramid', 'gable', 'cone', 'dome', 'flag'];
 
@@ -25,6 +26,7 @@ export const KIND_LABEL = {
   cylinder: 'Cylinder',
   pillars: 'Pillars 4',
   pillars8: 'Pillars 8',
+  post: 'Post',
   sphere: 'Sphere',
   spin: 'Spin',
   flat: 'Flat',
@@ -40,6 +42,7 @@ export const FAMILY = {
   box: 'boxy',
   pillars: 'boxy',
   pillars8: 'boxy',
+  post: 'boxy',
   octagon: 'round',
   cylinder: 'round',
   sphere: 'round',
@@ -70,6 +73,24 @@ export const DEFAULTS = {
   density: 0.86,
   lotFill: 0.72,
   lotJitter: 0.16,
+  // Streets
+  roadPattern: 'grid',
+  roadSkew: 0.25,
+  blockWidth: 1.9,
+  blockDepth: 2.4,
+  blockDepthRatio: 0.85,
+  frontageSpacing: 1.12,
+  setback: 0.5,
+  highwayWidth: 5.2,
+  streetWidth: 2.6,
+  showRoads: true,
+  // Traffic
+  carCount: 110,
+  flyerCount: 16,
+  mainRoadBias: 0.7,
+  carSpeed: 7,
+  carSize: 1,
+  flyerHeight: 18,
   minFloors: 2,
   maxFloors: 12,
   centerBias: 0.6,
@@ -77,6 +98,7 @@ export const DEFAULTS = {
   floorJitter: 0.28,
   setbackChance: 0.3,
   setbackAmount: 0.2,
+  bend: 0.12,
   cohesion: 0.75,
   collageChance: 0.68,
   imageChance: 0.62,
@@ -100,18 +122,18 @@ export const DEFAULTS = {
   terrainScale: 0.6,
   terrainDetail: 3,
   // How much of each module kind exists across the town.
-  moduleMix: { box: 44, octagon: 13, cylinder: 11, pillars: 7, pillars8: 5, sphere: 4, spin: 16 },
+  moduleMix: { box: 44, octagon: 13, cylinder: 11, pillars: 7, pillars8: 5, post: 5, sphere: 4, spin: 16 },
   roofMix: { flat: 28, pyramid: 18, gable: 20, cone: 16, dome: 18 },
 };
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const mix = (a, b, t) => a + (b - a) * t;
 
-export function buildingId(gx, gz) {
-  return `b${gx}_${gz}`;
-}
-export function moduleId(gx, gz, i) {
-  return `b${gx}_${gz}_m${i}`;
+// Ids come from the layout now: `b{road}_{slot}` for a building and
+// `b{road}_{slot}_m{i}` for a module. They stay stable as long as the street
+// parameters do, which is what keeps hand edits attached to their building.
+export function moduleIdFor(buildingId, i) {
+  return `${buildingId}_m${i}`;
 }
 
 // --- weighted picks --------------------------------------------------------
@@ -215,9 +237,12 @@ function paintSlots(kind, n, pattern, a, b) {
 }
 
 // A sloped roof carries no collage, but a cube used as a cap is still a cube.
-// Spires are structure, not surface.
+// Spires and colonnades are structure, not surface: an image wrapped round a
+// column an inch wide is unreadable smear.
+const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8']);
+
 function imagesAllowed(kind) {
-  return !ROOF_SET.has(kind) && kind !== 'flag';
+  return !ROOF_SET.has(kind) && !NO_IMAGES.has(kind);
 }
 
 // Three colours per building, spread across the palette rather than adjacent
@@ -309,15 +334,15 @@ function makeModule(t, params, palette, ctx, index, id) {
 
 // --- lot -------------------------------------------------------------------
 
-export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
+export function generateLot(site, params, overrides, imageCount, groundAt, half) {
   const palette = getPalette(params.palette);
-  const id = buildingId(gx, gz);
+  const id = site.id;
   const bOver = overrides[id] || {};
   if (bOver.deleted) return null;
 
   const seed = (params.seed + (bOver.seedNudge || 0)) >>> 0;
-  const brng = new Rng(hashCoords(seed, gx, gz));
-  if (!bOver.forced && !brng.chance(params.density)) return null;
+  const brng = new Rng(hashId(seed, id));
+  const moduleId = (i) => `${id}_m${i}`;
 
   // Building-level identity, rolled before anything the sliders can shift.
   const signature = pickWeighted(params.moduleMix, BODY_KINDS, brng.float());
@@ -329,32 +354,38 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
   const sizeRollD = brng.float();
   const roofRoll = brng.float();
   const roofSizeRoll = brng.float();
+  const bendDir = brng.float();
+  const bendRoll = brng.float();
 
-  const dist = lotDistance(params, gx, gz);
-  const shape = clamp(mix(shapeRoll, Math.pow(1 - dist, 1.6), params.centerBias), 0, 1);
+  // Distance from the middle of town, and a lift for anything on a main road,
+  // which is how real height clusters: downtown and along the arterials.
+  const dist = clamp(Math.hypot(site.x, site.z) / Math.max(1, half), 0, 1);
+  const pull = Math.pow(1 - dist, 1.6) * (site.main ? 1.15 : 0.85);
+  const shape = clamp(mix(shapeRoll, clamp(pull, 0, 1), params.centerBias), 0, 1);
   const floors = Math.max(1, Math.round(mix(params.minFloors, params.maxFloors, shape)));
 
-  const base = params.cell * params.lotFill;
-  let w = base * (1 + (sizeRollW * 2 - 1) * params.lotJitter);
-  let d = base * (1 + (sizeRollD * 2 - 1) * params.lotJitter);
+  let w = site.w * (1 + (sizeRollW * 2 - 1) * params.lotJitter * 0.4);
+  let d = site.d * (1 + (sizeRollD * 2 - 1) * params.lotJitter * 0.4);
 
   const ctx = { signature, family, scheme, collage, imageCount, isRoof: false };
   let modules = [];
   for (let i = 0; i < floors; i++) {
-    const t = tickets(new Rng(hashModule(seed, gx, gz, i)));
+    const t = tickets(new Rng(hashIdModule(seed, id, i)));
     if (i > 0 && t.setback < params.setbackChance) {
       const k = 1 - params.setbackAmount * mix(0.5, 1, t.setback / Math.max(1e-6, params.setbackChance));
       w *= k;
       d *= k;
     }
-    const m = makeModule(t, params, palette, ctx, i, moduleId(gx, gz, i));
+    const m = makeModule(t, params, palette, ctx, i, moduleId(i));
     m.h = m.slab
       ? params.floorHeight * mix(0.14, 0.26, t.height)
       : params.floorHeight * (1 + (t.height * 2 - 1) * params.floorJitter);
     if (m.kind === 'spin') m.h *= 1.25;
-    if (m.kind === 'sphere') m.h = Math.min(m.h, Math.min(w, d) * 1.1);
     m.w = m.slab ? w * 1.12 : w;
     m.d = m.slab ? d * 1.12 : d;
+    // A sphere is a sphere. Its box is cubed so it never squashes into an egg
+    // to fit a storey, and so the selection outline matches what is drawn.
+    if (m.kind === 'sphere') m.w = m.d = m.h = Math.min(m.w, m.d);
     modules.push(m);
   }
 
@@ -366,8 +397,8 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
   );
   if (roofKind !== 'flat') {
     const i = modules.length;
-    const t = tickets(new Rng(hashModule(seed, gx, gz, i)));
-    const m = makeModule(t, params, palette, { ...ctx, isRoof: true }, i, moduleId(gx, gz, i));
+    const t = tickets(new Rng(hashIdModule(seed, id, i)));
+    const m = makeModule(t, params, palette, { ...ctx, isRoof: true }, i, moduleId(i));
     m.h = params.floorHeight * mix(0.5, 1.15, roofSizeRoll);
     m.w = w * mix(1.0, 1.12, roofSizeRoll);
     m.d = d * mix(1.0, 1.12, roofSizeRoll);
@@ -377,8 +408,8 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
     // A roof that comes to a point can carry a spire.
     if (POINTED_ROOFS.has(m.kind) && t.spire < params.spireChance) {
       const j = modules.length;
-      const st = tickets(new Rng(hashModule(seed, gx, gz, j)));
-      const spire = makeModule(st, params, palette, { ...ctx, isRoof: true }, j, moduleId(gx, gz, j));
+      const st = tickets(new Rng(hashIdModule(seed, id, j)));
+      const spire = makeModule(st, params, palette, { ...ctx, isRoof: true }, j, moduleId(j));
       spire.kind = 'flag';
       spire.h = params.floorHeight * mix(0.7, 1.3, st.height);
       spire.w = Math.min(w, d) * 0.6;
@@ -397,10 +428,10 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
 
   // Building-level floor edits, then per-module overrides.
   const delta = bOver.floorsDelta || 0;
-  if (delta) modules = adjustFloors(modules, delta, params, palette, ctx, seed, gx, gz);
+  if (delta) modules = adjustFloors(modules, delta, params, palette, ctx, seed, id);
 
   modules.forEach((m, i) => {
-    m.id = moduleId(gx, gz, i);
+    m.id = moduleId(i);
     m.index = i;
   });
   modules = modules.map((m) => applyOverride(m, overrides[m.id])).filter((m) => !m.deleted);
@@ -419,11 +450,19 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
     });
   }
 
-  const originX = -((params.cols - 1) * params.cell) / 2;
-  const originZ = -((params.rows - 1) * params.cell) / 2;
-  const x = originX + gx * params.cell + (bOver.offsetX || 0);
-  const z = originZ + gz * params.cell + (bOver.offsetZ || 0);
+  const x = site.x + (bOver.offsetX || 0);
+  const z = site.z + (bOver.offsetZ || 0);
   const height = restack(modules);
+  bendStack(
+    modules,
+    height,
+    params.bend * (0.25 + bendRoll * 1.5) * (bOver.bendScale ?? 1),
+    bendDir * Math.PI * 2
+  );
+  // Cell coordinates exist only so the renderer can group buildings into
+  // chunks. Nothing about the layout depends on them any more.
+  const gx = Math.floor((x + half) / params.cell);
+  const gz = Math.floor((z + half) / params.cell);
 
   // Sit on the lowest corner of the footprint so nothing floats on a slope.
   let y = 0;
@@ -445,8 +484,11 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
     x,
     y,
     z,
-    rotY: bOver.rotY || 0,
+    // The site angle turns the building to face its street. A hand rotation
+    // adds on top of that rather than replacing it.
+    rotY: site.angle + (bOver.rotY || 0),
     height,
+    main: site.main,
     signature,
     family,
     scheme,
@@ -455,7 +497,7 @@ export function generateLot(params, overrides, imageCount, gx, gz, groundAt) {
   };
 }
 
-function adjustFloors(modules, delta, params, palette, ctx, seed, gx, gz) {
+function adjustFloors(modules, delta, params, palette, ctx, seed, buildingId) {
   const top = modules[modules.length - 1];
   const hasRoof = ROOF_SET.has(top.kind);
   const body = hasRoof ? modules.slice(0, -1) : modules;
@@ -466,22 +508,15 @@ function adjustFloors(modules, delta, params, palette, ctx, seed, gx, gz) {
   const added = [];
   for (let i = 0; i < delta; i++) {
     const idx = body.length + i;
-    const t = tickets(new Rng(hashModule(seed, gx, gz, idx + 500)));
+    const t = tickets(new Rng(hashIdModule(seed, buildingId, idx + 500)));
     const src = body[body.length - 1] || modules[0];
-    const m = makeModule(t, params, palette, ctx, idx, moduleId(gx, gz, idx));
+    const m = makeModule(t, params, palette, ctx, idx, moduleIdFor(buildingId, idx));
     m.h = src.h;
     m.w = src.w;
     m.d = src.d;
     added.push(m);
   }
   return hasRoof ? [...body, ...added, top] : [...body, ...added];
-}
-
-function lotDistance(params, gx, gz) {
-  const cx = (params.cols - 1) / 2;
-  const cz = (params.rows - 1) / 2;
-  const maxD = Math.hypot(cx, cz) || 1;
-  return clamp(Math.hypot(gx - cx, gz - cz) / maxD, 0, 1);
 }
 
 // Stack bottom-up, so a module made taller by hand pushes what is above it up.
@@ -494,6 +529,26 @@ export function restack(modules) {
   return y;
 }
 
+// Lean a whole stack along one direction, more the higher it goes. The offset
+// grows with the square of the height so the base stays planted and the top
+// swings, and each module tilts by the slope of that curve so the building
+// bends rather than shears into a staircase.
+export function bendStack(modules, height, amount, direction) {
+  const dirX = Math.cos(direction);
+  const dirZ = Math.sin(direction);
+  const reach = amount * height * 0.42;
+  for (const m of modules) {
+    const t = height > 0 ? m.y / height : 0;
+    const lean = reach * t * t;
+    m.bendX = dirX * lean;
+    m.bendZ = dirZ * lean;
+    // Slope of that curve at this height, which is how far to tilt.
+    const slope = height > 0 ? (2 * reach * t) / height : 0;
+    m.tiltX = slope * dirZ;
+    m.tiltZ = -slope * dirX;
+  }
+}
+
 function applyOverride(module, override) {
   if (!override) return module;
   const { faces, ...rest } = override;
@@ -502,6 +557,8 @@ function applyOverride(module, override) {
   const repaint =
     rest.pattern !== undefined || rest.scheme !== undefined || rest.kind !== undefined;
   Object.assign(module, rest);
+  // Switching a module to a sphere by hand has to cube its box too.
+  if (rest.kind === 'sphere') module.w = module.d = module.h = Math.min(module.w, module.d);
   if (repaint) {
     const n = slotCount(module.kind, module.blades);
     const [a, b] = module.scheme;
@@ -523,12 +580,16 @@ function applyOverride(module, override) {
 }
 
 export function generateCity(params, overrides = {}, imageCount = 0, groundAt = null) {
+  const layout = buildLayout(params);
   const buildings = [];
-  for (let gz = 0; gz < params.rows; gz++) {
-    for (let gx = 0; gx < params.cols; gx++) {
-      const b = generateLot(params, overrides, imageCount, gx, gz, groundAt);
-      if (b) buildings.push(b);
-    }
+  for (const site of layout.sites) {
+    const b = generateLot(site, params, overrides, imageCount, groundAt, layout.half);
+    if (b) buildings.push(b);
   }
-  return { params: { ...params }, palette: getPalette(params.palette), buildings };
+  return {
+    params: { ...params },
+    palette: getPalette(params.palette),
+    layout,
+    buildings,
+  };
 }

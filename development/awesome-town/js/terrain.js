@@ -57,8 +57,20 @@ export class Ground {
     patchWaves(this.gridMaterial, false);
     this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), this.gridMaterial);
 
+    this.roadMaterial = new THREE.MeshStandardMaterial({
+      color: '#2a2723',
+      roughness: 0.95,
+      metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    patchWaves(this.roadMaterial, true);
+    this.roads = new THREE.Mesh(new THREE.BufferGeometry(), this.roadMaterial);
+    this.roads.receiveShadow = true;
+
     this.group = new THREE.Group();
-    this.group.add(this.mesh, this.grid);
+    this.group.add(this.mesh, this.roads, this.grid);
 
     this.amplitude = 0;
     this.frequency = 0.03;
@@ -133,6 +145,61 @@ export class Ground {
     geo.computeBoundingSphere();
     geo.boundingSphere.radius += (params.waveHeight || 0) + 1;
     this.grid.geometry = geo;
+  }
+
+  // Roads are ribbons laid over the ground, one quad per segment, mitred badly
+  // but close enough at these widths. They ride the same wave as everything
+  // else, so the tarmac stays on the water with the town.
+  setRoads(roads, params) {
+    this.roads.geometry.dispose();
+    const pos = [];
+    const nor = [];
+    const lift = 0.06 + this.amplitude * 0.004;
+
+    for (const road of roads || []) {
+      const half = road.width / 2;
+      for (let i = 0; i < road.pts.length - 1; i++) {
+        const [ax, az] = road.pts[i];
+        const [bx, bz] = road.pts[i + 1];
+        const dx = bx - ax;
+        const dz = bz - az;
+        const len = Math.hypot(dx, dz) || 1;
+        const nx = (-dz / len) * half;
+        const nz = (dx / len) * half;
+        const corners = [
+          [ax - nx, az - nz],
+          [bx - nx, bz - nz],
+          [bx + nx, bz + nz],
+          [ax + nx, az + nz],
+        ];
+        const y = (x, z) => this.heightAt(x, z) + lift;
+        const [p0, p1, p2, p3] = corners;
+        // Counter-clockwise seen from above. The other way round and the
+        // tarmac faces the earth and gets culled.
+        for (const [a, b, c] of [
+          [p0, p2, p1],
+          [p0, p3, p2],
+        ]) {
+          pos.push(a[0], y(a[0], a[1]), a[1], b[0], y(b[0], b[1]), b[1], c[0], y(c[0], c[1]), c[1]);
+          nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+        }
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.computeBoundingSphere();
+    if (geo.boundingSphere) geo.boundingSphere.radius += (params.waveHeight || 0) + 1;
+    this.roads.geometry = geo;
+  }
+
+  setRoadsVisible(on) {
+    this.roads.visible = on;
+  }
+
+  setRoadColor(color) {
+    this.roadMaterial.color.copy(color);
   }
 
   setColor(color) {

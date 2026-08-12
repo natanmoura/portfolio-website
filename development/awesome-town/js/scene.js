@@ -12,6 +12,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Ground } from './terrain.js';
+import { LooksPass } from './looks.js';
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -44,19 +45,68 @@ export class Stage {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
-    this.controls.maxPolarAngle = Math.PI * 0.495;
-    this.controls.minDistance = 2;
+    // Almost all the way round, so you can stand in the street and look up at
+    // the towers. Going under the ground is prevented by a floor check after
+    // the controls have had their say, rather than by locking the angle.
+    this.controls.maxPolarAngle = Math.PI * 0.97;
+    this.controls.minDistance = 0.6;
     this.controls.maxDistance = 1500;
 
     this.sun = new THREE.DirectionalLight('#fff3e0', 2.6);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0006;
-    this.sun.shadow.normalBias = 0.06;
+    this.sun.shadow.mapSize.set(4096, 4096);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.035;
     this.scene.add(this.sun, this.sun.target);
 
     this.hemi = new THREE.HemisphereLight('#bfd3ff', '#8a7f6e', 0.6);
     this.scene.add(this.hemi);
+
+    // A cool fill from behind and opposite the sun. Costs one more light and
+    // does most of the work of separating one grey block from the next, which
+    // ambient alone flattens.
+    this.fill = new THREE.DirectionalLight('#9ec4ff', 0.5);
+    this.scene.add(this.fill);
+
+    // A vertical gradient instead of a flat background colour. Sits on the far
+    // side of everything with depth writing off, so it costs one quad.
+    this.skyMaterial = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        uTop: { value: new THREE.Color('#8fb6ff') },
+        uBottom: { value: new THREE.Color('#dcd7c8') },
+        uSun: { value: new THREE.Color('#fff0d0') },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+        uSunAmount: { value: 0.5 },
+      },
+      vertexShader: `
+        varying vec3 vDir;
+        void main() {
+          vDir = normalize(position);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uTop; uniform vec3 uBottom; uniform vec3 uSun;
+        uniform vec3 uSunDir; uniform float uSunAmount;
+        varying vec3 vDir;
+        void main() {
+          vec3 d = normalize(vDir);
+          float t = smoothstep(-0.15, 0.55, d.y);
+          vec3 c = mix(uBottom, uTop, t);
+          // A broad warm lift where the sun is, so the sky has a direction.
+          float halo = pow(max(0.0, dot(d, normalize(uSunDir))), 6.0);
+          c += uSun * halo * uSunAmount;
+          gl_FragColor = vec4(c, 1.0);
+        }
+      `,
+    });
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), this.skyMaterial);
+    this.sky.renderOrder = -1000;
+    this.sky.frustumCulled = false;
+    this.scene.add(this.sky);
 
     this.ground = new Ground();
     this.scene.add(this.ground.group);
@@ -66,6 +116,10 @@ export class Stage {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 0.85);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    // After tone mapping, so posterising and the dot screen work on the
+    // colours that actually reach the screen.
+    this.looks = new LooksPass();
+    this.composer.addPass(this.looks);
 
     this.useBloom = true;
     this.night = 0;
@@ -84,20 +138,40 @@ export class Stage {
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
     this.bloom.setSize(w, h);
+    this.looks.setSize(w, h);
   }
 
   setExtent(params) {
     this.extent = Math.max(params.cols, params.rows) * params.cell;
     this.ground.update(params);
 
-    const r = this.extent * 0.8 + 12 + (params.terrainHeight || 0) * 2;
+    this.shadowSpan = this.extent * 0.8 + 12 + (params.terrainHeight || 0) * 2;
+    this.fitShadows();
+  }
+
+  // Shadow texels are spent where you are looking rather than spread evenly
+  // over the whole town. Zoomed out this is the old behaviour; zoomed in it is
+  // several times the resolution for free.
+  fitShadows() {
+    const span = this.shadowSpan || this.extent;
+    const near = Math.min(span, Math.max(span * 0.2, this.viewDist * 0.62));
     const cam = this.sun.shadow.camera;
-    cam.left = -r;
-    cam.right = r;
-    cam.top = r;
-    cam.bottom = -r;
+    cam.left = -near;
+    cam.right = near;
+    cam.top = near;
+    cam.bottom = -near;
     cam.near = 1;
-    cam.far = r * 8;
+    cam.far = span * 10;
+    // Follow the pivot, snapped to whole texels so the shadow does not crawl
+    // along edges as the camera moves.
+    const texel = (near * 2) / this.sun.shadow.mapSize.x;
+    const t = this.controls.target;
+    this.sun.target.position.set(
+      Math.round(t.x / texel) * texel,
+      0,
+      Math.round(t.z / texel) * texel
+    );
+    this.sun.target.updateMatrixWorld();
     cam.updateProjectionMatrix();
   }
 
@@ -146,6 +220,31 @@ export class Stage {
     this.controls.update();
   }
 
+  // Glide the orbit pivot onto a point without moving the camera through the
+  // town to get there: the eye keeps its offset, so the view swings around the
+  // new centre rather than cutting to it.
+  focusOn(point, pullIn = 0) {
+    this.focus = { target: point.clone(), pullIn };
+  }
+
+  clearFocus() {
+    this.focus = null;
+  }
+
+  updateFocus(dt) {
+    if (!this.focus) return;
+    const t = 1 - Math.pow(0.001, Math.min(0.1, dt)); // frame-rate independent
+    const offset = this.camera.position.clone().sub(this.controls.target);
+    this.controls.target.lerp(this.focus.target, t);
+    if (this.focus.pullIn > 0) {
+      const want = Math.max(this.controls.minDistance * 2, this.focus.pullIn);
+      const len = offset.length();
+      if (len > want) offset.multiplyScalar(1 - (1 - want / len) * t);
+    }
+    this.camera.position.copy(this.controls.target).add(offset);
+    if (this.controls.target.distanceToSquared(this.focus.target) < 0.0004) this.focus = null;
+  }
+
   setGridVisible(on) {
     this.ground.setGridVisible(on);
   }
@@ -175,12 +274,13 @@ export class Stage {
     const azimuth = ((hour - 6) / 12) * Math.PI + ((params.sunAzimuth || 0) * Math.PI) / 180;
     const y = Math.max(0.18, elevation);
     const horizontal = Math.sqrt(Math.max(0.02, 1 - y * y));
+    const t = this.controls.target;
     this.sun.position.set(
-      Math.cos(azimuth) * horizontal * dist,
+      t.x + Math.cos(azimuth) * horizontal * dist,
       y * dist,
-      Math.sin(azimuth) * horizontal * dist
+      t.z + Math.sin(azimuth) * horizontal * dist
     );
-    this.sun.target.position.set(0, 0, 0);
+    this.fitShadows();
 
     const warm = new THREE.Color('#fff3d8');
     const sunset = new THREE.Color('#ff8a4c');
@@ -197,7 +297,23 @@ export class Stage {
       ? dayColor.clone().multiplyScalar(0.08)
       : new THREE.Color(palette.sky.night);
     const sky = nightColor.clone().lerp(dayColor, day);
-    this.scene.background = sky;
+    this.scene.background = null; // the gradient dome stands in for it
+
+    // Overhead runs cooler and deeper than the horizon, which is what makes a
+    // flat background read as air instead of paper.
+    const zenith = sky.clone().lerp(new THREE.Color(this.night > 0.5 ? '#05060f' : '#6f9bec'), 0.55);
+    this.skyMaterial.uniforms.uTop.value.copy(zenith);
+    this.skyMaterial.uniforms.uBottom.value.copy(sky);
+    this.skyMaterial.uniforms.uSun.value.copy(this.sun.color);
+    this.skyMaterial.uniforms.uSunDir.value.copy(this.sun.position).normalize();
+    this.skyMaterial.uniforms.uSunAmount.value = 0.35 + day * 0.5;
+    this.sky.scale.setScalar(Math.max(200, this.camera.far * 0.45));
+
+    // Fill comes from the opposite side and a little above, cooling as it gets
+    // dark so night reads as moonlight rather than as a second sun.
+    this.fill.position.set(-this.sun.position.x, Math.abs(this.sun.position.y) * 0.55 + 20, -this.sun.position.z);
+    this.fill.color.copy(new THREE.Color('#9ec4ff')).lerp(new THREE.Color('#3b4a7a'), this.night);
+    this.fill.intensity = (0.18 + day * 0.42) * (params.ambient ?? 1);
 
     const fogColor = params.fogCustom ? new THREE.Color(params.fogColor) : sky;
     this.scene.fog.color.copy(fogColor);
@@ -211,6 +327,7 @@ export class Stage {
     );
     this.ground.setGridOpacity(0.05 + day * 0.1);
 
+    this.looks.apply(params, this.clockTime || 0);
     this.renderer.toneMappingExposure = params.exposure ?? 1.05;
     const bloomAmount = params.bloomStrength ?? 1;
     this.bloom.strength = (0.07 + this.night * 0.38) * bloomAmount;
@@ -220,8 +337,19 @@ export class Stage {
     return this.night;
   }
 
-  render() {
+  render(dt = 0.016, time = 0) {
+    this.clockTime = time;
+    this.looks.uniforms.uTime.value = time;
+    // The sky dome travels with the eye, so it never clips or falls behind.
+    this.sky.position.copy(this.camera.position);
+    this.updateFocus(dt);
     this.controls.update();
+    // Keep the eye above the ground rather than locking how far round it can
+    // swing. That way looking up from street level stays possible.
+    if (this.controls.enabled) {
+      const floor = this.ground.heightAt(this.camera.position.x, this.camera.position.z) + 0.5;
+      if (this.camera.position.y < floor) this.camera.position.y = floor;
+    }
     // The composer renders several passes and each one would reset the
     // counters, so accumulate across the whole frame by hand.
     this.renderer.info.autoReset = false;

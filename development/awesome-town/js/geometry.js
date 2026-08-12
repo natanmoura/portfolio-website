@@ -21,6 +21,7 @@ export const SLOT_LABELS = {
   cylinder: ['front', 'right', 'back', 'left'],
   pillars: ['pillar 1', 'pillar 2', 'pillar 3', 'pillar 4', 'deck'],
   pillars8: ['pillar 1', 'pillar 2', 'pillar 3', 'pillar 4', 'pillar 5', 'pillar 6', 'pillar 7', 'pillar 8', 'deck'],
+  post: ['right', 'left', 'top', 'bottom', 'front', 'back'],
   sphere: ['front', 'right', 'back', 'left'],
   spin: ['card 1', 'card 2', 'card 3', 'card 4'],
   flag: ['pole', 'flag'],
@@ -37,6 +38,7 @@ export const MAX_SLOTS = 10;
 // sees the underside.
 export const FLAT_SLOTS = {
   box: [2, 3],
+  post: [2, 3],
   octagon: [8, 9],
   pillars: [4],
   pillars8: [8],
@@ -52,6 +54,9 @@ class Raw {
     this.pos = [];
     this.nor = [];
     this.uv = [];
+    // How much each vertex is allowed to flutter. Zero everywhere except the
+    // free edge of a flag, so poles stay put and cloth stays attached.
+    this.wind = [];
     this.slots = [];
     this.cur = null;
   }
@@ -82,6 +87,7 @@ class Raw {
     this.pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
     this.nor.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2]);
     this.uv.push(uv0[0], uv0[1], uv1[0], uv1[1], uv2[0], uv2[1]);
+    this.wind.push(0, 0, 0);
     this.cur.count += 3;
   }
 
@@ -102,12 +108,23 @@ class Raw {
     }
   }
 
+  // Both faces of a flag have to share a flutter weight, or the two sides of
+  // the cloth pull apart. Reading it off the vertex position does that for
+  // free, since the mirrored copy sits at the same place.
+  windFromX(from, x0, span) {
+    for (let i = from; i < this.pos.length / 3; i++) {
+      const t = (this.pos[i * 3] - x0) / Math.max(1e-4, span);
+      this.wind[i] = Math.max(0, Math.min(1, t));
+    }
+  }
+
   finish(faces) {
     this.slots.forEach((slot, i) => applyFace(this.uv, slot, faces && faces[i]));
     return {
       pos: new Float32Array(this.pos),
       nor: new Float32Array(this.nor),
       uv: new Float32Array(this.uv),
+      wind: new Float32Array(this.wind),
       slots: this.slots,
     };
   }
@@ -250,9 +267,9 @@ function prism(r, w, h, d, sides, slotCount, smooth, capped, hollow, labels) {
 // Slender round columns. The eight-column variant adds one at the midpoint of
 // each edge, which reads as a colonnade rather than as four legs.
 function pillars(r, w, h, d, count = 4) {
-  const rad = Math.min(w, d) * 0.045;
-  const ox = w / 2 - rad * 2.4;
-  const oz = d / 2 - rad * 2.4;
+  const rad = Math.min(w, d) * 0.026;
+  const ox = w / 2 - rad * 3.4;
+  const oz = d / 2 - rad * 3.4;
   const spots =
     count === 8
       ? [
@@ -293,10 +310,13 @@ function pillars(r, w, h, d, count = 4) {
   boxInto(r, w, deckH, d, 0, -h / 2 + deckH / 2, 0);
 }
 
+// Always a ball, never an egg. A sphere squashed to fit a storey stops
+// reading as a sphere, so it takes one radius from whichever dimension is
+// smallest and ignores the rest.
 function sphere(r, w, h, d) {
-  const rx = w / 2;
-  const ry = h / 2;
-  const rz = d / 2;
+  const rx = Math.min(w, h, d) / 2;
+  const ry = rx;
+  const rz = rx;
   // Kept coarse on purpose. A sphere is the most expensive shape per module,
   // and a faceted one suits the rest of the city anyway.
   const rings = 8;
@@ -340,6 +360,13 @@ function spinCards(r, w, h, d, blades = 1) {
   }
 }
 
+// One square column down the middle. Heavier than the colonnade columns and
+// flat-faced, so it can still take an image.
+function post(r, w, h, d) {
+  const side = Math.min(w, d) * 0.2;
+  box(r, side, h, side);
+}
+
 // A pole with a triangular flag, for the top of a pointed roof.
 function flag(r, w, h, d) {
   const rad = Math.max(0.02, Math.min(w, d) * 0.022);
@@ -370,6 +397,7 @@ function flag(r, w, h, d) {
     [1, 0.5]
   );
   r.mirrorFrom(from);
+  r.windFromX(from, rad, span);
 }
 
 function pyramid(r, w, h, d) {
@@ -508,6 +536,9 @@ export function buildShape(kind, w, h, d, faces, opts = {}) {
       break;
     case 'pillars8':
       pillars(r, w, h, d, 8);
+      break;
+    case 'post':
+      post(r, w, h, d);
       break;
     case 'flag':
       flag(r, w, h, d);

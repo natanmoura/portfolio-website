@@ -47,6 +47,19 @@ export const WAVE_BODY = `
   }
 `;
 
+// Cloth. Displaced in a small circle rather than along its own normal, because
+// the two sides of a flag carry opposite normals and would tear apart. Both
+// faces share a weight and a phase, so they move as one piece.
+export const WIND_BODY = `
+  if (aWind > 0.0 && uWind > 0.0) {
+    float ccW = aWind * aWind * uWind;
+    float ccPh = uTime * 2.4 + aSpin.x * 0.63 + aSpin.z * 0.41;
+    transformed.x += sin(ccPh) * ccW;
+    transformed.z += cos(ccPh * 0.92) * ccW * 0.7;
+    transformed.y += sin(ccPh * 1.7) * ccW * 0.22;
+  }
+`;
+
 export const WAVE_BODY_NORMAL = `
   if (uWaveAmp > 0.0) {
     vec2 ccSlopeN = ccWaveSlope(vec2(aSpin.x, aSpin.z)) * uWaveRock;
