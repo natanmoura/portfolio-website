@@ -110,9 +110,11 @@ main {
 
 /* --- tabs ---------------------------------------------------------------- */
 
+/* Two rows of four rather than seven slivers, so every tab keeps a readable
+   word rather than being abbreviated into a guess. */
 .tabbar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   position: sticky;
   top: 0;
   z-index: 3;
@@ -126,11 +128,14 @@ main {
   background: transparent;
   color: var(--dim);
   font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 9px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 9px 2px 7px;
+  padding: 8px 2px 6px;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tabbtn:hover { color: var(--text); }
 .tabbtn.on { color: var(--text); border-bottom-color: var(--accent); }

@@ -7,7 +7,7 @@ modules stack upward, and every distribution is a control you can pull.
 Static site, no build step. Run it:
 
 ```bash
-node development/awesome-town/tools/serve.js 5182
+node development/awesome-town-city-builder/tools/serve.js 5182
 ```
 
 Then open http://localhost:5182. There is also an `awesome-town` entry in
@@ -19,7 +19,7 @@ Everything in `collage/` listed by `collage/manifest.json` is loaded at boot
 into one texture array. To add more:
 
 ```bash
-node development/awesome-town/tools/scan.mjs
+node development/awesome-town-city-builder/tools/scan.mjs
 ```
 
 Dropping image files onto the window adds them for the current session only.
@@ -83,6 +83,13 @@ Nothing else is stored, which is why a saved scene is a few kilobytes.
 | `js/inspector.js` | The selection panel |
 | `js/scenes.js` | Named scene storage |
 | `js/tooltip.js` | Hover help overlay |
+| `js/pcss.js` | Rewrites three's shadow chunk for contact-hardening shadows |
+| `js/ssao.js` | Depth-based ambient occlusion pass |
+| `js/looks.js` | Depth of field, grade, halftone, posterise, vignette, grain |
+| `js/traffic.js` | Cars and flyers, two instanced meshes sharing one material |
+| `js/flyby.js` | The driving tour |
+| `js/layout.js` | Street patterns and where buildings sit |
+| `js/randomize.js` | The dice |
 | `js/main.js` | State and wiring |
 
 ### Distributions never restructure the city

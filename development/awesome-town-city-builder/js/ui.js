@@ -88,20 +88,30 @@ export function rangeRow({ label, value, min, max, step, hard, live = true, onIn
   return { row, set: show, slider, num };
 }
 
-// Five tabs rather than one long scroll. Everything that shapes the town in
-// one place, everything about how it looks in another, the world it sits in
-// third, and the housekeeping kept out of the way entirely.
+// One word each, and each word says what it owns. In pipeline order: plan the
+// town, clad it, put it somewhere, point a camera at it, decide how that
+// camera's output is processed, then the housekeeping.
+//
+//   Town     the plan: size, streets, traffic, massing, which shapes exist
+//   Surface  what the buildings are clad in: collage, palette, glow, signs
+//   World    what it stands in: terrain, water, sky and sun
+//   Camera   where the lens is and what it focuses on, including the tour
+//   Render   what happens to the picture after the scene is drawn
+//   Scene    saving, loading, starting over
+//   Keys     shortcuts
 export const TABS = [
   { id: 'town', label: 'Town' },
-  { id: 'look', label: 'Look' },
+  { id: 'surface', label: 'Surface' },
   { id: 'world', label: 'World' },
+  { id: 'camera', label: 'Camera' },
+  { id: 'render', label: 'Render' },
   { id: 'scene', label: 'Scene' },
   { id: 'keys', label: 'Keys' },
 ];
 
 export const CONTROL_DEFS = [
   {
-    section: 'City',
+    section: 'Size',
     tab: 'town',
     items: [
       {
@@ -199,8 +209,8 @@ export const CONTROL_DEFS = [
     ],
   },
   {
-    section: 'Surfaces',
-    tab: 'look',
+    section: 'Collage',
+    tab: 'surface',
     items: [
       R('collageChance', 'Collaged buildings', 0, 1, 0.01, 'Odds a building carries images at all. The rest are pure colour, to rest the eye.', { hard: [0, 1] }),
       R('imageChance', 'Image vs colour', 0, 1, 0.01, 'Within a collaged building, odds a face takes an image over a colour.', { hard: [0, 1] }),
@@ -214,7 +224,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Palette',
-    tab: 'look',
+    tab: 'surface',
     items: [
       {
         key: 'palette',
@@ -228,7 +238,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Glow',
-    tab: 'look',
+    tab: 'surface',
     items: [
       R('glowChance', 'Lit modules', 0, 1, 0.01, 'How many modules are lit from within. Switches existing ones on and off, so the town never changes shape.', { cheap: true, hard: [0, 1] }),
       R('glowStrength', 'Glow strength', 0, 3, 0.01, 'How hard lit modules push. Past 1.5 the images inside start to wash out.', { cheap: true }),
@@ -238,7 +248,7 @@ export const CONTROL_DEFS = [
   },
   {
     section: 'Billboards',
-    tab: 'look',
+    tab: 'surface',
     items: [
       R('scrollShare', 'Scrolling', 0, 1, 0.01, 'Share of lit faces whose image crawls sideways, like a running sign.', { cheap: true, hard: [0, 1] }),
       R('swapShare', 'Changing', 0, 1, 0.01, 'Share of lit faces that cut to a different picture every five to ten seconds.', { cheap: true, hard: [0, 1] }),
@@ -265,7 +275,7 @@ export const CONTROL_DEFS = [
     ],
   },
   {
-    section: 'Light and sky',
+    section: 'Sky and sun',
     tab: 'world',
     items: [
       R('hour', 'Hour', 0, 24, 0.1, 'Time of day. Sky, shadows, glow and bloom all follow it. Golden hour is near 6 and 18.', { cheap: true, hard: [0, 24] }),
@@ -290,21 +300,6 @@ export const CONTROL_DEFS = [
         cheap: true,
         help: 'Haze takes the sky colour by default. Override to push the distance warm or cold.',
       },
-      R('bloomStrength', 'Bloom', 0, 3, 0.01, 'Soft halo around anything bright. It is what sells the glow at night.', { cheap: true }),
-      {
-        key: 'bloomOn',
-        label: 'Bloom on',
-        type: 'check',
-        cheap: true,
-        help: 'Turns the bloom pass off. Worth doing while editing a large town.',
-      },
-      {
-        key: 'shadows',
-        label: 'Shadows',
-        type: 'check',
-        cheap: true,
-        help: 'Cast shadows from the sun. First thing to turn off if it stutters.',
-      },
       {
         key: 'showGrid',
         label: 'Street grid',
@@ -322,26 +317,70 @@ export const CONTROL_DEFS = [
     ],
   },
   {
-    section: 'Looks',
+    section: 'Shadows',
     tab: 'world',
     items: [
-      R('tilt', 'Miniature', 0, 1, 0.01, 'Throws everything outside a band of focus out. The town stops reading as a city and starts reading as a model on a table.', { cheap: true, hard: [0, 1] }),
-      R('tiltCenter', 'Focus height', 0, 1, 0.01, 'Where on screen the sharp band sits.', { cheap: true, hard: [0, 1] }),
-      R('tiltRange', 'Focus depth', 0.02, 1, 0.01, 'How tall the sharp band is. Narrow sells the miniature harder.', { cheap: true, hard: [0.01, 1] }),
-      R('halftone', 'Halftone', 0, 1, 0.01, 'Breaks the image into a print screen of dots, which suits the collage the town is made of.', { cheap: true, hard: [0, 1] }),
-      R('halftoneScale', 'Dot size', 1, 14, 0.1, 'How coarse the dot screen is.', { cheap: true, hard: [0.5, 60] }),
-      R('posterize', 'Posterise', 0, 1, 0.01, 'Collapses the picture to a handful of tones, like a screen print.', { cheap: true, hard: [0, 1] }),
-      R('posterizeSteps', 'Tones', 2, 16, 1, 'How many tones survive posterising.', { cheap: true, hard: [2, 64] }),
-      R('edge', 'Ink outline', 0, 1, 0.01, 'Draws a line where the picture changes, so the town reads as an illustration rather than a render.', { cheap: true, hard: [0, 1] }),
-      R('edgeWidth', 'Line weight', 0.4, 4, 0.05, 'How thick the ink is.', { cheap: true, hard: [0.2, 12] }),
       {
-        key: 'edgeColor',
-        toggleKey: 'edgeOn',
-        label: 'Ink colour',
+        key: 'shadows',
+        label: 'Cast shadows',
+        type: 'check',
+        cheap: true,
+        help: 'Shadows from the sun. First thing to turn off if it stutters.',
+      },
+      {
+        key: 'softShadows',
+        label: 'Contact hardening',
+        type: 'check',
+        cheap: true,
+        help: 'Widens a shadow with distance from whatever casts it, so the base of a building stays sharp and the far end goes soft. Costs more shadow samples and recompiles when switched.',
+      },
+      R('shadowLightSize', 'Sun size', 0.001, 0.03, 0.001, 'How large the sun appears from the ground, which is what sets how fast a shadow softens with distance from whatever casts it. Commits when you let go, because it recompiles.', { live: false, hard: [0.0001, 0.2] }),
+      R('shadowSoftness', 'Softness', 0.1, 4, 0.05, 'Scales the whole penumbra on top of sun size. One is the natural result.', { cheap: true, hard: [0.05, 8] }),
+      R('shadowDetail', 'Detail', 1024, 8192, 1024, 'Resolution of the shadow map. Note that shimmer is almost never a resolution problem, so reach for this last. 8192 costs 256MB of video memory and 16384 costs a full gigabyte.', { live: false, hard: [256, 16384] }),
+    ],
+  },
+  {
+    section: 'Occlusion',
+    tab: 'world',
+    items: [
+      R('ao', 'Ambient occlusion', 0, 1, 0.01, 'Darkens where surfaces face each other, read off the depth buffer. Finds the corner between two buildings and under an overhang. Off by default, since the analytic contact shade below is cleaner for most shots.', { cheap: true, hard: [0, 1] }),
+      R('aoRadius', 'Reach', 0.3, 12, 0.1, 'How far out it looks for a neighbouring surface. Small catches creases, large shades whole streets.', { cheap: true, hard: [0.05, 60] }),
+      R('aoSmoothing', 'Smoothing', 1, 4, 1, 'Rounds of blur over the occlusion. Each one widens the kernel, so this is the control that decides grainy against soft.', { cheap: true, hard: [1, 4] }),
+      R('aoBias', 'Bias', 0, 0.4, 0.005, 'Nudge up if flat walls look dirty, down if corners look clean.', { cheap: true, hard: [0, 2] }),
+      R('aoSamples', 'Samples', 4, 24, 1, 'More samples means less noise and more cost. It is blurred afterwards, so this can stay low.', { cheap: true, hard: [4, 24] }),
+      {
+        key: 'aoColor',
+        toggleKey: 'aoTint',
+        label: 'Shade colour',
         type: 'colorToggle',
         cheap: true,
-        help: 'What the outline is drawn in. Near-black reads as pen, a palette colour reads as printing.',
+        help: 'What occluded corners are tinted toward. A cool blue reads as skylight rather than as a hole.',
       },
+      R('occlusion', 'Contact shade', 0, 1, 0.01, 'The cheap analytic version: darkens the base of every building and anything facing down. Costs nothing and stacks with the above.', { cheap: true, hard: [0, 1] }),
+      R('occlusionHeight', 'Contact reach', 0.5, 20, 0.1, 'How far up a building the contact shade climbs.', { cheap: true, hard: [0.1, 200] }),
+    ],
+  },
+  {
+    section: 'Depth of field',
+    tab: 'camera',
+    items: [
+      R('dof', 'Blur', 0, 1, 0.01, 'How far out of focus the background and foreground go. Real depth of field, measured off the scene depth rather than faked by screen height.', { cheap: true, hard: [0, 1] }),
+      {
+        key: 'dofAuto',
+        label: 'Focus on pivot',
+        type: 'check',
+        cheap: true,
+        help: 'Keeps whatever you are orbiting sharp. Turn it off to set the distance by hand.',
+      },
+      R('dofFocus', 'Focus distance', 1, 300, 0.5, 'How far away the sharp plane sits, in world units. Only used when focus on pivot is off.', { cheap: true, hard: [0.1, 4000] }),
+      R('dofRange', 'Sharp depth', 2, 300, 1, 'How deep the sharp zone is, in world units either side of the focus. Make it shallow against a far focus and the town reads as a model on a table.', { cheap: true, hard: [0.5, 4000] }),
+      R('bokeh', 'Bokeh', 0, 1, 0.01, 'How much the blur clumps into highlights rather than smearing evenly.', { cheap: true, hard: [0, 1] }),
+    ],
+  },
+  {
+    section: 'Grade',
+    tab: 'render',
+    items: [
       R('contrast', 'Contrast', 0.3, 2.2, 0.01, 'Pushes the tones apart around the midpoint.', { cheap: true, hard: [0, 6] }),
       R('saturation', 'Saturation', 0, 2.5, 0.01, 'Zero is greyscale, past one is poster ink.', { cheap: true, hard: [0, 8] }),
       {
@@ -360,13 +399,37 @@ export const CONTROL_DEFS = [
         cheap: true,
         help: 'Colours the bright end. Push it against the shadow tint rather than with it.',
       },
+    ],
+  },
+  {
+    section: 'Print',
+    tab: 'render',
+    items: [
+      R('halftone', 'Halftone', 0, 1, 0.01, 'Breaks the image into a print screen of dots, which suits the collage the town is made of.', { cheap: true, hard: [0, 1] }),
+      R('halftoneScale', 'Dot size', 1, 14, 0.1, 'How coarse the dot screen is.', { cheap: true, hard: [0.5, 60] }),
+      R('posterize', 'Posterise', 0, 1, 0.01, 'Collapses the picture to a handful of tones, dithered so it stipples like a screen print instead of banding.', { cheap: true, hard: [0, 1] }),
+      R('posterizeSteps', 'Tones', 2, 16, 1, 'How many tones survive posterising.', { cheap: true, hard: [2, 64] }),
+    ],
+  },
+  {
+    section: 'Film',
+    tab: 'render',
+    items: [
       R('vignette', 'Vignette', 0, 1, 0.01, 'Darkens the corners and pulls the eye to the middle.', { cheap: true, hard: [0, 1] }),
       R('grain', 'Grain', 0, 1, 0.01, 'Film grain over the whole frame. A little stops flat colour looking digital.', { cheap: true, hard: [0, 1] }),
+      R('bloomStrength', 'Bloom', 0, 3, 0.01, 'Soft halo around anything bright. It is what sells the glow at night.', { cheap: true }),
+      {
+        key: 'bloomOn',
+        label: 'Bloom on',
+        type: 'check',
+        cheap: true,
+        help: 'Turns the bloom pass off. Worth doing while editing a large town.',
+      },
     ],
   },
   {
     section: 'Tour',
-    tab: 'world',
+    tab: 'camera',
     items: [
       { key: 'tourTools', type: 'mount' },
       R('flybySpeed', 'Speed', 1, 60, 0.5, 'How fast the tour drives the town.', { cheap: true }),

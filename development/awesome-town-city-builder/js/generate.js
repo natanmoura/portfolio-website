@@ -207,7 +207,16 @@ function capSlots(kind, n) {
   return new Set();
 }
 
+// A colonnade is one object. Striping the columns different colours reads as a
+// mistake, so they always share a colour and only the deck takes the second.
+const COLONNADES = { pillars: 4, pillars8: 8 };
+
 function paintSlots(kind, n, pattern, a, b) {
+  const columns = COLONNADES[kind];
+  if (columns) {
+    const deck = pattern === 'solid' ? a : b;
+    return Array.from({ length: n }, (_, i) => (i < columns ? a : deck));
+  }
   const caps = capSlots(kind, n);
   const out = [];
   for (let i = 0; i < n; i++) {

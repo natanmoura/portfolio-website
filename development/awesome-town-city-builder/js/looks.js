@@ -17,20 +17,21 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 export const LooksShader = {
   uniforms: {
     tDiffuse: { value: null },
+    tDepth: { value: null },
     uResolution: { value: new THREE.Vector2(1, 1) },
     uTime: { value: 0 },
-    uTilt: { value: 0 },
-    uTiltCenter: { value: 0.5 },
-    uTiltRange: { value: 0.28 },
+    uNear: { value: 0.5 },
+    uFar: { value: 1000 },
+    uDof: { value: 0 },
+    uFocus: { value: 40 },
+    uFocusRange: { value: 30 },
+    uBokeh: { value: 0.4 },
     uHalftone: { value: 0 },
     uHalftoneScale: { value: 4 },
     uPosterize: { value: 0 },
     uPosterizeSteps: { value: 6 },
     uVignette: { value: 0.2 },
     uGrain: { value: 0.05 },
-    uEdge: { value: 0 },
-    uEdgeWidth: { value: 1.2 },
-    uEdgeColor: { value: new THREE.Color('#120d0a') },
     uContrast: { value: 1 },
     uSaturation: { value: 1 },
     uShadowTint: { value: new THREE.Color('#ffffff') },
@@ -47,20 +48,21 @@ export const LooksShader = {
 
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
+    uniform sampler2D tDepth;
     uniform vec2 uResolution;
     uniform float uTime;
-    uniform float uTilt;
-    uniform float uTiltCenter;
-    uniform float uTiltRange;
+    uniform float uNear;
+    uniform float uFar;
+    uniform float uDof;
+    uniform float uFocus;
+    uniform float uFocusRange;
+    uniform float uBokeh;
     uniform float uHalftone;
     uniform float uHalftoneScale;
     uniform float uPosterize;
     uniform float uPosterizeSteps;
     uniform float uVignette;
     uniform float uGrain;
-    uniform float uEdge;
-    uniform float uEdgeWidth;
-    uniform vec3 uEdgeColor;
     uniform float uContrast;
     uniform float uSaturation;
     uniform vec3 uShadowTint;
@@ -84,24 +86,6 @@ export const LooksShader = {
       return BAYER[y * 4 + x] / 16.0;
     }
 
-    // Sobel over luminance. No depth buffer needed, which keeps this to one
-    // pass, and on flat-shaded blocks the colour edges are the form edges.
-    float edgeStrength() {
-      if (uEdge <= 0.0) return 0.0;
-      vec2 t = (1.0 / uResolution) * uEdgeWidth;
-      float a = lum(texture2D(tDiffuse, vUv + t * vec2(-1.0, -1.0)).rgb);
-      float b = lum(texture2D(tDiffuse, vUv + t * vec2(0.0, -1.0)).rgb);
-      float c = lum(texture2D(tDiffuse, vUv + t * vec2(1.0, -1.0)).rgb);
-      float d = lum(texture2D(tDiffuse, vUv + t * vec2(-1.0, 0.0)).rgb);
-      float f = lum(texture2D(tDiffuse, vUv + t * vec2(1.0, 0.0)).rgb);
-      float g = lum(texture2D(tDiffuse, vUv + t * vec2(-1.0, 1.0)).rgb);
-      float h = lum(texture2D(tDiffuse, vUv + t * vec2(0.0, 1.0)).rgb);
-      float i = lum(texture2D(tDiffuse, vUv + t * vec2(1.0, 1.0)).rgb);
-      float gx = (c + 2.0 * f + i) - (a + 2.0 * d + g);
-      float gy = (g + 2.0 * h + i) - (a + 2.0 * b + c);
-      return sqrt(gx * gx + gy * gy);
-    }
-
     // Contrast, saturation, then a split tone that warms or cools the two ends
     // of the range against each other.
     vec3 grade(vec3 c) {
@@ -112,41 +96,53 @@ export const LooksShader = {
       return max(c, vec3(0.0));
     }
 
-    // Blur strength grows with distance from the band of focus. Squared, so
-    // the falloff has the abruptness a real shallow depth of field does.
-    float blurAmount() {
-      if (uTilt <= 0.0) return 0.0;
-      float d = abs(vUv.y - uTiltCenter) / max(0.01, uTiltRange);
-      return uTilt * clamp(d - 1.0, 0.0, 1.0) * clamp(d - 1.0, 0.0, 1.0);
+    // Depth buffer to world distance from the eye.
+    float viewDepth(vec2 uv) {
+      float z = texture2D(tDepth, uv).x * 2.0 - 1.0;
+      return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));
     }
 
-    // Nine taps on a spiral. Cheap, and at these radii the pattern does not
-    // show through as banding the way a straight cross would.
+    // Circle of confusion: zero inside the sharp band, growing either side of
+    // it. Measured off real scene depth, so a near object blurs as readily as
+    // a far one and the effect survives the camera moving.
+    float circleOfConfusion() {
+      if (uDof <= 0.0) return 0.0;
+      float d = viewDepth(vUv);
+      float away = abs(d - uFocus) - uFocusRange;
+      return clamp(away / max(1.0, uFocusRange * 1.6), 0.0, 1.0) * uDof;
+    }
+
+    // Twenty-one taps on a golden-angle spiral. Weighted toward the bright
+    // samples when bokeh is up, which is what turns a smear into highlights
+    // that bloom into discs.
     vec3 blurred(float amount) {
-      if (amount <= 0.001) return texture2D(tDiffuse, vUv).rgb;
+      if (amount <= 0.002) return texture2D(tDiffuse, vUv).rgb;
       vec2 texel = 1.0 / uResolution;
-      float radius = amount * 9.0;
+      float radius = amount * amount * 15.0;
+      // Rotate the spiral by a per-pixel amount. Without this the same 28 taps
+      // land in the same places on every pixel and undersampling shows up as
+      // streaks rather than as the grain it should be.
+      float spin = hash(floor(vUv * uResolution)) * 6.2831853;
       vec3 sum = texture2D(tDiffuse, vUv).rgb;
-      for (int i = 0; i < 8; i++) {
-        float a = float(i) * 0.7853981634;
-        float r = radius * (0.45 + 0.55 * fract(float(i) * 0.618));
-        sum += texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * texel * r).rgb;
+      float weight = 1.0;
+      for (int i = 1; i <= 28; i++) {
+        float fi = float(i);
+        float a = fi * 2.39996323 + spin;
+        float r = radius * sqrt(fi / 28.0);
+        vec3 s = texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * texel * r).rgb;
+        // Out-of-focus highlights should stay bright rather than average away.
+        float w = 1.0 + uBokeh * 5.0 * pow(lum(s), 3.0);
+        sum += s * w;
+        weight += w;
       }
-      return sum / 9.0;
+      return sum / weight;
     }
 
     void main() {
-      vec3 color = blurred(blurAmount());
+      vec3 color = blurred(circleOfConfusion());
       vec2 px = vUv * uResolution;
 
       color = grade(color);
-
-      // Ink before the screen, so outlines survive posterising rather than
-      // being chewed up by it.
-      if (uEdge > 0.0) {
-        float e = smoothstep(0.06, 0.42, edgeStrength());
-        color = mix(color, uEdgeColor, e * uEdge);
-      }
 
       if (uPosterize > 0.0) {
         float steps = max(2.0, uPosterizeSteps);
@@ -194,35 +190,38 @@ export class LooksPass extends ShaderPass {
     this.uniforms.uResolution.value.set(width, height);
   }
 
-  apply(params, time) {
+  // camera supplies the near and far planes and, when focus is automatic, how
+  // far away the thing being orbited is.
+  apply(params, time, camera, pivotDistance) {
     const u = this.uniforms;
     u.uTime.value = time;
-    u.uTilt.value = params.tilt ?? 0;
-    u.uTiltCenter.value = params.tiltCenter ?? 0.5;
-    u.uTiltRange.value = params.tiltRange ?? 0.28;
+    if (camera) {
+      u.uNear.value = camera.near;
+      u.uFar.value = camera.far;
+    }
+    u.uDof.value = params.dof ?? 0;
+    u.uFocus.value = params.dofAuto ? Math.max(1, pivotDistance || 40) : params.dofFocus ?? 40;
+    u.uFocusRange.value = Math.max(0.1, params.dofRange ?? 30);
+    u.uBokeh.value = params.bokeh ?? 0.4;
     u.uHalftone.value = params.halftone ?? 0;
     u.uHalftoneScale.value = params.halftoneScale ?? 4;
     u.uPosterize.value = params.posterize ?? 0;
     u.uPosterizeSteps.value = params.posterizeSteps ?? 6;
     u.uVignette.value = params.vignette ?? 0;
     u.uGrain.value = params.grain ?? 0;
-    u.uEdge.value = params.edge ?? 0;
-    u.uEdgeWidth.value = params.edgeWidth ?? 1.2;
     // A tint that is switched off has to be white, not merely unset, or it
     // would keep grading after you turned it off.
-    u.uEdgeColor.value.set(params.edgeOn ? params.edgeColor || '#120d0a' : '#120d0a');
     u.uContrast.value = params.contrast ?? 1;
     u.uSaturation.value = params.saturation ?? 1;
     u.uShadowTint.value.set(params.shadowTintOn ? params.shadowTint || '#ffffff' : '#ffffff');
     u.uHighlightTint.value.set(params.highlightTintOn ? params.highlightTint || '#ffffff' : '#ffffff');
     // Skip the pass entirely when nothing is turned on.
     this.enabled =
-      u.uTilt.value > 0 ||
+      u.uDof.value > 0 ||
       u.uHalftone.value > 0 ||
       u.uPosterize.value > 0 ||
       u.uVignette.value > 0 ||
       u.uGrain.value > 0 ||
-      u.uEdge.value > 0 ||
       Math.abs(u.uContrast.value - 1) > 0.001 ||
       Math.abs(u.uSaturation.value - 1) > 0.001;
   }

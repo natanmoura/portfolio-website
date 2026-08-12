@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { WAVE_GLSL, WAVE_BODY, WAVE_BODY_NORMAL, WIND_BODY, waveFrequency } from './wave.js';
+import { shaderVersion } from './pcss.js';
 
 // Uniforms the ground shares with the city, so the town rides the same water
 // its reflection would.
@@ -44,6 +45,8 @@ const PARS_VERTEX = `
   flat varying vec3 vEmissive;
   flat varying vec3 vAnim;
   varying vec2 vAtlasUv;
+  varying float vUp;
+  varying float vFacing;
   ${WAVE_GLSL}
 `;
 
@@ -95,6 +98,10 @@ const PARS_FRAGMENT = `
   flat varying vec3 vEmissive;
   flat varying vec3 vAnim;
   varying vec2 vAtlasUv;
+  varying float vUp;
+  varying float vFacing;
+  uniform float uAo;
+  uniform float uAoHeight;
   float ccLum(vec3 c) { return clamp(dot(c, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0); }
   float ccHash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 `;
@@ -173,6 +180,16 @@ const EMISSIVE = `
     ccGlow *= mix(1.0, smoothstep(0.10, 0.90, pow(ccGl, 0.4545)) * 1.75, uGlowImage);
   }
   totalEmissiveRadiance = ccGlow * uGlowLevel * ccLit * ccFlickerOn;
+
+  // Contact shade. Darkest at the base of a building and on anything facing
+  // the ground, fading out as it climbs. Emissive is left alone, so a lit sign
+  // low down still reads as lit.
+  if (uAo > 0.0) {
+    float ccRise = smoothstep(0.0, max(0.05, uAoHeight), vUp);
+    float ccDown = clamp(-vFacing, 0.0, 1.0);
+    float ccShade = 1.0 - uAo * ((1.0 - ccRise) * 0.75 + ccDown * 0.45);
+    diffuseColor.rgb *= clamp(ccShade, 0.0, 1.0);
+  }
 `;
 
 export class CityMaterial {
@@ -182,6 +199,8 @@ export class CityMaterial {
       uAtlas: { value: null },
       uRects: { value: null },
       uLayerCount: { value: 1 },
+      uAo: { value: 0.35 },
+      uAoHeight: { value: 5 },
       uScrollShare: { value: 0.3 },
       uSwapShare: { value: 0.35 },
       uFlickerShare: { value: 0.18 },
@@ -232,6 +251,11 @@ export class CityMaterial {
            vEmissive = aEmissive;
            vAnim = aAnim;
            vAtlasUv = aUv;
+           // How far this vertex sits above the ground its building stands on,
+           // and how far it faces downward. Between them that is enough for a
+           // convincing contact shade without an occlusion pass.
+           vUp = position.y - aBaseY;
+           vFacing = normal.y;
            ${WIND_BODY}
            ${SPIN_POSITION}
            ${WAVE_BODY}`
@@ -241,7 +265,7 @@ export class CityMaterial {
         .replace('#include <map_fragment>', MAP)
         .replace('#include <emissivemap_fragment>', EMISSIVE);
     };
-    material.customProgramCacheKey = () => 'awesome-town-surface';
+    material.customProgramCacheKey = () => 'awesome-town-surface-' + shaderVersion();
   }
 
   // Shadows need the same vertex motion, or a bobbing town casts a still one.
@@ -266,7 +290,7 @@ export class CityMaterial {
           `#include <begin_vertex>\n${WIND_BODY}\n${SPIN_POSITION}\n${WAVE_BODY}`
         );
     };
-    material.customProgramCacheKey = () => 'awesome-town-depth';
+    material.customProgramCacheKey = () => 'awesome-town-depth-' + shaderVersion();
   }
 
   setAtlas(pool) {
@@ -291,6 +315,11 @@ export class CityMaterial {
 
   setWind(strength) {
     shared.uWind.value = strength;
+  }
+
+  setOcclusion(amount, height) {
+    this.uniforms.uAo.value = amount;
+    this.uniforms.uAoHeight.value = height;
   }
 
   setWaves(amp, scale, speed, rock) {

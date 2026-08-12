@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { fbm2D } from './noise.js';
 import { shared } from './material.js';
 import { WAVE_GLSL } from './wave.js';
+import { shaderVersion } from './pcss.js';
 
 // The ground rides the same water as the buildings, using the same uniforms.
 function patchWaves(material, withNormals) {
@@ -34,7 +35,7 @@ function patchWaves(material, withNormals) {
       );
     }
   };
-  material.customProgramCacheKey = () => (withNormals ? 'collage-ground' : 'collage-grid');
+  material.customProgramCacheKey = () => (withNormals ? 'ground-' : 'grid-') + shaderVersion();
 }
 
 export class Ground {

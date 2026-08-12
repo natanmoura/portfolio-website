@@ -30,6 +30,7 @@ import { waveState, waveFrequency } from './wave.js';
 import { ROAD_PATTERNS, PATTERN_LABEL } from './layout.js';
 import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
+import { randomParams } from './randomize.js';
 
 const APP_NAME = 'Awesome Town';
 
@@ -47,6 +48,19 @@ const ENV_DEFAULTS = {
   bloomOn: true,
   bloomStrength: 1,
   shadows: true,
+  softShadows: true,
+  shadowLightSize: 0.015,
+  shadowSoftness: 1,
+  shadowDetail: 8192,
+  ao: 0,
+  aoRadius: 2.4,
+  aoSmoothing: 2,
+  aoBias: 0.06,
+  aoSamples: 20,
+  aoTint: true,
+  aoColor: '#2a3550',
+  occlusion: 0.3,
+  occlusionHeight: 5,
   showGrid: false,
   showStats: true,
   waveHeight: 0,
@@ -54,19 +68,17 @@ const ENV_DEFAULTS = {
   waveSpeed: 0.6,
   waveRock: 1,
   wind: 0.35,
-  tilt: 0,
-  tiltCenter: 0.5,
-  tiltRange: 0.28,
+  dof: 0,
+  dofAuto: true,
+  dofFocus: 45,
+  dofRange: 55,
+  bokeh: 0.4,
   halftone: 0,
   halftoneScale: 4,
   posterize: 0,
   posterizeSteps: 6,
   vignette: 0.18,
   grain: 0.05,
-  edge: 0,
-  edgeWidth: 1.2,
-  edgeOn: false,
-  edgeColor: '#120d0a',
   contrast: 1,
   saturation: 1,
   shadowTintOn: false,
@@ -167,6 +179,16 @@ async function boot() {
   builder = new CityBuilder(pool, materials);
   stage.scene.add(builder.root);
   picker = new Picker(stage, builder);
+  // Rewriting the shadow chunk changes GLSL that every material already
+  // compiled against, so they all have to be told to build again.
+  stage.onShaderVersion = () => {
+    materials.material.needsUpdate = true;
+    materials.depthMaterial.needsUpdate = true;
+    stage.ground.material.needsUpdate = true;
+    stage.ground.roadMaterial.needsUpdate = true;
+    stage.ground.gridMaterial.needsUpdate = true;
+    if (traffic) traffic.material.needsUpdate = true;
+  };
   traffic = new Traffic();
   stage.scene.add(traffic.group);
   flyby = new Flyby(stage);
@@ -311,7 +333,9 @@ function applyEnv() {
     stage.setExtent(p);
   }
   stage.setBloom(p.bloomOn);
-  stage.setShadows(p.shadows);
+  stage.setShadows(p.shadows, p.shadowSoftness, p.shadowDetail);
+  stage.setShadowQuality(p.softShadows, p.shadowLightSize);
+  materials.setOcclusion(p.occlusion, p.occlusionHeight);
   stage.setGridVisible(p.showGrid);
   stage.ground.setRoadsVisible(p.showRoads);
   traffic.setNight(night);
@@ -733,6 +757,23 @@ function buildSceneTools() {
       withHelp(h('label', { class: 'chip' }, 'import', fileInput), 'Loads a scene file from disk. Dragging a .json onto the window does the same.', 'Import'),
       withHelp(h('button', { class: 'chip', onclick: exportJSON }, 'export'), 'Writes the current scene to a JSON file.', 'Export')
     ),
+    h('h3', { class: 'grp' }, 'Roll the dice'),
+    withHelp(
+      h('button', {
+        class: 'chip wide-chip',
+        onclick: () => {
+          if (!confirm('Randomise every setting?\n\nThis replaces all your current sliders. Hand edits are kept.')) return;
+          state.params = { ...state.params, ...randomParams(state.params) };
+          state.sceneName = '';
+          deselect();
+          syncPanels();
+          extentKey = '';
+          markAll();
+        },
+      }, 'randomise everything'),
+      'Rolls every setting at once, within ranges that actually produce a town rather than noise. One look effect gets to lead instead of all of them stacking. Asks first, and your hand edits survive.',
+      'Randomise'
+    ),
     h('h3', { class: 'grp' }, 'Start over'),
     h(
       'div',
@@ -748,24 +789,24 @@ function buildSceneTools() {
         }, 'clear edits'),
         'Drops every hand edit and leaves the sliders alone.',
         'Clear edits'
-      ),
-      withHelp(
-        h('button', {
-          class: 'chip danger',
-          onclick: () => {
-            if (!confirm('Reset every slider and every hand edit?')) return;
-            state.params = structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS });
-            state.overrides = {};
-            state.sceneName = '';
-            deselect();
-            syncPanels();
-            extentKey = '';
-            markAll();
-          },
-        }, 'reset everything'),
-        'Puts every slider back to its default and drops all edits.',
-        'Reset'
       )
+    ),
+    withHelp(
+      h('button', {
+        class: 'chip wide-chip danger',
+        onclick: () => {
+          if (!confirm('Reset every setting back to its default?\n\nThis also drops every hand edit. It cannot be undone.')) return;
+          state.params = structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS });
+          state.overrides = {};
+          state.sceneName = '';
+          deselect();
+          syncPanels();
+          extentKey = '';
+          markAll();
+        },
+      }, 'reset to defaults'),
+      'Puts every slider back where it started and drops all hand edits. Asks first.',
+      'Reset'
     )
   );
 }

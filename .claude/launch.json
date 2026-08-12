@@ -40,7 +40,7 @@
     {
       "name": "awesome-town",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["D:/Dropbox/Projects/website/development/awesome-town/tools/serve.js", "5182"],
+      "runtimeArgs": ["D:/Dropbox/Projects/website/development/awesome-town-city-builder/tools/serve.js", "5182"],
       "port": 5182
     },
     {

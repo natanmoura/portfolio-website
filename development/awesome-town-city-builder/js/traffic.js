@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { Rng } from './rng.js';
 import { waveAt } from './wave.js';
+import { shaderVersion } from './pcss.js';
 
 // --- shapes ----------------------------------------------------------------
 
@@ -65,7 +66,7 @@ function pillGeometry() {
   const m = new Mesh();
   const r = 0.5;
   const body = 1.0;
-  const squash = 0.5; // half a unit tall against one wide
+  const squash = 1; // round in section, not flattened
   const seg = 20;
   const caps = 6;
   const rings = [];
@@ -86,8 +87,14 @@ function pillGeometry() {
   for (let i = 0; i < rings.length - 1; i++) {
     // The quad belongs to whichever end it is closest to.
     const part = i < caps ? 2 : i === caps ? 0 : 1;
+    const lo = rings[i];
+    const hi = rings[i + 1];
     for (let k = 0; k < seg; k++) {
-      m.quad(at(rings[i + 1], k), at(rings[i + 1], k + 1), at(rings[i], k + 1), at(rings[i], k), part);
+      // A ring of zero radius is a point, so fan to it rather than emitting a
+      // quad with two coincident corners and an undefined normal.
+      if (lo.rad < 1e-6) m.tri(at(hi, k), at(hi, k + 1), at(lo, k), part);
+      else if (hi.rad < 1e-6) m.tri(at(hi, k), at(lo, k + 1), at(lo, k), part);
+      else m.quad(at(hi, k), at(hi, k + 1), at(lo, k + 1), at(lo, k), part);
     }
   }
   return m.geometry();
@@ -115,23 +122,29 @@ function boxGeometry() {
   const BLt = P(bk, y1, -W / 2);
   const BRt = P(bk, y1, W / 2);
 
-  m.quad(FLb, FRb, FRt, FLt, 1); // nose
-  m.quad(BRb, BLb, BLt, BRt, 2); // tail
-  m.quad(FRb, BRb, BRt, FRt, 0);
-  m.quad(BLb, FLb, FLt, BLt, 0);
-  m.quad(FLt, FRt, BRt, BLt, 0);
-  m.quad(BLb, BRb, FRb, FLb, 0);
+  // Counter-clockwise seen from outside each face. Reversed from the obvious
+  // corner order, which points every normal into the car and lights it as if
+  // it were inside out.
+  m.quad(FLt, FRt, FRb, FLb, 1); // nose, +X
+  m.quad(BRt, BLt, BLb, BRb, 2); // tail, -X
+  m.quad(FRt, BRt, BRb, FRb, 0); // +Z
+  m.quad(BLt, FLt, FLb, BLb, 0); // -Z
+  m.quad(BLt, BRt, FRt, FLt, 0); // top
+  m.quad(FLb, FRb, BRb, BLb, 0); // bottom
   return m.geometry();
 }
 
 // --- material --------------------------------------------------------------
 
 function trafficMaterial(uniforms) {
+  // Opaque on purpose. Blending an instanced mesh cannot sort its own cars
+  // against each other, which is what made them look like ghosts. The fade is
+  // done by dropping pixels on an ordered pattern instead, which keeps depth
+  // correct and reads as a dissolve at the size a car is on screen.
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.45,
     metalness: 0.1,
-    transparent: true,
   });
   material.onBeforeCompile = (shader) => {
     Object.entries(uniforms).forEach(([k, v]) => {
@@ -155,20 +168,27 @@ function trafficMaterial(uniforms) {
          uniform vec3 uTail;
          uniform float uHead;
          uniform float uTailGlow;
-         void main() {`
+         const float CAR_BAYER[16] = float[16](
+           0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
+           3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0
+         );
+         void main() {
+           if (vFade < 0.999) {
+             int bx = int(mod(gl_FragCoord.x, 4.0));
+             int by = int(mod(gl_FragCoord.y, 4.0));
+             if (vFade < (CAR_BAYER[by * 4 + bx] + 0.5) / 16.0) discard;
+           }`
       )
-      // Fading out at the edge of town rather than vanishing mid-frame.
-      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= vFade;')
       .replace(
         '#include <emissivemap_fragment>',
         `// Headlamps burn the car's own colour, tail lamps a hot palette red.
          vec3 ccLamp = vec3(0.0);
          if (vPart > 1.5) ccLamp = uTail * uTailGlow;
          else if (vPart > 0.5) ccLamp = vColor * uHead;
-         totalEmissiveRadiance = ccLamp * vFade;`
+         totalEmissiveRadiance = ccLamp;`
       );
   };
-  material.customProgramCacheKey = () => 'awesome-town-traffic';
+  material.customProgramCacheKey = () => 'awesome-town-traffic-' + shaderVersion();
   return material;
 }
 
@@ -287,6 +307,8 @@ export class Traffic {
         route,
         flying,
         boxy: rng.float() < 0.5,
+        // Some of the boxes on the ground stand up into buses.
+        tall: !flying && rng.float() < 0.22 ? 2.6 + rng.float() * 0.8 : 1,
         dir: rng.float() < 0.5 ? 1 : -1,
         distance: rng.float() * route.length,
         cruise: params.carSpeed * (0.8 + rng.float() * 0.45) * (flying ? 1.3 : 1),
@@ -319,7 +341,7 @@ export class Traffic {
   // belongs in its lane no matter how wide the streets have been made.
   applySizes(params) {
     for (const car of this.cars) {
-      car.size = params.carSize * car.route.width * 0.2 * car.sizeScale;
+      car.size = params.carSize * car.route.width * 0.15 * car.sizeScale;
     }
   }
 
@@ -354,8 +376,17 @@ export class Traffic {
     }
     this.pill.count = p;
     this.box.count = b;
-    this.pill.instanceColor.needsUpdate = true;
-    this.box.instanceColor.needsUpdate = true;
+    // Start every instance hidden and collapsed. The first update places the
+    // ones that are in play; anything it does not touch stays invisible rather
+    // than sitting at the origin at full size.
+    for (const mesh of [this.pill, this.box]) {
+      this._m.makeScale(0, 0, 0);
+      for (let i = 0; i < mesh.count; i++) mesh.setMatrixAt(i, this._m);
+      mesh.geometry.attributes.aFade.array.fill(0);
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.geometry.attributes.aFade.needsUpdate = true;
+      mesh.instanceColor.needsUpdate = true;
+    }
   }
 
   setNight(night) {
@@ -394,18 +425,25 @@ export class Traffic {
       let want = car.cruise;
 
       if (!car.flying) {
-        // Keep off the bumper of whoever is in front.
+        // Keep off the bumper of whoever is in front. Signed, so only a car
+        // genuinely ahead slows this one: an absolute gap lets the car behind
+        // brake it too, and two cars at the same distance then hold each other
+        // still forever. The floor means a snarl always creeps itself apart.
         if (car.ahead) {
-          const gap = Math.abs(car.ahead.distance - car.distance) - car.size * 2.4;
-          if (gap < car.size * 5) want *= Math.max(0, gap / (car.size * 5));
+          const gap = (car.ahead.distance - car.distance) * car.dir - car.size * 3.4;
+          const room = car.size * 8;
+          if (gap < room) want *= Math.max(0.09, Math.min(1, gap / room));
         }
-        // Junctions: sometimes hold, then move off again.
+        // Junctions: sometimes hold, then move off again. Kept rare, or every
+        // road turns into one long queue. Never at a dead end, where a stopped
+        // car would sit half-faded and never leave.
+        const ahead = car.dir > 0 ? car.route.exits[1] : car.route.exits[0];
         const toEnd = car.dir > 0 ? car.route.length - car.distance : car.distance;
         if (car.wait > 0) {
           car.wait -= step;
           want = 0;
-        } else if (toEnd < car.size * 3 && car.stopper < 0.45) {
-          car.wait = 0.6 + car.stopper * 2.4;
+        } else if (ahead.length && toEnd < car.size * 3 && car.stopper < 0.16) {
+          car.wait = 0.5 + car.stopper * 4;
           car.stopper = (car.stopper * 7.13 + 0.31) % 1; // reroll for next time
         }
       } else {
@@ -442,7 +480,7 @@ export class Traffic {
           // Head whichever way has more road left.
           car.dir = exit.at < exit.route.length / 2 ? 1 : -1;
           car.distance += overshoot * car.dir;
-          if (!car.flying) car.size = (params?.carSize ?? 1) * car.route.width * 0.2 * car.sizeScale;
+          if (!car.flying) car.size = (params?.carSize ?? 1) * car.route.width * 0.15 * car.sizeScale;
         } else {
           car.distance = car.dir > 0 ? 0 : car.route.length;
         }
@@ -450,16 +488,34 @@ export class Traffic {
       }
 
       // Fade near a dead end, so leaving the map is a departure not a blink.
+      // The runway is measured off how fast the car is actually going, not its
+      // cruise: a car that has slowed to a crawl would otherwise sit inside the
+      // fade for good, permanently half-drawn.
       const deadAhead = car.dir > 0 ? car.route.exits[1] : car.route.exits[0];
       const deadBehind = car.dir > 0 ? car.route.exits[0] : car.route.exits[1];
       const toEnd = car.dir > 0 ? car.route.length - car.distance : car.distance;
       const fromStart = car.route.length - toEnd;
-      const runway = Math.max(2, car.cruise);
+      const runway = Math.max(2, Math.min(car.cruise, Math.max(car.speed, car.cruise * 0.35)));
       if (!deadAhead.length) fade = Math.min(fade, Math.max(0, toEnd / runway));
       if (!deadBehind.length) fade = Math.min(fade, Math.max(0, fromStart / runway));
       car.fade = Math.min(1, Math.max(0, fade));
 
-      if (!sampleRoute(car.route, car.distance, this._hit)) continue;
+      // Once it is invisible at a dead end there is nothing to wait for, so
+      // send it round rather than letting it linger there.
+      if (car.fade <= 0.02 && !deadAhead.length && toEnd < runway * 0.5) {
+        car.distance = car.dir > 0 ? 0 : car.route.length;
+        car.headingSet = false;
+        car.fade = 0;
+      }
+
+      if (!sampleRoute(car.route, car.distance, this._hit)) {
+        // Never leave an instance holding a stale matrix: an untouched one is
+        // an identity, which parks a full-size opaque car at the town centre.
+        this._m.makeScale(0, 0, 0);
+        car.mesh.setMatrixAt(car.index, this._m);
+        car.mesh.geometry.attributes.aFade.setX(car.index, 0);
+        continue;
+      }
 
       const target = this._hit.angle + (car.dir < 0 ? Math.PI : 0);
       if (!car.headingSet) {
@@ -490,7 +546,8 @@ export class Traffic {
       const x = this._hit.x + nx * (laneOffset + wobble);
       const z = this._hit.z + nz * (laneOffset + wobble);
       const base = groundAt ? groundAt(x, z) : 0;
-      const y = base + waveAt(x, z) + (car.flying ? lift : car.size * 0.26);
+      const tall = car.boxy ? car.tall || 1 : 1;
+      const y = base + waveAt(x, z) + (car.flying ? lift : car.size * 0.26 * tall);
       this._last = { x, z };
 
       // Roll about the car's own forward axis, and nothing else: a car on the
@@ -498,7 +555,7 @@ export class Traffic {
       this._e.set(car.flying ? roll : 0, -car.heading, 0, 'YXZ');
       this._q.setFromEuler(this._e);
       this._v.set(x, y, z);
-      this._s.setScalar(car.size);
+      this._s.set(car.size, car.size * tall, car.size);
       this._m.compose(this._v, this._q, this._s);
       car.mesh.setMatrixAt(car.index, this._m);
       car.mesh.geometry.attributes.aFade.setX(car.index, car.fade);

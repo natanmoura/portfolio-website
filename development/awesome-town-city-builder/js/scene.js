@@ -8,11 +8,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Ground } from './terrain.js';
 import { LooksPass } from './looks.js';
+import { SsaoPass } from './ssao.js';
+import { installPCSS, shaderVersion } from './pcss.js';
 
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -33,7 +37,9 @@ export class Stage {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Plain PCF rather than the soft variant, because only this one honours
+    // light.shadow.radius, which is what makes softness adjustable at all.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
@@ -111,20 +117,55 @@ export class Stage {
     this.ground = new Ground();
     this.scene.add(this.ground.group);
 
+    // The scene is rendered into a target this class owns, rather than into
+    // one of the composer's ping-pong buffers. Depth of field needs the scene
+    // depth, and a depth texture hung off the composer's buffers never gets
+    // written: they swap every pass, and only one framebuffer can own a given
+    // depth attachment. Owning the target makes it unambiguous.
+    this.depthTexture = new THREE.DepthTexture(1, 1);
+    this.depthTexture.type = THREE.UnsignedIntType;
+    this.sceneTarget = new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType,
+      depthTexture: this.depthTexture,
+    });
+
     this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.inputPass = new TexturePass(this.sceneTarget.texture);
+    this.inputPass.material.blending = THREE.NoBlending;
+    this.inputPass.clear = true;
+    this.composer.addPass(this.inputPass);
+
+    // Occlusion goes in before bloom, because it is a lighting term: a corner
+    // that should be dark must not be allowed to bloom first and then be
+    // darkened afterwards.
+    this.ssao = new SsaoPass(this.depthTexture);
+    this.composer.addPass(this.ssao);
+
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 0.85);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     // After tone mapping, so posterising and the dot screen work on the
     // colours that actually reach the screen.
     this.looks = new LooksPass();
+    this.looks.uniforms.tDepth.value = this.depthTexture;
     this.composer.addPass(this.looks);
+
+    // Rendering through a composer means the canvas MSAA never applies, so
+    // edges have been aliased this whole time. One cheap screen-space pass
+    // buys them back.
+    this.fxaa = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.fxaa);
 
     this.useBloom = true;
     this.night = 0;
     this.extent = 64;
     this.viewDist = 140;
+
+    // Scratch for the light-space texel snapping, kept off the hot path.
+    this._lightRot = new THREE.Matrix4();
+    this._lightRotInv = new THREE.Matrix4();
+    this._snap = new THREE.Vector3();
+    this._worldUp = new THREE.Vector3(0, 1, 0);
 
     this.resize();
     addEventListener('resize', () => this.resize());
@@ -136,8 +177,14 @@ export class Stage {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    const ratio = this.renderer.getPixelRatio();
+    const pw = Math.round(w * ratio);
+    const ph = Math.round(h * ratio);
+    this.sceneTarget.setSize(pw, ph);
     this.composer.setSize(w, h);
     this.bloom.setSize(w, h);
+    this.ssao.setSize(pw, ph);
+    this.fxaa.material.uniforms.resolution.value.set(1 / pw, 1 / ph);
     this.looks.setSize(w, h);
   }
 
@@ -150,28 +197,53 @@ export class Stage {
   }
 
   // Shadow texels are spent where you are looking rather than spread evenly
-  // over the whole town. Zoomed out this is the old behaviour; zoomed in it is
-  // several times the resolution for free.
+  // over the whole town, so zooming in buys real resolution.
+  //
+  // The catch, and the entire cause of shadow shimmer: if the frustum resizes
+  // every frame then texel size does too, every world point lands in a
+  // different texel each frame, and edges boil. That reads as "not enough
+  // resolution" and no amount of map size fixes it. So the extent is
+  // quantised to powers of two, and the centre is snapped to whole texels in
+  // the light's own frame rather than along world axes, which is where the
+  // grid actually lives.
   fitShadows() {
     const span = this.shadowSpan || this.extent;
-    const near = Math.min(span, Math.max(span * 0.2, this.viewDist * 0.62));
+    const want = Math.min(span, Math.max(span * 0.2, this.viewDist * 0.62));
+    const half = Math.pow(2, Math.ceil(Math.log2(Math.max(1, want))));
+
     const cam = this.sun.shadow.camera;
-    cam.left = -near;
-    cam.right = near;
-    cam.top = near;
-    cam.bottom = -near;
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
     cam.near = 1;
-    cam.far = span * 10;
-    // Follow the pivot, snapped to whole texels so the shadow does not crawl
-    // along edges as the camera moves.
-    const texel = (near * 2) / this.sun.shadow.mapSize.x;
-    const t = this.controls.target;
-    this.sun.target.position.set(
-      Math.round(t.x / texel) * texel,
-      0,
-      Math.round(t.z / texel) * texel
-    );
+    cam.far = span * 10 + half * 4;
+
+    const size = this.sun.shadow.mapSize.x;
+    const texel = (half * 2) / size;
+
+    // Rotation into light space. Matrix4.lookAt writes rotation only, which is
+    // all that is needed to align the snapping grid with the shadow map.
+    this._lightRot.lookAt(this.sun.position, this.controls.target, this._worldUp);
+    this._lightRotInv.copy(this._lightRot).transpose();
+
+    const p = this._snap.copy(this.controls.target).applyMatrix4(this._lightRotInv);
+    p.x = Math.round(p.x / texel) * texel;
+    p.y = Math.round(p.y / texel) * texel;
+    p.applyMatrix4(this._lightRot);
+
+    this.sun.target.position.copy(p);
     this.sun.target.updateMatrixWorld();
+    // The eye must move with the snapped centre, not the raw one. Positioning
+    // the light from the unsnapped target while aiming it at the snapped one
+    // tilts the light by up to a texel every frame, and a light direction that
+    // will not sit still is a shadow that will not sit still.
+    if (this.sunOffset) this.sun.position.copy(p).add(this.sunOffset);
+
+    // Bias has to track texel size or a big map acnes where a small one did
+    // not, which looks like flicker of a different flavour.
+    this.sun.shadow.normalBias = Math.max(0.01, texel * 1.6);
+    this.sun.shadow.bias = -Math.max(0.00005, texel * 0.00012);
     cam.updateProjectionMatrix();
   }
 
@@ -249,14 +321,46 @@ export class Stage {
     this.ground.setGridVisible(on);
   }
 
-  setShadows(on) {
+  // Soft mode routes through PCSS, which three reaches via its soft shadow
+  // type. Fast mode is plain PCF, where the radius is a flat blur.
+  setShadowQuality(soft, lightSize) {
+    const wantType = soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    const sizeChanged = soft && lightSize !== this.pcssLightSize;
+    if (soft && (!this.pcssInstalled || sizeChanged)) {
+      installPCSS({ lightSize });
+      this.pcssLightSize = lightSize;
+      this.pcssInstalled = true;
+      this.onShaderVersion?.(shaderVersion());
+    }
+    if (this.renderer.shadowMap.type !== wantType) {
+      this.renderer.shadowMap.type = wantType;
+      this.onShaderVersion?.(shaderVersion());
+    }
+  }
+
+  setShadows(on, softness = 2, detail = 4096) {
     this.renderer.shadowMap.enabled = on;
     this.sun.castShadow = on;
+    this.sun.shadow.radius = Math.max(0.001, softness);
+    const size = Math.max(256, Math.round(detail / 256) * 256);
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.mapSize.set(size, size);
+      // The old map has to go or the change never takes.
+      if (this.sun.shadow.map) {
+        this.sun.shadow.map.dispose();
+        this.sun.shadow.map = null;
+      }
+      this.fitShadows();
+    }
   }
 
   setBloom(on) {
     this.useBloom = on;
     this.bloom.enabled = on;
+  }
+
+  setAntialias(on) {
+    this.fxaa.enabled = on;
   }
 
   // Everything time-of-day and atmosphere. Returns the night factor so the
@@ -274,12 +378,14 @@ export class Stage {
     const azimuth = ((hour - 6) / 12) * Math.PI + ((params.sunAzimuth || 0) * Math.PI) / 180;
     const y = Math.max(0.18, elevation);
     const horizontal = Math.sqrt(Math.max(0.02, 1 - y * y));
-    const t = this.controls.target;
-    this.sun.position.set(
-      t.x + Math.cos(azimuth) * horizontal * dist,
+    // Direction only. Where the light sits is decided by fitShadows, relative
+    // to the snapped shadow centre, so the direction never wobbles.
+    this.sunOffset = (this.sunOffset || new THREE.Vector3()).set(
+      Math.cos(azimuth) * horizontal * dist,
       y * dist,
-      t.z + Math.sin(azimuth) * horizontal * dist
+      Math.sin(azimuth) * horizontal * dist
     );
+    this.sun.position.copy(this.controls.target).add(this.sunOffset);
     this.fitShadows();
 
     const warm = new THREE.Color('#fff3d8');
@@ -327,7 +433,9 @@ export class Stage {
     );
     this.ground.setGridOpacity(0.05 + day * 0.1);
 
-    this.looks.apply(params, this.clockTime || 0);
+    // Held so the render loop can refresh the pass every frame. Focus follows
+    // the camera, and the camera moves without any parameter changing.
+    this.lookParams = params;
     this.renderer.toneMappingExposure = params.exposure ?? 1.05;
     const bloomAmount = params.bloomStrength ?? 1;
     this.bloom.strength = (0.07 + this.night * 0.38) * bloomAmount;
@@ -344,6 +452,16 @@ export class Stage {
     this.sky.position.copy(this.camera.position);
     this.updateFocus(dt);
     this.controls.update();
+    // Depth of field is refreshed here rather than on parameter change,
+    // because focus tracks the pivot and near/far move with the camera.
+    if (this.lookParams) {
+      this.looks.apply(
+        this.lookParams,
+        time,
+        this.camera,
+        this.camera.position.distanceTo(this.controls.target)
+      );
+    }
     // Keep the eye above the ground rather than locking how far round it can
     // swing. That way looking up from street level stays possible.
     if (this.controls.enabled) {
@@ -354,7 +472,17 @@ export class Stage {
     // counters, so accumulate across the whole frame by hand.
     this.renderer.info.autoReset = false;
     this.renderer.info.reset();
-    if (this.useBloom) this.composer.render();
-    else this.renderer.render(this.scene, this.camera);
+
+    // The scene goes into a target this class owns, which is the only way the
+    // depth attachment reliably survives for the passes that read it. The
+    // composer then starts from that colour texture.
+    this.renderer.setRenderTarget(this.sceneTarget);
+    this.renderer.clear();
+    this.renderer.render(this.scene, this.camera);
+    this.renderer.setRenderTarget(null);
+
+    // Occlusion needs the camera matrices from the frame that was just drawn.
+    if (this.lookParams) this.ssao.apply(this.camera, this.lookParams);
+    this.composer.render();
   }
 }
