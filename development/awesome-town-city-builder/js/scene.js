@@ -16,6 +16,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Ground } from './terrain.js';
 import { LooksPass } from './looks.js';
 import { SsaoPass } from './ssao.js';
+import { MirrorPass } from './mirror.js';
 import { installPCSS, shaderVersion } from './pcss.js';
 
 const smoothstep = (a, b, x) => {
@@ -152,6 +153,12 @@ export class Stage {
     // darkened afterwards.
     this.ssao = new SsaoPass(this.depthTexture);
     this.composer.addPass(this.ssao);
+
+    // After occlusion, so a mirror reflects buildings with their contact
+    // shade already on them, and before bloom, so a bright reflected sign
+    // still blooms rather than pasting in an already-tonemapped pixel.
+    this.mirror = new MirrorPass(this.depthTexture);
+    this.composer.addPass(this.mirror);
 
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 0.85);
     this.composer.addPass(this.bloom);
@@ -428,6 +435,7 @@ export class Stage {
     this.skyMaterial.uniforms.uSunAmount.value = 0.35 + day * 0.5;
     this.sky.scale.setScalar(Math.max(200, this.camera.far * 0.45));
     this.updateEnvironment(zenith, sky);
+    this.mirror.setSky(zenith, sky, this.sun.color, this.skyMaterial.uniforms.uSunDir.value, this.skyMaterial.uniforms.uSunAmount.value);
 
     // Fill comes from the opposite side and a little above, cooling as it gets
     // dark so night reads as moonlight rather than as a second sun.
@@ -513,8 +521,10 @@ export class Stage {
     this.renderer.render(this.scene, this.camera);
     this.renderer.setRenderTarget(null);
 
-    // Occlusion needs the camera matrices from the frame that was just drawn.
+    // Occlusion and the mirror pass both need the camera matrices from the
+    // frame that was just drawn.
     if (this.lookParams) this.ssao.apply(this.camera, this.lookParams);
+    this.mirror.apply(this.camera);
     this.composer.render();
   }
 }

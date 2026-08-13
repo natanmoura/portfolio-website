@@ -209,11 +209,16 @@ export const CONTROL_DEFS = [
     ],
   },
   {
-    section: 'Collage',
+    section: 'Surface mix',
     tab: 'surface',
     items: [
-      R('collageChance', 'Collaged buildings', 0, 1, 0.01, 'Odds a building carries images at all. The rest are pure colour, to rest the eye.', { hard: [0, 1] }),
-      R('imageChance', 'Image vs colour', 0, 1, 0.01, 'Within a collaged building, odds a face takes an image over a colour.', { hard: [0, 1] }),
+      {
+        key: 'surfaceMix',
+        label: 'Building surfaces',
+        type: 'wheel',
+        help: 'What a building is made of, as a share of the whole town: a texture, a reflective shader, one half of the collage pool, or flat colour. Drag any dot to trade weight between two, or drag one onto its neighbour to remove it. Click a row to nudge it, shift-click to nudge it down.',
+      },
+      R('imageChance', 'Image vs colour', 0, 1, 0.01, 'Within an image or cutout building, odds a face takes a picture over a colour.', { hard: [0, 1] }),
       R('sameImageChance', 'Wrap one image', 0, 1, 0.01, 'Odds a module wraps one image around every side, so the block reads as one object.', { hard: [0, 1] }),
       R('zoomJitter', 'Crop variance', 0, 1.5, 0.01, 'How far images crop in past a plain fit, so one picture reads differently everywhere.', { hard: [0, 12] }),
       R('slabChance', 'Cornice slabs', 0, 1, 0.01, 'Odds of a thin overhanging slab between floors. Breaks up a tall stack and catches a shadow.', { hard: [0, 1] }),

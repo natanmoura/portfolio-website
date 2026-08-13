@@ -291,6 +291,10 @@ export class Traffic {
     this.linkJunctions();
     this.uniforms.uTail.value.set(hotColour(palette));
     this.cars.length = 0;
+    // One size for every car regardless of which road it is on, pinned to
+    // whichever of the two is narrower — a car that fit its lane on the side
+    // streets should not suddenly swell crossing onto a highway.
+    this.refWidth = Math.max(0.1, Math.min(params.streetWidth, params.highwayWidth));
     if (!this.routes.length) return this.push();
 
     const rng = new Rng(((params.seed >>> 0) ^ 0x51ed270b) >>> 0);
@@ -337,11 +341,11 @@ export class Traffic {
     this.push();
   }
 
-  // Vehicles are sized off the road they are on, so a car always looks like it
-  // belongs in its lane no matter how wide the streets have been made.
+  // Every car the same size, off the narrower of the two road widths rather
+  // than whichever road it happens to be spawned on.
   applySizes(params) {
     for (const car of this.cars) {
-      car.size = params.carSize * car.route.width * 0.15 * car.sizeScale;
+      car.size = params.carSize * this.refWidth * 0.15 * car.sizeScale;
     }
   }
 
@@ -480,7 +484,6 @@ export class Traffic {
           // Head whichever way has more road left.
           car.dir = exit.at < exit.route.length / 2 ? 1 : -1;
           car.distance += overshoot * car.dir;
-          if (!car.flying) car.size = (params?.carSize ?? 1) * car.route.width * 0.15 * car.sizeScale;
         } else {
           car.distance = car.dir > 0 ? 0 : car.route.length;
         }

@@ -123,10 +123,12 @@ const PARS_FRAGMENT = `
 const MAP = `
   vec3 ccTexel = vec3(1.0);
   bool ccHasImage = vLayer > -0.5;
-  // A material index of -2 is the glass shader: no texture, just a tint and a
-  // PBR override further down. -1 is nothing, 0 or above is a real material.
+  // A material index of -2 is the glass shader, -3 is the mirror shader —
+  // neither backed by a texture, just a tint (or none) and a PBR override
+  // further down. -1 is nothing, 0 or above is a real material.
   bool ccIsMaterial = vMatLayer > -0.5;
-  bool ccIsGlass = vMatLayer < -1.5;
+  bool ccIsGlass = vMatLayer < -1.5 && vMatLayer > -2.5;
+  bool ccIsMirror = vMatLayer < -2.5;
   float ccLit = step(vGlow, uGlowChance);
   float ccFlickerOn = 1.0;
   if (ccHasImage) {
@@ -188,6 +190,12 @@ const MAP = `
     // metalness override below, this just sets the tint the reflection rides.
     ccTexel = uGlassTint;
     diffuseColor.rgb *= ccTexel;
+  } else if (ccIsMirror) {
+    // Colourless on purpose — a real mirror has no tint of its own, only
+    // whatever it is reflecting. The reflection itself is a screen-space pass
+    // that runs after this, reading the flag this face writes at the very end
+    // of the shader; what is drawn here is only its fallback appearance.
+    ccTexel = vec3(1.0);
   }
 `;
 
@@ -204,7 +212,7 @@ const EMISSIVE = `
   // or glass tint, or the paint if there is none of those. Only the image-lit
   // ones get the luminance shaping, since a flat colour or tile has no bright
   // and dark parts to separate.
-  vec3 ccSource = (ccHasImage || ccIsMaterial || ccIsGlass) ? ccTexel : vColor;
+  vec3 ccSource = (ccHasImage || ccIsMaterial || ccIsGlass || ccIsMirror) ? ccTexel : vColor;
   float ccGl = ccLum(ccSource);
   vec3 ccTint = clamp(ccSource / max(0.2, ccGl), 0.0, 1.9);
   vec3 ccGlow = vEmissive * mix(vec3(1.0), ccTint, uGlowTint);
@@ -300,16 +308,35 @@ export class CityMaterial {
         .replace('void main() {', `${PARS_FRAGMENT}\nvoid main() {`)
         .replace('#include <map_fragment>', MAP)
         .replace('#include <emissivemap_fragment>', EMISSIVE)
-        // Glass has no map of its own to carry the reflective read — it comes
-        // entirely from pushing roughness down and metalness up so the PBR
-        // lighting already in this shader does the rest against uEnvMap.
+        // Glass and mirror have no map of their own to carry the reflective
+        // read — glass gets it from pushing roughness down and metalness up
+        // so the PBR lighting already here does the rest against the sky
+        // envMap; mirror pushes further still as a fallback appearance, since
+        // its real reflection is a screen-space pass that runs after this and
+        // replaces the pixel outright wherever it can find something to show.
         .replace(
           '#include <roughnessmap_fragment>',
-          `#include <roughnessmap_fragment>\n         if (vMatLayer < -1.5) { roughnessFactor = 0.16; }`
+          `#include <roughnessmap_fragment>
+           if (vMatLayer < -1.5) { roughnessFactor = vMatLayer < -2.5 ? 0.03 : 0.16; }`
         )
         .replace(
           '#include <metalnessmap_fragment>',
-          `#include <metalnessmap_fragment>\n         if (vMatLayer < -1.5) { metalnessFactor = 0.82; }`
+          `#include <metalnessmap_fragment>
+           if (vMatLayer < -1.5) { metalnessFactor = vMatLayer < -2.5 ? 1.0 : 0.82; }`
+        )
+        // Smuggled through the alpha channel rather than a separate render
+        // target: 0 flags a mirror face so the screen-space reflection pass
+        // knows which pixels are its to fill in, 1 everywhere else. Safe here
+        // because this material is never transparent, so nothing downstream
+        // is blending against this alpha — the composer passes either ignore
+        // it or, like SSAO, carry it through untouched. Hooked after
+        // opaque_fragment specifically: that chunk is what actually assembles
+        // gl_FragColor (and forces alpha back to 1 for an opaque material), so
+        // anything hooked earlier gets overwritten before it ever renders.
+        .replace(
+          '#include <opaque_fragment>',
+          `#include <opaque_fragment>
+           gl_FragColor.a = vMatLayer < -2.5 ? 0.0 : 1.0;`
         );
     };
     material.customProgramCacheKey = () => 'awesome-town-surface-' + shaderVersion();

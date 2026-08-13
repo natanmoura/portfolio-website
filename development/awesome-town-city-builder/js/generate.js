@@ -62,7 +62,23 @@ export const POINTED_ROOFS = new Set(['pyramid', 'cone']);
 // shader — is allowed to cover. Never a roof, but pillars are fair game even
 // though they never take a picture: a column being made of stone or wood
 // reads fine, a photo wrapped round one inch of it does not.
-export const MATERIAL_KINDS = new Set(['box', 'octagon', 'cylinder', 'sphere', 'pillars', 'pillars8']);
+export const MATERIAL_KINDS = new Set(['box', 'octagon', 'cylinder', 'sphere', 'pillars', 'pillars8', 'post']);
+
+// What a building's whole surface can be, as one weighted pick instead of a
+// chain of independent chances — the wheel in the Surface tab edits this
+// directly. Texture and colour draw from flat sources (a texture pool, a flat
+// tint); glass and mirror are shaders with nothing to point an index at;
+// image and cutout each restrict the building to one half of the collage
+// pool, rather than mixing photos and stickers on the same building.
+export const SURFACE_KINDS = ['texture', 'glass', 'mirror', 'image', 'cutout', 'colour'];
+export const SURFACE_LABEL = {
+  texture: 'Texture',
+  glass: 'Glass',
+  mirror: 'Mirror',
+  image: 'Image',
+  cutout: 'Cutout',
+  colour: 'Colour',
+};
 
 export const ROOFS_BY_FAMILY = {
   boxy: ['flat', 'pyramid', 'gable'],
@@ -106,14 +122,13 @@ export const DEFAULTS = {
   setbackAmount: 0.2,
   bend: 0.12,
   cohesion: 0.75,
-  collageChance: 0.68,
+  // What a building's whole surface is, as one dial rather than several
+  // chained chances. imageChance and sameImageChance still shape the result
+  // within an image or cutout building — this just decides which pool, if
+  // any, a building draws from at all.
+  surfaceMix: { texture: 8, glass: 5, mirror: 3, image: 50, cutout: 18, colour: 16 },
   imageChance: 0.62,
   sameImageChance: 0.3,
-  // Share of buildings that wear a material instead of loose colour. Of those,
-  // glassChance is how many get the reflective glass shader instead of a
-  // concrete/brick/wood texture.
-  materialChance: 0.16,
-  glassChance: 0.3,
   zoomJitter: 0.3,
   slabChance: 0.16,
   rotateChance: 0.25,
@@ -260,10 +275,11 @@ function paintSlots(kind, n, pattern, a, b) {
 }
 
 // A sloped roof carries no collage, but a cube used as a cap is still a cube.
-// Spires and colonnades are structure, not surface: an image wrapped round a
-// column an inch wide is unreadable smear. A sphere is never a canvas either —
-// a picture curved fully around a ball reads as a mistake from every angle.
-const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8', 'sphere']);
+// Spires, colonnades and the single thick post are structure, not surface: an
+// image wrapped round a column a few inches wide is unreadable smear. A
+// sphere is never a canvas either — a picture curved fully around a ball
+// reads as a mistake from every angle.
+const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8', 'post', 'sphere']);
 
 function imagesAllowed(kind) {
   return !ROOF_SET.has(kind) && !NO_IMAGES.has(kind);
@@ -284,7 +300,7 @@ function buildingScheme(rng, palette) {
 // --- modules ---------------------------------------------------------------
 
 function makeModule(t, params, palette, ctx, index, id) {
-  const { signature, family, scheme, collage, imageCount, isRoof, material } = ctx;
+  const { signature, family, scheme, collage, pickRange, isRoof, material } = ctx;
 
   let kind;
   if (isRoof) {
@@ -311,15 +327,17 @@ function makeModule(t, params, palette, ctx, index, id) {
   // Which images a module would carry is rolled regardless of its shape, and
   // then filtered by what the shape allows. Keeping the roll means switching a
   // sloped roof to a cube reveals its collage rather than losing it for good.
+  // The index lands within whichever half of the pool this building committed
+  // to — image or cutout, never both — via pickRange.start/count.
   const wrapOne = t.wrap < params.sameImageChance;
-  const sharedImage = imageCount ? Math.floor(t.images[0] * imageCount) : null;
+  const sharedImage = pickRange.count ? pickRange.start + Math.floor(t.images[0] * pickRange.count) : null;
   const allowed = imagesAllowed(kind);
   const blocked = new Set(flatSlots(kind));
 
   const faces = [];
   for (let i = 0; i < MAX_SLOTS; i++) {
-    const wants = collage && imageCount > 0 && i < n && t.hasImage[i] < params.imageChance;
-    const raw = wants ? (wrapOne ? sharedImage : Math.floor(t.images[i] * imageCount)) : null;
+    const wants = collage && pickRange.count > 0 && i < n && t.hasImage[i] < params.imageChance;
+    const raw = wants ? (wrapOne ? sharedImage : pickRange.start + Math.floor(t.images[i] * pickRange.count)) : null;
     const shown = allowed && !blocked.has(i) ? raw : null;
     faces.push({
       imageRaw: raw,
@@ -367,7 +385,7 @@ function makeModule(t, params, palette, ctx, index, id) {
 
 // --- lot -------------------------------------------------------------------
 
-export function generateLot(site, params, overrides, imageCount, materialCount, groundAt, half) {
+export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, half) {
   const palette = getPalette(params.palette);
   const id = site.id;
   const bOver = overrides[id] || {};
@@ -381,22 +399,31 @@ export function generateLot(site, params, overrides, imageCount, materialCount, 
   const signature = pickWeighted(params.moduleMix, BODY_KINDS, brng.float());
   const family = FAMILY[signature] || 'boxy';
   const scheme = buildingScheme(brng, palette);
-  const collage = brng.float() < params.collageChance;
-  const materialRoll = brng.float();
-  const glassRoll = brng.float();
+  // One roll decides the building's whole surface — a texture, a reflective
+  // shader, one half of the collage pool, or flat colour. A hand pick from
+  // the inspector overrides the material outright, including picking null to
+  // strip it back to whatever the roll gave the rest of the building.
+  const surfaceRoll = brng.float();
   const matPickRoll = brng.float();
-  // At most one material per building — glass if within the glass share (or
-  // if no material textures are loaded), otherwise one texture from the pool.
-  // A hand pick from the inspector overrides the roll outright, including
-  // picking null to strip a material the roll would otherwise have given it.
+  const surfaceMode = pickWeighted(params.surfaceMix, SURFACE_KINDS, surfaceRoll);
   let material = null;
-  if (materialRoll < params.materialChance) {
+  if (surfaceMode === 'glass') material = { kind: 'glass' };
+  else if (surfaceMode === 'mirror') material = { kind: 'mirror' };
+  else if (surfaceMode === 'texture') {
     material =
-      materialCount > 0 && glassRoll >= params.glassChance
-        ? { kind: 'material', index: Math.floor(matPickRoll * materialCount) }
-        : { kind: 'glass' };
+      materialCount > 0 ? { kind: 'material', index: Math.floor(matPickRoll * materialCount) } : { kind: 'glass' };
   }
   if (bOver.material !== undefined) material = bOver.material;
+  const collage = surfaceMode === 'image' || surfaceMode === 'cutout';
+  // Images and cutouts each occupy a contiguous range of the pool, images
+  // first — see ImagePool. A building committed to one never dips into the
+  // other, so a photo-heavy town and a sticker-heavy one are dialled apart.
+  const pickRange =
+    surfaceMode === 'image'
+      ? { start: 0, count: imageCount }
+      : surfaceMode === 'cutout'
+        ? { start: imageCount, count: cutoutCount }
+        : { start: 0, count: 0 };
   const shapeRoll = brng.float();
   const sizeRollW = brng.float();
   const sizeRollD = brng.float();
@@ -415,7 +442,7 @@ export function generateLot(site, params, overrides, imageCount, materialCount, 
   let w = site.w * (1 + (sizeRollW * 2 - 1) * params.lotJitter * 0.4);
   let d = site.d * (1 + (sizeRollD * 2 - 1) * params.lotJitter * 0.4);
 
-  const ctx = { signature, family, scheme, collage, imageCount, isRoof: false, material };
+  const ctx = { signature, family, scheme, collage, pickRange, isRoof: false, material };
   let modules = [];
   for (let i = 0; i < floors; i++) {
     const t = tickets(new Rng(hashIdModule(seed, id, i)));
@@ -425,8 +452,10 @@ export function generateLot(site, params, overrides, imageCount, materialCount, 
       d *= k;
     }
     const m = makeModule(t, params, palette, ctx, i, moduleId(i));
+    // Thinner than a normal storey, but not so thin it reads as a squashed
+    // mistake rather than a deliberate accent band.
     m.h = m.slab
-      ? params.floorHeight * mix(0.14, 0.26, t.height)
+      ? params.floorHeight * mix(0.32, 0.46, t.height)
       : params.floorHeight * (1 + (t.height * 2 - 1) * params.floorJitter);
     if (m.kind === 'spin') m.h *= 1.25;
     m.w = m.slab ? w * 1.12 : w;
@@ -635,11 +664,18 @@ function applyOverride(module, override) {
   return module;
 }
 
-export function generateCity(params, overrides = {}, imageCount = 0, materialCount = 0, groundAt = null) {
+export function generateCity(
+  params,
+  overrides = {},
+  imageCount = 0,
+  cutoutCount = 0,
+  materialCount = 0,
+  groundAt = null
+) {
   const layout = buildLayout(params);
   const buildings = [];
   for (const site of layout.sites) {
-    const b = generateLot(site, params, overrides, imageCount, materialCount, groundAt, layout.half);
+    const b = generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, layout.half);
     if (b) buildings.push(b);
   }
   return {

@@ -34,6 +34,11 @@ export class ImagePool {
     this.canvas.height = LAYER;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     this.layers = [];
+    // Tracked separately so a building can be restricted to one half of the
+    // pool. Images load before cutouts (see loadManifest), so the two stay
+    // contiguous ranges — images at [0, imageCount), cutouts right after.
+    this.imageCount = 0;
+    this.cutoutCount = 0;
   }
 
   get length() {
@@ -151,6 +156,8 @@ export class ImagePool {
       ...sampleColours(pixels),
       url: this.thumbnail(),
     });
+    if (kind === 'image') this.imageCount++;
+    else if (kind === 'cutout') this.cutoutCount++;
     return this.items[this.items.length - 1];
   }
 

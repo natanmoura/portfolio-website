@@ -24,6 +24,8 @@ import {
   BODY_KINDS,
   ROOF_KINDS,
   KIND_LABEL,
+  SURFACE_KINDS,
+  SURFACE_LABEL,
 } from './generate.js';
 import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
@@ -31,6 +33,7 @@ import { ROAD_PATTERNS, PATTERN_LABEL } from './layout.js';
 import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
+import { loadPresets } from './presets.js';
 
 const APP_NAME = 'Awesome Town';
 
@@ -132,12 +135,28 @@ const WHEEL_COLORS = {
 const wheelMeta = (keys) =>
   Object.fromEntries(keys.map((k) => [k, { label: KIND_LABEL[k], color: WHEEL_COLORS[k] }]));
 
+const SURFACE_COLORS = {
+  texture: '#9a8f74',
+  glass: '#6fb8d6',
+  mirror: '#c9d3d8',
+  image: '#c9412f',
+  cutout: '#f2b705',
+  colour: '#7d7d7d',
+};
+const SURFACE_META = Object.fromEntries(
+  SURFACE_KINDS.map((k) => [k, { label: SURFACE_LABEL[k], color: SURFACE_COLORS[k] }])
+);
+
 const state = {
   params: structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS }),
   overrides: {},
   city: null,
   selection: null,
   sceneName: '',
+  // True while the loaded scene is a bundled preset rather than something
+  // from the visitor's own library, so "save" always forks a copy instead of
+  // quietly writing over a file that only ships with the site.
+  scenePreset: false,
 };
 
 const byModule = new Map();
@@ -160,17 +179,20 @@ let traffic;
 let flyby;
 let tourButton;
 let wheels = {};
+let presets = [];
 
 boot();
 
 async function boot() {
   restore();
   try {
+    const presetsLoading = loadPresets();
     await pool.loadManifest('collage', (done, total) => {
       loadingEl.querySelector('.bar span').style.width = `${(done / total) * 100}%`;
       loadingEl.querySelector('.count').textContent = `${Math.min(done, total)} / ${total}`;
     });
     await matPool.loadMaterialManifest('collage');
+    presets = await presetsLoading;
   } catch (err) {
     loadingEl.querySelector('.count').textContent = String(err.message || err);
     console.error(err);
@@ -269,7 +291,7 @@ function rebuildAll() {
     extentKey = key;
     stage.setExtent(p);
   }
-  state.city = generateCity(p, state.overrides, pool.length, matPool.length, groundAt);
+  state.city = generateCity(p, state.overrides, pool.imageCount, pool.cutoutCount, matPool.length, groundAt);
   stage.ground.setRoads(state.city.layout.roads, p);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   flyby.build(state.city.layout.roads, p);
@@ -290,7 +312,8 @@ function rebuildLot(id) {
     site,
     state.params,
     state.overrides,
-    pool.length,
+    pool.imageCount,
+    pool.cutoutCount,
     matPool.length,
     groundAt,
     layout.half
@@ -702,6 +725,16 @@ function buildUI() {
       markAll();
     }
   );
+  wheels.surfaceMix = new MixWheel(
+    controls.mounts.get('surfaceMix'),
+    SURFACE_KINDS,
+    SURFACE_META,
+    state.params.surfaceMix,
+    (values) => {
+      state.params.surfaceMix = values;
+      markAll();
+    }
+  );
 
   inspector = new Inspector(document.getElementById('inspector'), pool, actions, matPool);
 
@@ -721,8 +754,13 @@ function buildSceneTools() {
   const mount = controls.mounts.get('sceneTools');
   const select = h('select', { id: 'scene-list', class: 'wide' });
   select.onchange = () => {
+    if (isPresetValue(select.value)) {
+      const preset = presetAt(select.value);
+      if (preset) applyScene(preset, preset.name, true);
+      return;
+    }
     const scene = Scenes.get(select.value);
-    if (scene) applyScene(scene, select.value);
+    if (scene) applyScene(scene, select.value, false);
   };
 
   const fileInput = h('input', { type: 'file', id: 'load-json', accept: '.json,application/json', hidden: '' });
@@ -733,25 +771,31 @@ function buildSceneTools() {
   };
 
   const save = (askName) => {
-    const name = askName || !state.sceneName ? prompt('Save scene as', suggestName()) : state.sceneName;
+    const name =
+      askName || !state.sceneName || state.scenePreset ? prompt('Save scene as', suggestName()) : state.sceneName;
     if (!name) return;
     Scenes.save(name, state.params, state.overrides);
     state.sceneName = name;
+    state.scenePreset = false;
     refreshSceneMenu();
     updateStatus();
   };
 
   mount.replaceChildren(
-    withHelp(select, 'Every scene saved on this machine. Picking one loads its sliders and all its hand edits.', 'Saved scenes'),
+    withHelp(select, 'Presets ship with the site. Saved is your own library on this machine. Picking either loads its sliders and all its hand edits.', 'Scenes'),
     h(
       'div',
       { class: 'chips' },
-      withHelp(h('button', { class: 'chip', onclick: () => save(false) }, 'save'), 'Saves over the scene you have open, or asks for a name if none is.', 'Save'),
+      withHelp(h('button', { class: 'chip', onclick: () => save(false) }, 'save'), 'Saves over the scene you have open, or asks for a name if none is. A preset always asks, since it saves a copy rather than writing over the file it shipped in.', 'Save'),
       withHelp(h('button', { class: 'chip', onclick: () => save(true) }, 'save as'), 'Saves under a new name and switches to it.', 'Save as'),
       withHelp(
         h('button', {
           class: 'chip',
           onclick: () => {
+            if (isPresetValue(select.value)) {
+              alert("Presets ship with the site and can't be deleted here — export first if you want a copy to edit.");
+              return;
+            }
             const name = select.value || state.sceneName;
             if (!name || !confirm(`Delete the scene "${name}"?`)) return;
             Scenes.remove(name);
@@ -760,7 +804,7 @@ function buildSceneTools() {
             updateStatus();
           },
         }, 'delete'),
-        'Removes the selected scene. Export first if you want a copy.',
+        'Removes the selected saved scene. Export first if you want a copy. Presets cannot be deleted here.',
         'Delete'
       )
     ),
@@ -857,6 +901,7 @@ function syncPanels() {
   controls.sync(state.params);
   wheels.moduleMix.set(state.params.moduleMix);
   wheels.roofMix.set(state.params.roofMix);
+  wheels.surfaceMix.set(state.params.surfaceMix);
 }
 
 // --- scenes ----------------------------------------------------------------
@@ -868,25 +913,45 @@ function suggestName() {
 
 document.title = `${APP_NAME} City Builder`;
 
+const PRESET_PREFIX = '__preset__';
+const isPresetValue = (v) => v.startsWith(PRESET_PREFIX);
+const presetAt = (v) => presets[Number(v.slice(PRESET_PREFIX.length))];
+
 function refreshSceneMenu() {
   const select = document.getElementById('scene-list');
   if (!select) return;
   const names = Scenes.list();
-  select.replaceChildren(
-    h('option', { value: '' }, names.length ? 'Scenes' : 'No saved scenes'),
-    ...names.map((n) =>
-      h('option', { value: n, ...(n === state.sceneName ? { selected: '' } : {}) }, n)
+  const presetOpts = presets.map((p, i) =>
+    h(
+      'option',
+      { value: `${PRESET_PREFIX}${i}`, ...(state.scenePreset && p.name === state.sceneName ? { selected: '' } : {}) },
+      p.name
     )
   );
-  select.value = state.sceneName || '';
+  const savedOpts = names.map((n) =>
+    h('option', { value: n, ...(!state.scenePreset && n === state.sceneName ? { selected: '' } : {}) }, n)
+  );
+  select.replaceChildren(
+    h('option', { value: '' }, names.length || presets.length ? 'Scenes' : 'No saved scenes'),
+    ...(presetOpts.length ? [h('optgroup', { label: 'Presets' }, ...presetOpts)] : []),
+    ...(savedOpts.length ? [h('optgroup', { label: 'Saved' }, ...savedOpts)] : [])
+  );
+  if (state.scenePreset) {
+    const i = presets.findIndex((p) => p.name === state.sceneName);
+    select.value = i >= 0 ? `${PRESET_PREFIX}${i}` : '';
+  } else {
+    select.value = state.sceneName || '';
+  }
 }
 
-function applyScene(scene, name) {
+function applyScene(scene, name, isPreset = false) {
   state.params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(scene.params || {}) };
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(scene.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(scene.params?.roofMix || {}) };
+  state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(scene.params?.surfaceMix || {}) };
   state.overrides = scene.overrides || {};
   state.sceneName = name || scene.name || '';
+  state.scenePreset = isPreset;
   deselect();
   syncPanels();
   extentKey = '';
@@ -938,8 +1003,10 @@ function restore() {
   state.params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(saved.params || {}) };
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(saved.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
+  state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(saved.params?.surfaceMix || {}) };
   state.overrides = saved.overrides || {};
   state.sceneName = saved.current || '';
+  state.scenePreset = false;
 }
 
 // --- loop ------------------------------------------------------------------

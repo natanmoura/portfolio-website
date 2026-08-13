@@ -261,8 +261,10 @@ export class CityBuilder {
       const gb = glowColor.b * strength;
       const [an0, an1, an2] = m.anim || [1, 1, 1];
       // Whole-module, not per-face: a building wears one material at most, so
-      // every eligible module in it reads the same index.
-      const matIndex = m.matKind === 'material' ? m.matIndex ?? 0 : m.matKind === 'glass' ? -2 : -1;
+      // every eligible module in it reads the same index. -2 is the glass
+      // shader, -3 is the mirror shader, neither backed by a texture.
+      const matIndex =
+        m.matKind === 'material' ? m.matIndex ?? 0 : m.matKind === 'glass' ? -2 : m.matKind === 'mirror' ? -3 : -1;
 
       shape.slots.forEach((slot, si) => {
         const face = m.faces[si] || m.faces[0];

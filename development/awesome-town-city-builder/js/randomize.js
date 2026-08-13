@@ -28,6 +28,24 @@ function randomMix(keys, spread) {
   return out;
 }
 
+// A plain randomMix could hand the whole town to texture or colour and leave
+// it mostly flat, which is the one outcome that reads as broken rather than
+// stylistic. Picture share (image + cutout together) gets a guaranteed floor
+// the same way collageChance's floor used to work, before the wheel replaced
+// it — everything else still varies freely underneath that.
+function randomSurfaceMix() {
+  const pictures = range(55, 88);
+  const cutoutShare = range(0.15, 0.55);
+  const image = pictures * (1 - cutoutShare);
+  const cutout = pictures * cutoutShare;
+  const rest = 100 - pictures;
+  const texture = rest * range(0.15, 0.4);
+  const glass = rest * range(0.1, 0.35);
+  const mirror = rest * range(0.05, 0.3);
+  const colour = Math.max(0, rest - texture - glass - mirror);
+  return { texture, glass, mirror, image, cutout, colour };
+}
+
 export function randomParams(current) {
   const p = { ...current };
 
@@ -53,12 +71,16 @@ export function randomParams(current) {
   p.maxFloors = p.minFloors + rangeInt(2, 22);
   p.centerBias = range(0.15, 0.95);
   p.floorHeight = range(1.4, 3.4);
-  p.floorJitter = range(0.05, 0.55);
+  // Kept tight — a building whose floors vary wildly in height reads as
+  // broken rather than characterful.
+  p.floorJitter = range(0.05, 0.22);
   p.lotFill = range(0.5, 0.95);
   p.lotJitter = range(0.05, 0.4);
   p.setbackChance = range(0, 0.6);
   p.setbackAmount = range(0.05, 0.4);
-  p.bend = chance(0.35) ? range(0.15, 0.85) : range(0, 0.2);
+  // Rare and mild. A bent building is a nice accent; a whole random town of
+  // them stops reading as a choice.
+  p.bend = chance(0.15) ? range(0.1, 0.4) : range(0, 0.06);
 
   p.cohesion = range(0.45, 1);
   p.moduleMix = randomMix(BODY_KINDS, 1.6);
@@ -73,19 +95,22 @@ export function randomParams(current) {
   p.flyerHeight = range(8, 34);
 
   // --- surface ------------------------------------------------------------
-  p.collageChance = range(0.25, 0.95);
-  p.imageChance = range(0.3, 0.9);
+  p.surfaceMix = randomSurfaceMix();
+  p.imageChance = range(0.45, 0.9);
   p.sameImageChance = range(0, 0.7);
-  p.materialChance = range(0, 0.4);
-  p.glassChance = range(0.1, 0.6);
   p.zoomJitter = range(0, 0.9);
-  p.slabChance = range(0, 0.4);
+  // Rare — a slab is meant as an occasional thin accent floor, not a
+  // frequent one, or storeys start reading as squished rather than varied.
+  p.slabChance = range(0, 0.12);
   p.rotateChance = range(0, 0.6);
   p.spireChance = range(0, 0.8);
-  p.wind = range(0.1, 0.9);
+  p.wind = range(0.05, 0.3);
 
   p.palette = pick(PALETTE_KEYS);
-  p.duotone = chance(0.3) ? range(0.3, 1) : range(0, 0.25);
+  // Stylised grading (duotone, halftone, posterize, grain, vignette) stays
+  // off in the randomiser — it is for judging what the generator built, and
+  // a pattern laid over the top of it fights that.
+  p.duotone = 0;
 
   p.glowChance = range(0.1, 0.6);
   p.glowStrength = range(0.6, 1.7);
@@ -96,16 +121,18 @@ export function randomParams(current) {
   p.flickerShare = range(0, 0.35);
 
   // --- world --------------------------------------------------------------
-  const hilly = chance(0.45);
-  p.terrainHeight = hilly ? range(2, 14) : 0;
+  // Both terrain relief and water are occasional accents, kept low even when
+  // they do turn up, so the buildings stay the thing being looked at.
+  const hilly = chance(0.2);
+  p.terrainHeight = hilly ? range(1, 5) : 0;
   p.terrainScale = range(0.3, 2.2);
   p.terrainDetail = rangeInt(1, 5);
 
-  const wet = !hilly && chance(0.3);
-  p.waveHeight = wet ? range(0.6, 3.2) : 0;
+  const wet = !hilly && chance(0.12);
+  p.waveHeight = wet ? range(0.15, 0.7) : 0;
   p.waveScale = range(0.6, 2.6);
   p.waveSpeed = range(0.25, 1.2);
-  p.waveRock = range(0.3, 1.4);
+  p.waveRock = range(0.1, 0.4);
 
   p.hour = range(0, 24);
   p.sunAzimuth = range(-180, 180);
@@ -120,16 +147,17 @@ export function randomParams(current) {
   p.bloomStrength = middling(0.4, 1.8);
 
   // --- camera and render --------------------------------------------------
-  // One effect gets to lead. Stacking all of them just makes mud.
-  const lead = pick(['dof', 'halftone', 'posterize', 'none', 'none']);
-  p.dof = lead === 'dof' ? range(0.5, 1) : chance(0.3) ? range(0.15, 0.4) : 0;
+  // Depth of field and every stylised pattern effect (halftone, posterize,
+  // grain, vignette) stay off — the randomiser is for seeing what the city
+  // looks like, and a blur or a pattern laid over it fights that.
+  p.dof = 0;
   p.dofAuto = chance(0.7);
   p.dofFocus = range(15, 90);
-  p.dofRange = lead === 'dof' ? range(3, 18) : range(15, 60);
+  p.dofRange = range(15, 60);
   p.bokeh = range(0.1, 0.8);
-  p.halftone = lead === 'halftone' ? range(0.45, 0.95) : 0;
+  p.halftone = 0;
   p.halftoneScale = range(2, 7);
-  p.posterize = lead === 'posterize' ? range(0.4, 0.9) : 0;
+  p.posterize = 0;
   p.posterizeSteps = rangeInt(3, 9);
   p.shadowSoftness = range(0.5, 5);
   p.occlusion = range(0.15, 0.65);
@@ -140,8 +168,8 @@ export function randomParams(current) {
   p.shadowTint = randomHex(0.4, 0.8);
   p.highlightTintOn = chance(0.4);
   p.highlightTint = randomHex(0.6, 0.95);
-  p.vignette = range(0, 0.5);
-  p.grain = range(0, 0.2);
+  p.vignette = 0;
+  p.grain = 0;
 
   // Keep the housekeeping toggles where they were.
   for (const key of ['showRoads', 'showCars', 'showGrid', 'showStats', 'bloomOn', 'shadows']) {

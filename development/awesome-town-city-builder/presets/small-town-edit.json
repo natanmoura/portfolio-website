@@ -1,0 +1,1233 @@
+{
+  "version": 2,
+  "name": "Carnival 63051",
+  "params": {
+    "seed": 63051,
+    "cols": 16,
+    "rows": 13,
+    "cell": 8.8,
+    "density": 0.8484480401321175,
+    "lotFill": 0.86,
+    "lotJitter": 0.2417528609151242,
+    "roadPattern": "organic",
+    "roadSkew": 0.42,
+    "blockWidth": 3.15,
+    "blockDepth": 3.8,
+    "blockDepthRatio": 1.08,
+    "frontageSpacing": 1.13,
+    "setback": 5.35,
+    "highwayWidth": 5.2,
+    "streetWidth": 3.6,
+    "showRoads": false,
+    "carCount": 81,
+    "flyerCount": 0,
+    "mainRoadBias": 0.5325951441320337,
+    "carSpeed": 5.2,
+    "carSize": 1.38,
+    "flyerHeight": 29.308337743687787,
+    "minFloors": 1,
+    "maxFloors": 3,
+    "centerBias": 0.7639602235921701,
+    "floorHeight": 3.5,
+    "floorJitter": 0.65,
+    "setbackChance": 0.23,
+    "setbackAmount": 0.25,
+    "bend": 0.0038302123426118117,
+    "cohesion": 0.73,
+    "collageChance": 0.7916493775804653,
+    "imageChance": 0.516551792040421,
+    "sameImageChance": 0.54263053391296,
+    "materialChance": 0.12033303438714774,
+    "glassChance": 0.13683811951019567,
+    "mirrorChance": 0.1514622125992925,
+    "zoomJitter": 0.19523997191411527,
+    "slabChance": 0.09971769730620827,
+    "rotateChance": 0.028358050958570757,
+    "glowChance": 0.19557148526097226,
+    "glowStrength": 1.5969199406127947,
+    "glowTint": 0.4406915239577896,
+    "glowImage": 0.3574977496464854,
+    "palette": "carnival",
+    "duotone": 0,
+    "spireChance": 0.6998050909803469,
+    "scrollShare": 0.017540209586831824,
+    "swapShare": 0.42574795053404413,
+    "flickerShare": 0.01,
+    "terrainHeight": 0,
+    "terrainScale": 1.1942923411416806,
+    "terrainDetail": 4,
+    "moduleMix": {
+      "box": 2,
+      "octagon": 0,
+      "cylinder": 20,
+      "pillars": 2.774097171874999,
+      "pillars8": 0,
+      "post": 20,
+      "sphere": 10,
+      "spin": 18
+    },
+    "roofMix": {
+      "flat": 32.12502191125054,
+      "pyramid": 16.186533652260287,
+      "gable": 8.04275497532279,
+      "cone": 50.957245024677206,
+      "dome": 4.040944436489138
+    },
+    "hour": 21.49255076028321,
+    "sunAzimuth": 25.867254720960887,
+    "sunStrength": 1.1064349284253474,
+    "ambient": 1.4422178737303377,
+    "exposure": 1.1337207049137805,
+    "skyCustom": true,
+    "skyColor": "#ffc23d",
+    "fog": 0.16046560433569432,
+    "fogCustom": false,
+    "fogColor": "#beba62",
+    "bloomOn": true,
+    "bloomStrength": 0.9884375084254452,
+    "shadows": true,
+    "softShadows": true,
+    "shadowLightSize": 0.015,
+    "shadowSoftness": 1.2627312706091942,
+    "shadowSamples": 32,
+    "shadowDetail": 8192,
+    "ao": 0,
+    "aoRadius": 2.4,
+    "aoSmoothing": 2,
+    "aoBias": 0.06,
+    "aoSamples": 20,
+    "aoTint": true,
+    "aoColor": "#2a3550",
+    "occlusion": 0.43854740871854536,
+    "occlusionHeight": 2.391451203402048,
+    "showGrid": false,
+    "showStats": true,
+    "waveHeight": 0,
+    "waveScale": 0.7708111710368822,
+    "waveSpeed": 0.8295116776452311,
+    "waveRock": 0.2530711270535482,
+    "wind": 0.12223286620355157,
+    "dof": 0,
+    "dofAuto": true,
+    "dofFocus": 81.61845532711897,
+    "dofRange": 49.09150160610233,
+    "bokeh": 0.6080388848865368,
+    "halftone": 0,
+    "halftoneScale": 1,
+    "posterize": 0,
+    "posterizeSteps": 8,
+    "vignette": 0,
+    "grain": 0,
+    "contrast": 1.0017073680054334,
+    "saturation": 1.377141157383859,
+    "shadowTintOn": false,
+    "shadowTint": "#eb7b82",
+    "highlightTintOn": false,
+    "highlightTint": "#cfefcd",
+    "showCars": true,
+    "flybySpeed": 16,
+    "flybyHeight": 3.2,
+    "flybyLookAhead": 16,
+    "flybyBank": 0.8,
+    "flybyPitch": 1.5
+  },
+  "overrides": {
+    "b3_5_m2": {
+      "h": 10.01,
+      "kind": "box",
+      "glowStrength": 0.74,
+      "glowTicket": -1,
+      "scheme": [
+        "#22d3c5",
+        "#ffcf3d"
+      ],
+      "glowColor": "#ffcf3d"
+    },
+    "b4_9_m1": {
+      "h": 3.69,
+      "faces": [
+        {
+          "zoom": 1
+        }
+      ],
+      "glowTicket": 2,
+      "scheme": [
+        "#ffcf3d",
+        "#ffcf3d"
+      ]
+    },
+    "b0_11_m1": {
+      "rotY": 1,
+      "kind": "sphere",
+      "h": 4.83,
+      "w": 8.04,
+      "d": 5.7
+    },
+    "b0_10_m2": {
+      "h": 10.73,
+      "w": 1.74,
+      "faces": [
+        {
+          "image": 21,
+          "color": "#ffffff"
+        },
+        {
+          "image": 21,
+          "color": "#ffffff"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": 21,
+          "color": "#ffffff"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        }
+      ],
+      "pattern": "alternate",
+      "glowTicket": -1,
+      "scheme": [
+        "#ff3d7f",
+        "#fff6e8"
+      ],
+      "glowStrength": 2.06,
+      "glowColor": "#ff3d7f"
+    },
+    "b0_10_m1": {
+      "h": 4.55,
+      "deleted": true
+    },
+    "b4_9_m0": {
+      "pattern": "solid",
+      "blades": 3,
+      "kind": "pillars",
+      "spinSpeed": 0,
+      "scheme": [
+        "#7b2ff7",
+        "#fff6e8"
+      ]
+    },
+    "b4_9": {
+      "material": {
+        "kind": "mirror"
+      },
+      "floorsDelta": 1
+    },
+    "b2_7_m0": {
+      "faces": [
+        null,
+        {
+          "image": 54,
+          "color": "#ffffff"
+        }
+      ],
+      "spinSpeed": 0,
+      "kind": "pyramid",
+      "h": 19.77,
+      "w": 3.52,
+      "d": 2.7
+    },
+    "b0_11_m0": {
+      "h": 12.03,
+      "w": 2.46
+    },
+    "b0_10": {
+      "floorsDelta": 1
+    },
+    "b0_10_m3": {
+      "faces": [
+        {
+          "image": 47,
+          "color": "#ffffff"
+        }
+      ],
+      "w": 6.42,
+      "h": 9.87,
+      "rotY": 1,
+      "blades": 1
+    },
+    "b0_10_m0": {
+      "kind": "post",
+      "spinSpeed": 0,
+      "w": 6.6,
+      "h": 11.31
+    },
+    "b3_4_m2": {
+      "h": 9.49
+    },
+    "b3_4_m1": {
+      "deleted": true
+    },
+    "b3_4_m0": {
+      "pattern": "half",
+      "faces": [
+        {
+          "image": 62
+        },
+        {
+          "image": 62
+        },
+        {
+          "image": 62
+        },
+        {
+          "image": 62
+        }
+      ],
+      "w": 7.86,
+      "h": 10.15,
+      "spinSpeed": 0
+    },
+    "b3_4": {
+      "footprintScale": 1.34,
+      "offsetX": -0.71,
+      "floorsDelta": 1
+    },
+    "b3_5": {
+      "floorsDelta": 1
+    },
+    "b2_7_m1": {
+      "faces": [
+        {
+          "image": 38,
+          "color": "#ffffff"
+        },
+        {
+          "image": 38,
+          "color": "#ffffff"
+        },
+        {
+          "image": 38,
+          "color": "#ffffff"
+        },
+        {
+          "image": 38,
+          "color": "#ffffff"
+        }
+      ]
+    },
+    "b1_0_m0": {
+      "h": 4.55,
+      "w": 6.06,
+      "d": 6.6,
+      "kind": "cylinder",
+      "pattern": "solid"
+    },
+    "b1_0": {
+      "floorsDelta": 1
+    },
+    "b1_0_m1": {
+      "kind": "dome",
+      "pattern": "banded",
+      "h": 4.85,
+      "w": 7.52,
+      "d": 7.84
+    },
+    "b3_6_m1": {
+      "glowTicket": -1,
+      "h": 4.69
+    },
+    "b3_6": {
+      "floorsDelta": 1
+    },
+    "b3_6_m2": {
+      "h": 3.97,
+      "glowTicket": -1
+    },
+    "b3_6_m0": {
+      "glowTicket": -1,
+      "glowColor": "#5df2ff"
+    },
+    "b3_5_m1": {
+      "kind": "box",
+      "faces": [
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        }
+      ],
+      "h": 0.53
+    },
+    "b3_5_m3": {
+      "kind": "pyramid",
+      "h": 2.41,
+      "scheme": [
+        "#ffcf3d",
+        "#ffcf3d"
+      ],
+      "pattern": "solid"
+    },
+    "b3_4_m4": {
+      "deleted": true
+    },
+    "b0_11": {
+      "material": {
+        "kind": "mirror"
+      }
+    },
+    "b6_6": {
+      "material": {
+        "kind": "glass"
+      },
+      "floorsDelta": 3,
+      "footprintScale": 1.01
+    },
+    "b6_6_m0": {
+      "glowStrength": 1,
+      "faces": [
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        }
+      ],
+      "spinSpeed": -0.3,
+      "rotY": 0.55,
+      "h": 12.17,
+      "kind": "cylinder",
+      "w": 2.28,
+      "d": 1.56
+    },
+    "b6_6_m1": {
+      "deleted": true
+    },
+    "b6_6_m2": {
+      "h": 2.25,
+      "w": 13.24,
+      "d": 14.68,
+      "kind": "spin"
+    },
+    "b0_12_m0": {
+      "deleted": true
+    },
+    "b0_12": {
+      "floorsDelta": 1,
+      "material": {
+        "kind": "glass"
+      }
+    },
+    "b0_12_m1": {
+      "spinSpeed": 0,
+      "faces": [
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        },
+        {
+          "image": null,
+          "color": "#ffcf3d"
+        }
+      ],
+      "glowTicket": 2,
+      "glowStrength": 0.64,
+      "kind": "pillars",
+      "h": 4.41
+    },
+    "b0_12_m2": {
+      "kind": "gable",
+      "h": 5.37,
+      "spinSpeed": 0,
+      "pattern": "caps",
+      "scheme": [
+        "#ffcf3d",
+        "#ffcf3d"
+      ],
+      "glowStrength": 1.7
+    },
+    "b7_0_m0": {
+      "h": 9.29,
+      "faces": [
+        {
+          "image": 57,
+          "color": "#ffffff"
+        },
+        {
+          "image": 57,
+          "color": "#ffffff"
+        }
+      ],
+      "w": 7.14,
+      "blades": 1,
+      "glowTicket": 2
+    },
+    "b7_0_m1": {
+      "d": 8,
+      "w": 7.2,
+      "glowStrength": 1
+    },
+    "b3_7_m0": {
+      "deleted": true
+    },
+    "b0_9_m0": {
+      "spinSpeed": 0,
+      "d": 9.12,
+      "w": 6.6,
+      "h": 9.59
+    },
+    "b2_6_m1": {
+      "kind": "box",
+      "faces": [
+        {
+          "image": null,
+          "color": "#fff6e8"
+        },
+        {
+          "image": null,
+          "color": "#fff6e8"
+        },
+        {
+          "image": null,
+          "color": "#fff6e8"
+        },
+        {
+          "image": null,
+          "color": "#fff6e8"
+        },
+        {
+          "image": null,
+          "color": "#fff6e8"
+        },
+        {
+          "image": null,
+          "color": "#fff6e8"
+        }
+      ],
+      "w": 3.54,
+      "h": 0.53,
+      "d": 11.44
+    },
+    "b2_6": {
+      "floorsDelta": 2,
+      "rotY": 0.8
+    },
+    "b2_6_m3": {
+      "faces": [
+        {
+          "image": 32,
+          "color": "#ffffff"
+        },
+        {
+          "image": 32,
+          "color": "#ffffff"
+        },
+        {
+          "image": 32,
+          "color": "#ffffff"
+        },
+        {
+          "image": 32,
+          "color": "#ffffff"
+        },
+        {
+          "image": 32,
+          "color": "#ffffff"
+        },
+        {
+          "image": 32,
+          "color": "#ffffff"
+        }
+      ],
+      "h": 14.03,
+      "w": 0.3,
+      "d": 10.9,
+      "kind": "box"
+    },
+    "b2_6_m2": {
+      "deleted": true
+    },
+    "b2_5_m1": {
+      "deleted": true
+    },
+    "b2_5_m2": {
+      "kind": "pyramid",
+      "w": 7.2,
+      "h": 6.01
+    },
+    "b2_5_m0": {
+      "kind": "box",
+      "pattern": "half",
+      "faces": [
+        {
+          "image": 9
+        },
+        {
+          "image": 9
+        },
+        {
+          "image": 9
+        },
+        {
+          "image": 9
+        },
+        {
+          "image": 9
+        },
+        {
+          "image": 9
+        }
+      ],
+      "h": 8.87
+    },
+    "b5_1_m0": {
+      "h": 1.25
+    },
+    "b5_1_m1": {
+      "h": 1.67
+    },
+    "b4_4_m1": {
+      "glowTicket": -1,
+      "faces": [
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        },
+        {
+          "image": null,
+          "color": "#ff3d7f"
+        }
+      ]
+    },
+    "b4_4_m0": {
+      "h": 14.75,
+      "faces": [
+        {
+          "image": 56,
+          "color": "#ffffff",
+          "zoom": 1,
+          "panU": 0.2654555807476794,
+          "panV": 0.7939103590159324
+        },
+        {
+          "image": 56,
+          "color": "#ffffff",
+          "zoom": 1,
+          "panU": 0.2654555807476794,
+          "panV": 0.7939103590159324
+        },
+        {
+          "image": 56,
+          "color": "#ffffff",
+          "zoom": 1,
+          "panU": 0.2654555807476794,
+          "panV": 0.7939103590159324
+        },
+        {
+          "image": 56,
+          "color": "#ffffff",
+          "zoom": 1,
+          "panU": 0.2654555807476794,
+          "panV": 0.7939103590159324
+        }
+      ],
+      "spinSpeed": -0.63,
+      "glowStrength": 1.48,
+      "pattern": "alternate"
+    },
+    "b5_0_m1": {
+      "h": 10.01,
+      "glowTicket": 2,
+      "kind": "spin",
+      "faces": [
+        {
+          "image": 3
+        },
+        {
+          "image": 3
+        },
+        {
+          "image": 3
+        }
+      ],
+      "spinSpeed": 0.08
+    },
+    "b5_0": {
+      "floorsDelta": 1
+    },
+    "b2_7": {
+      "floorsDelta": 1
+    },
+    "b2_7_m4": {
+      "deleted": true
+    },
+    "b6_4_m0": {
+      "kind": "cylinder",
+      "faces": [
+        {
+          "image": 41,
+          "color": "#ffffff"
+        },
+        {
+          "image": 41
+        },
+        {
+          "image": 41
+        },
+        {
+          "image": 41
+        }
+      ],
+      "h": 14.33,
+      "w": 13.42,
+      "d": 15.22
+    },
+    "b6_6_m3": {
+      "kind": "cylinder",
+      "h": 3.69,
+      "spinSpeed": 0
+    },
+    "b6_6_m4": {
+      "kind": "cone",
+      "spinSpeed": 0,
+      "h": 5.25
+    },
+    "b4_8": {
+      "seedNudge": 1
+    },
+    "b1_1": {
+      "seedNudge": 6,
+      "material": {
+        "kind": "material",
+        "index": 3
+      },
+      "footprintScale": 0.94,
+      "rotY": 0.08,
+      "floorsDelta": 2
+    },
+    "b1_1_m0": {
+      "h": 6.85,
+      "w": 11.44,
+      "d": 8.56,
+      "kind": "post",
+      "deleted": true
+    },
+    "b3_8": {
+      "seedNudge": 14,
+      "material": {
+        "kind": "material",
+        "index": 0
+      }
+    },
+    "b3_8_m0": {
+      "kind": "pillars8"
+    },
+    "b3_8_m1": {
+      "kind": "box",
+      "h": 1.81
+    },
+    "b4_7_m2": {
+      "h": 15.33,
+      "faces": [
+        {
+          "image": 15,
+          "color": "#ffffff"
+        },
+        {
+          "image": 15,
+          "color": "#ffffff"
+        },
+        {
+          "image": 15,
+          "color": "#ffffff"
+        },
+        {
+          "image": 15,
+          "color": "#ffffff"
+        },
+        {
+          "image": 15,
+          "color": "#ffffff"
+        },
+        {
+          "image": 15,
+          "color": "#ffffff"
+        }
+      ]
+    },
+    "b7_2": {
+      "seedNudge": 53
+    },
+    "b7_2_m0": {
+      "faces": [
+        {
+          "image": null,
+          "color": "#ff7a1a"
+        },
+        {
+          "image": null,
+          "color": "#ff7a1a"
+        },
+        {
+          "image": null,
+          "color": "#ff7a1a"
+        },
+        {
+          "image": null,
+          "color": "#ff7a1a"
+        }
+      ],
+      "h": 8.73
+    },
+    "b2_8": {
+      "seedNudge": 1
+    },
+    "b6_4_m1": {
+      "deleted": true
+    },
+    "b3_3": {
+      "seedNudge": 21
+    },
+    "b3_1": {
+      "material": {
+        "kind": "glass"
+      },
+      "seedNudge": 20
+    },
+    "b0_7_m0": {
+      "glowTicket": -1
+    },
+    "b0_7_m1": {
+      "glowTicket": -1
+    },
+    "b0_7": {
+      "deleted": true
+    },
+    "b2_4": {
+      "seedNudge": 22
+    },
+    "b0_8": {
+      "seedNudge": 2
+    },
+    "b0_8_m0": {
+      "kind": "gable",
+      "h": 15.99
+    },
+    "b0_8_m1": {
+      "h": 8.57,
+      "glowStrength": 1.04
+    },
+    "b2_2": {
+      "seedNudge": 19
+    },
+    "b6_2": {
+      "seedNudge": 4
+    },
+    "b6_2_m1": {
+      "h": 10.59
+    },
+    "b6_2_m0": {
+      "kind": "pillars",
+      "scheme": [
+        "#ff3d7f",
+        "#ff3d7f"
+      ],
+      "h": 15.99
+    },
+    "b6_1_m1": {
+      "faces": [
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        },
+        {
+          "image": null,
+          "color": "#22d3c5"
+        },
+        {
+          "image": 58,
+          "color": "#ffffff"
+        }
+      ],
+      "kind": "octagon",
+      "h": 6.43,
+      "w": 11.8,
+      "d": 13.06,
+      "glowStrength": 1.18,
+      "spinSpeed": 0.14
+    },
+    "b6_1_m0": {
+      "kind": "post",
+      "h": 36.59,
+      "spinSpeed": 0
+    },
+    "b5_0_m0": {
+      "h": 10.15
+    },
+    "b2_9": {
+      "seedNudge": 3
+    },
+    "b2_9_m0": {
+      "kind": "box",
+      "h": 9.87
+    },
+    "b2_9_m1": {
+      "kind": "pyramid",
+      "deleted": true
+    },
+    "b6_5": {
+      "seedNudge": 11
+    },
+    "b6_5_m0": {
+      "h": 9.01
+    },
+    "b6_5_m1": {
+      "h": 8.59
+    },
+    "b3_1_m1": {
+      "kind": "sphere",
+      "scheme": [
+        "#22d3c5",
+        "#22d3c5"
+      ],
+      "pattern": "banded",
+      "h": 6.99,
+      "d": 4.8
+    },
+    "b3_1_m0": {
+      "h": 10.59,
+      "d": 12.7,
+      "w": 11.26
+    },
+    "b0_0_m0": {
+      "h": 7.13,
+      "deleted": true
+    },
+    "b3_0_m0": {
+      "h": 10.01
+    },
+    "b0_4_m0": {
+      "deleted": true
+    },
+    "b0_6_m0": {
+      "deleted": true
+    },
+    "b0_6_m1": {
+      "deleted": true
+    },
+    "b0_6_m2": {
+      "h": 12.45,
+      "w": 10.18
+    },
+    "b2_3": {
+      "seedNudge": 6,
+      "floorsDelta": 1
+    },
+    "b2_3_m4": {
+      "deleted": true
+    },
+    "b2_3_m3": {
+      "deleted": true
+    },
+    "b2_3_m1": {
+      "deleted": true
+    },
+    "b2_3_m0": {
+      "h": 14.03,
+      "blades": 1,
+      "scheme": [
+        "#22d3c5",
+        "#ffcf3d"
+      ],
+      "glowColor": "#ff3d7f",
+      "faces": [
+        {
+          "image": 36
+        }
+      ]
+    },
+    "b5_4_m0": {
+      "h": 8.43,
+      "faces": [
+        {
+          "image": 25,
+          "color": "#ffffff"
+        },
+        {
+          "image": 25,
+          "color": "#ffffff"
+        },
+        {
+          "image": 25,
+          "color": "#ffffff"
+        },
+        {
+          "image": 25,
+          "color": "#ffffff"
+        }
+      ]
+    },
+    "b2_0_m0": {
+      "kind": "pillars",
+      "spinSpeed": 0,
+      "d": 6.42,
+      "h": 24.89
+    },
+    "b2_0_m1": {
+      "h": 11.45
+    },
+    "b5_3": {
+      "seedNudge": 8
+    },
+    "b5_2": {
+      "seedNudge": 3
+    },
+    "b5_2_m0": {
+      "h": 26.71
+    },
+    "b5_2_m1": {
+      "w": 14.5,
+      "h": 1.25,
+      "glowTicket": -1,
+      "glowColor": "#ff3d7f",
+      "scheme": [
+        "#ffcf3d",
+        "#ffcf3d"
+      ]
+    },
+    "b1_1_m1": {
+      "kind": "post",
+      "h": 10.31,
+      "d": 8.38,
+      "w": 10.18,
+      "glowStrength": 2.64
+    },
+    "b3_11": {
+      "seedNudge": 23
+    },
+    "b3_11_m0": {
+      "glowTicket": -1,
+      "h": 14.89,
+      "d": 3
+    },
+    "b3_11_m1": {
+      "glowTicket": -1
+    },
+    "b5_5": {
+      "seedNudge": 1,
+      "floorsDelta": 1
+    },
+    "b5_5_m1": {
+      "kind": "box"
+    },
+    "b5_5_m2": {
+      "kind": "box"
+    },
+    "b3_10": {
+      "seedNudge": 24,
+      "floorsDelta": 1
+    },
+    "b3_10_m0": {
+      "h": 34.99,
+      "glowTicket": -1,
+      "glowColor": "#ff3d7f",
+      "d": 3.72
+    },
+    "b3_10_m1": {
+      "kind": "spin",
+      "blades": 1,
+      "spinSpeed": 0.24,
+      "h": 15.99,
+      "w": 16.48,
+      "d": 15.76,
+      "faces": [
+        {
+          "image": 29
+        }
+      ],
+      "glowTicket": -1,
+      "glowColor": "#ffcf3d"
+    },
+    "b2_7_m3": {
+      "glowTicket": -1
+    },
+    "b3_2_m0": {
+      "deleted": true
+    },
+    "b3_2": {
+      "deleted": true
+    },
+    "b2_2_m0": {
+      "h": 10.59,
+      "kind": "box",
+      "d": 7.68,
+      "faces": [
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        }
+      ]
+    },
+    "b0_3": {
+      "seedNudge": 13
+    },
+    "b0_5": {
+      "seedNudge": 13,
+      "floorsDelta": 1,
+      "footprintScale": 1.05,
+      "material": {
+        "kind": "material",
+        "index": 0
+      }
+    },
+    "b0_5_m0": {
+      "h": 15.99
+    },
+    "b0_5_m1": {
+      "kind": "box",
+      "glowStrength": 1.62
+    },
+    "b0_1_m0": {
+      "pattern": "caps",
+      "faces": [
+        {
+          "image": 31,
+          "color": "#ffffff"
+        },
+        {
+          "image": 31,
+          "color": "#ffffff"
+        },
+        {
+          "image": 31,
+          "color": "#ffffff"
+        },
+        {
+          "image": 31,
+          "color": "#ffffff"
+        }
+      ],
+      "h": 19.97,
+      "w": 17.2,
+      "d": 17.9,
+      "kind": "spin",
+      "rotY": 2.77,
+      "glowTicket": -1,
+      "glowColor": "#ffcf3d",
+      "glowStrength": 0.1
+    },
+    "b4_9_m2": {
+      "spinSpeed": 0,
+      "kind": "gable",
+      "w": 8.48,
+      "h": 1.51,
+      "d": 10.42
+    },
+    "b6_1": {
+      "floorsDelta": 1
+    },
+    "b6_1_m2": {
+      "kind": "cone",
+      "spinSpeed": 0,
+      "h": 5.75,
+      "w": 12.18,
+      "glowTicket": 2,
+      "d": 14.28
+    },
+    "b3_5_m0": {
+      "scheme": [
+        "#22d3c5",
+        "#ff7a1a"
+      ]
+    }
+  }
+}

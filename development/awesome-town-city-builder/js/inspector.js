@@ -51,7 +51,7 @@ const HELP = {
   bRotate: 'Turns the entire building on its base.',
   nudge: 'Slides the building off its lot centre, for breaking up the grid.',
   bActions: 'Reroll gives this lot a fresh random building and drops its module edits. Light it up pins every module lit or unlit. Demolish empties the lot. Reset returns the lot to what the sliders alone would make.',
-  material: 'What this building is made of, if anything. At most one material per building — every cube, octagon, cylinder and sphere in it wears the same one. Glass is a reflective shader rather than a picture.',
+  material: 'What this building is made of, if anything. At most one material per building — every cube, octagon, cylinder, sphere and set of pillars in it wears the same one. Glass and mirror are reflective shaders rather than a picture — glass is tinted and soft, mirror is colourless and sharp enough to show the rest of the city in it.',
   materialUse: 'Whether this module wears the building material. Off falls back to its own colour or image.',
 };
 
@@ -307,7 +307,7 @@ export class Inspector {
                 ),
             },
             usesMaterial
-              ? `on: ${building.material.kind === 'glass' ? 'glass' : 'material'}`
+              ? `on: ${building.material.kind === 'material' ? 'material' : building.material.kind}`
               : 'off'
           )
         ),
@@ -401,6 +401,11 @@ export class Inspector {
         'button',
         { class: `chip sm${current?.kind === 'glass' ? ' on' : ''}`, onclick: () => pick({ kind: 'glass' }) },
         'glass'
+      ),
+      h(
+        'button',
+        { class: `chip sm${current?.kind === 'mirror' ? ' on' : ''}`, onclick: () => pick({ kind: 'mirror' }) },
+        'mirror'
       )
     );
     if (!this.matPool.length) return toggles;
