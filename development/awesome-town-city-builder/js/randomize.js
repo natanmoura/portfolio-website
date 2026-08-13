@@ -76,6 +76,8 @@ export function randomParams(current) {
   p.collageChance = range(0.25, 0.95);
   p.imageChance = range(0.3, 0.9);
   p.sameImageChance = range(0, 0.7);
+  p.materialChance = range(0, 0.4);
+  p.glassChance = range(0.1, 0.6);
   p.zoomJitter = range(0, 0.9);
   p.slabChance = range(0, 0.4);
   p.rotateChance = range(0, 0.6);

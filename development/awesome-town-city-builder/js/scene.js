@@ -114,6 +114,18 @@ export class Stage {
     this.sky.frustumCulled = false;
     this.scene.add(this.sky);
 
+    // A cheap, low-res bake of the same gradient sky, so the glass shader has
+    // something believable to reflect without a real-time cubemap. Reuses the
+    // sky's own uniforms, so it only ever needs a small standalone scene.
+    this.envScene = new THREE.Scene();
+    // Radius well clear of the bake camera's near plane — at radius 1 the
+    // sphere sits exactly on it and gets clipped away, which is what a black
+    // "reflection" actually was.
+    this.envScene.add(new THREE.Mesh(new THREE.SphereGeometry(20, 12, 8), this.skyMaterial));
+    this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    this._envKey = '';
+    this._envAt = -Infinity;
+
     this.ground = new Ground();
     this.scene.add(this.ground.group);
 
@@ -323,12 +335,13 @@ export class Stage {
 
   // Soft mode routes through PCSS, which three reaches via its soft shadow
   // type. Fast mode is plain PCF, where the radius is a flat blur.
-  setShadowQuality(soft, lightSize) {
+  setShadowQuality(soft, lightSize, quality = 32) {
     const wantType = soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-    const sizeChanged = soft && lightSize !== this.pcssLightSize;
-    if (soft && (!this.pcssInstalled || sizeChanged)) {
-      installPCSS({ lightSize });
+    const changed = soft && (lightSize !== this.pcssLightSize || quality !== this.pcssQuality);
+    if (soft && (!this.pcssInstalled || changed)) {
+      installPCSS({ lightSize, quality });
       this.pcssLightSize = lightSize;
+      this.pcssQuality = quality;
       this.pcssInstalled = true;
       this.onShaderVersion?.(shaderVersion());
     }
@@ -414,6 +427,7 @@ export class Stage {
     this.skyMaterial.uniforms.uSunDir.value.copy(this.sun.position).normalize();
     this.skyMaterial.uniforms.uSunAmount.value = 0.35 + day * 0.5;
     this.sky.scale.setScalar(Math.max(200, this.camera.far * 0.45));
+    this.updateEnvironment(zenith, sky);
 
     // Fill comes from the opposite side and a little above, cooling as it gets
     // dark so night reads as moonlight rather than as a second sun.
@@ -443,6 +457,24 @@ export class Stage {
     this.bloom.threshold = 0.9 - this.night * 0.16;
 
     return this.night;
+  }
+
+  // Rebaked only when the sky actually changed colour, and not more than a
+  // handful of times a second even then — an hour slider dragged fast still
+  // shifts colour every frame, but reflections do not need to keep up with
+  // that, only with where the light generally is.
+  updateEnvironment(zenith, ground) {
+    const key = `${zenith.getHexString()}|${ground.getHexString()}`;
+    if (key === this._envKey) return;
+    const now = performance.now();
+    if (now - this._envAt < 150) return;
+    this._envKey = key;
+    this._envAt = now;
+    const rt = this.pmremGenerator.fromScene(this.envScene, 0, 1, 100);
+    const previous = this.envRT;
+    this.envRT = rt;
+    this.scene.environment = rt.texture;
+    if (previous) previous.dispose();
   }
 
   render(dt = 0.016, time = 0) {

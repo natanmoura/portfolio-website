@@ -11,7 +11,7 @@
 import { h, rangeRow } from './ui.js';
 import { withHelp } from './tooltip.js';
 import { slotCount, slotLabels } from './geometry.js';
-import { MODULE_KINDS, BODY_KINDS, KIND_LABEL, ROOF_SET } from './generate.js';
+import { MODULE_KINDS, BODY_KINDS, KIND_LABEL, ROOF_SET, MATERIAL_KINDS } from './generate.js';
 
 const KIND_HELP = {
   box: 'Six flat faces. The workhorse.',
@@ -51,12 +51,15 @@ const HELP = {
   bRotate: 'Turns the entire building on its base.',
   nudge: 'Slides the building off its lot centre, for breaking up the grid.',
   bActions: 'Reroll gives this lot a fresh random building and drops its module edits. Light it up pins every module lit or unlit. Demolish empties the lot. Reset returns the lot to what the sliders alone would make.',
+  material: 'What this building is made of, if anything. At most one material per building — every cube, octagon, cylinder and sphere in it wears the same one. Glass is a reflective shader rather than a picture.',
+  materialUse: 'Whether this module wears the building material. Off falls back to its own colour or image.',
 };
 
 export class Inspector {
-  constructor(root, pool, actions) {
+  constructor(root, pool, actions, matPool) {
     this.root = root;
     this.pool = pool;
+    this.matPool = matPool;
     this.actions = actions;
     this.locked = false;
     this.applyAll = false;
@@ -282,6 +285,36 @@ export class Inspector {
       'Glow'
     );
 
+    const materialEligible = !isRoof && MATERIAL_KINDS.has(module.kind);
+    const usesMaterial = !!module.matKind;
+    const materialRow =
+      materialEligible &&
+      building.material &&
+      withHelp(
+        h(
+          'div',
+          { class: 'chips' },
+          h(
+            'button',
+            {
+              class: `chip${usesMaterial ? ' on' : ''}`,
+              onclick: () =>
+                actions.setModule(
+                  id,
+                  usesMaterial
+                    ? { matKind: null, matIndex: null }
+                    : { matKind: building.material.kind, matIndex: building.material.index ?? null }
+                ),
+            },
+            usesMaterial
+              ? `on: ${building.material.kind === 'glass' ? 'glass' : 'material'}`
+              : 'off'
+          )
+        ),
+        HELP.materialUse,
+        'Building material'
+      );
+
     this.body.replaceChildren(
       this.tabs(selection),
       label('Shape'),
@@ -300,12 +333,15 @@ export class Inspector {
       label('Glow'),
       glowRow,
       this.slider('Strength', module.glowStrength ?? 1, 0, 4, 0.02, (v) => actions.setModule(id, { glowStrength: v }), HELP.strength),
+      materialRow && label('Material'),
+      materialRow,
       label(isRoof ? 'Faces (roofs stay flat colour)' : 'Faces'),
       faceChips,
-      !isRoof && imageRow,
-      !isRoof && this.slider('Crop', face.zoom || 1, 1, 3, 0.01, (v) => setFace({ zoom: v }), HELP.crop),
-      !isRoof && label('Images'),
-      !isRoof && withHelp(this.thumbGrid(face, setFace), HELP.thumbs, 'Image pool'),
+      !isRoof && !usesMaterial && imageRow,
+      !isRoof && !usesMaterial && this.slider('Crop', face.zoom || 1, 1, 3, 0.01, (v) => setFace({ zoom: v }), HELP.crop),
+      !isRoof && !usesMaterial && label('Images'),
+      !isRoof && !usesMaterial && withHelp(this.thumbGrid(face, setFace), HELP.thumbs, 'Image pool'),
+      !isRoof && usesMaterial && h('p', { class: 'hint' }, 'This module is wearing the building material — every face, no picture.'),
       withHelp(
         h(
           'div',
@@ -351,6 +387,39 @@ export class Inspector {
 
   // --- building ------------------------------------------------------------
 
+  materialPicker(building) {
+    const { actions } = this;
+    const id = building.id;
+    const current = building.material;
+    const pick = (value) => actions.setBuilding(id, { material: value });
+
+    const toggles = h(
+      'div',
+      { class: 'chips' },
+      h('button', { class: `chip sm${!current ? ' on' : ''}`, onclick: () => pick(null) }, 'none'),
+      h(
+        'button',
+        { class: `chip sm${current?.kind === 'glass' ? ' on' : ''}`, onclick: () => pick({ kind: 'glass' }) },
+        'glass'
+      )
+    );
+    if (!this.matPool.length) return toggles;
+
+    const grid = h(
+      'div',
+      { class: 'thumbs' },
+      this.matPool.items.map((item, i) =>
+        h('button', {
+          class: `thumb${current?.kind === 'material' && current.index === i ? ' on' : ''}`,
+          style: `background-image:url(${item.url})`,
+          title: item.name,
+          onclick: () => pick({ kind: 'material', index: i }),
+        })
+      )
+    );
+    return h('div', {}, toggles, grid);
+  }
+
   renderBuilding(building) {
     const { actions } = this;
     const id = building.id;
@@ -371,6 +440,8 @@ export class Inspector {
         'The three colours every module in this building draws from. Reroll the building for a different set.',
         'Building colours'
       ),
+      label('Material'),
+      withHelp(this.materialPicker(building), HELP.material, 'Building material'),
       withHelp(
         h(
           'div',

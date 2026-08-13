@@ -211,3 +211,26 @@ export const PALETTE_KEYS = Object.keys(PALETTES);
 export function getPalette(key) {
   return PALETTES[key] || PALETTES.newsprint;
 }
+
+// A tint for the reflective glass shader, derived rather than authored per
+// palette: the day sky colour pulled toward pale and cool, since a mirrored
+// building mostly reads as a pane of sky.
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r, g, b) {
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+export function glassTint(palette) {
+  const [r, g, b] = hexToRgb(palette.sky.day);
+  const cool = [210, 232, 240];
+  const t = 0.5;
+  return rgbToHex(
+    r * (1 - t) + cool[0] * t,
+    g * (1 - t) + cool[1] * t,
+    b * (1 - t) + cool[2] * t
+  );
+}

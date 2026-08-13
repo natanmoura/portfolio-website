@@ -116,14 +116,18 @@ function chunk(lightSize, near, blockerSamples, filterSamples) {
 // looks exactly like it working badly. Hence the explicit check.
 const SOFT_BRANCH = '#elif defined( SHADOWMAP_TYPE_PCF_SOFT )';
 
-export function installPCSS({ lightSize = 0.006, near = 0.02, samples = 17 } = {}) {
+// Filter samples decide how smooth an edge is; blocker samples decide how
+// steadily the penumbra width is estimated. The filter needs more of the two.
+export function installPCSS({ lightSize = 0.006, near = 0.02, quality = 32 } = {}) {
   if (!ORIGINAL.includes(SOFT_BRANCH)) {
     console.warn('PCSS: three shadow chunk changed shape, leaving stock shadows in place');
     return version;
   }
+  const filterSamples = Math.max(8, Math.min(64, Math.round(quality)));
+  const blockerSamples = Math.max(8, Math.round(filterSamples * 0.6));
   const source = ORIGINAL.replace(
     '#ifdef USE_SHADOWMAP',
-    `#ifdef USE_SHADOWMAP\n${chunk(lightSize, near, samples)}`
+    `#ifdef USE_SHADOWMAP\n${chunk(lightSize, near, blockerSamples, filterSamples)}`
   ).replace(
     SOFT_BRANCH,
     // Take over the soft branch, so the renderer's shadow type stays the

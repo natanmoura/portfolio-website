@@ -31,6 +31,7 @@ export const shared = {
 
 const PARS_VERTEX = `
   attribute float aLayer;
+  attribute float aMatLayer;
   attribute float aGlow;
   attribute float aBaseY;
   attribute float aWind;
@@ -41,6 +42,7 @@ const PARS_VERTEX = `
   attribute vec2 aUv;
   uniform float uTime;
   flat varying float vLayer;
+  flat varying float vMatLayer;
   flat varying float vGlow;
   flat varying vec3 vEmissive;
   flat varying vec3 vAnim;
@@ -77,7 +79,10 @@ const PARS_FRAGMENT = `
   precision highp sampler2DArray;
   uniform sampler2DArray uAtlas;
   uniform sampler2D uRects;
+  uniform sampler2D uCutoutFlags;
   uniform float uLayerCount;
+  uniform sampler2DArray uMatAtlas;
+  uniform vec3 uGlassTint;
   uniform float uTime;
   uniform float uDuoAmount;
   uniform vec3 uDuoInk;
@@ -94,6 +99,7 @@ const PARS_FRAGMENT = `
   // truncate to 4 for some pixels of a triangle, which pulls the wrong rect
   // out of the lookup and makes the image tear. flat fixes that at the source.
   flat varying float vLayer;
+  flat varying float vMatLayer;
   flat varying float vGlow;
   flat varying vec3 vEmissive;
   flat varying vec3 vAnim;
@@ -117,6 +123,10 @@ const PARS_FRAGMENT = `
 const MAP = `
   vec3 ccTexel = vec3(1.0);
   bool ccHasImage = vLayer > -0.5;
+  // A material index of -2 is the glass shader: no texture, just a tint and a
+  // PBR override further down. -1 is nothing, 0 or above is a real material.
+  bool ccIsMaterial = vMatLayer > -0.5;
+  bool ccIsGlass = vMatLayer < -1.5;
   float ccLit = step(vGlow, uGlowChance);
   float ccFlickerOn = 1.0;
   if (ccHasImage) {
@@ -153,9 +163,30 @@ const MAP = `
     vec2 ccWrapped = ccScrolling ? fract(ccLocal) : clamp(ccLocal, 0.0, 1.0);
     vec2 ccUv = ccRect.xy + ccWrapped * ccRect.zw;
     vec4 ccSample = textureGrad(uAtlas, vec3(ccUv, float(ccIndex)), ccDx, ccDy);
+    // A cutout's transparent pixels punch through rather than paint an opaque
+    // rectangle. Checked at the layer actually sampled, so a billboard that
+    // swaps between a photo and a sticker discards correctly either way.
+    float ccCutout = texelFetch(uCutoutFlags, ivec2(ccIndex, 0), 0).r;
+    if (ccCutout > 0.5 && ccSample.a < 0.5) discard;
     float ccL = pow(ccLum(ccSample.rgb), 0.4545);
     vec3 ccDuo = mix(uDuoInk, uDuoPaper, smoothstep(0.02, 0.98, ccL));
     ccTexel = mix(ccSample.rgb, ccDuo, uDuoAmount);
+    diffuseColor.rgb *= ccTexel;
+  } else if (ccIsMaterial) {
+    // A material tiles across the whole module rather than cropping to one
+    // picture, so the uv baked at build time is already a repeat count —
+    // fract() here is the wrap, not a crop.
+    int ccMIndex = int(vMatLayer + 0.5);
+    vec2 ccMUv = fract(vAtlasUv);
+    vec2 ccMDx = dFdx(vAtlasUv);
+    vec2 ccMDy = dFdy(vAtlasUv);
+    vec4 ccMSample = textureGrad(uMatAtlas, vec3(ccMUv, float(ccMIndex)), ccMDx, ccMDy);
+    ccTexel = ccMSample.rgb;
+    diffuseColor.rgb *= ccTexel;
+  } else if (ccIsGlass) {
+    // No texture at all — the reflective read comes from the roughness and
+    // metalness override below, this just sets the tint the reflection rides.
+    ccTexel = uGlassTint;
     diffuseColor.rgb *= ccTexel;
   }
 `;
@@ -169,10 +200,11 @@ const MAP = `
 // bright parts burn harder than the dark ones, so a neon sign lights up and
 // its shadows stay down.
 const EMISSIVE = `
-  // A face glows with whatever it looks like: the picture on it, or the paint
-  // if there is no picture. Only the image-lit ones get the luminance shaping,
-  // since a flat colour has no bright and dark parts to separate.
-  vec3 ccSource = ccHasImage ? ccTexel : vColor;
+  // A face glows with whatever it looks like: the picture on it, the material
+  // or glass tint, or the paint if there is none of those. Only the image-lit
+  // ones get the luminance shaping, since a flat colour or tile has no bright
+  // and dark parts to separate.
+  vec3 ccSource = (ccHasImage || ccIsMaterial || ccIsGlass) ? ccTexel : vColor;
   float ccGl = ccLum(ccSource);
   vec3 ccTint = clamp(ccSource / max(0.2, ccGl), 0.0, 1.9);
   vec3 ccGlow = vEmissive * mix(vec3(1.0), ccTint, uGlowTint);
@@ -198,7 +230,10 @@ export class CityMaterial {
       ...shared,
       uAtlas: { value: null },
       uRects: { value: null },
+      uCutoutFlags: { value: null },
       uLayerCount: { value: 1 },
+      uMatAtlas: { value: null },
+      uGlassTint: { value: new THREE.Color('#bcd6e0') },
       uAo: { value: 0.35 },
       uAoHeight: { value: 5 },
       uScrollShare: { value: 0.3 },
@@ -247,6 +282,7 @@ export class CityMaterial {
           '#include <begin_vertex>',
           `#include <begin_vertex>
            vLayer = aLayer;
+           vMatLayer = aMatLayer;
            vGlow = aGlow;
            vEmissive = aEmissive;
            vAnim = aAnim;
@@ -263,32 +299,74 @@ export class CityMaterial {
       shader.fragmentShader = shader.fragmentShader
         .replace('void main() {', `${PARS_FRAGMENT}\nvoid main() {`)
         .replace('#include <map_fragment>', MAP)
-        .replace('#include <emissivemap_fragment>', EMISSIVE);
+        .replace('#include <emissivemap_fragment>', EMISSIVE)
+        // Glass has no map of its own to carry the reflective read — it comes
+        // entirely from pushing roughness down and metalness up so the PBR
+        // lighting already in this shader does the rest against uEnvMap.
+        .replace(
+          '#include <roughnessmap_fragment>',
+          `#include <roughnessmap_fragment>\n         if (vMatLayer < -1.5) { roughnessFactor = 0.16; }`
+        )
+        .replace(
+          '#include <metalnessmap_fragment>',
+          `#include <metalnessmap_fragment>\n         if (vMatLayer < -1.5) { metalnessFactor = 0.82; }`
+        );
     };
     material.customProgramCacheKey = () => 'awesome-town-surface-' + shaderVersion();
   }
 
   // Shadows need the same vertex motion, or a bobbing town casts a still one.
+  // They also need to know which faces are cutouts, or a transparent sticker
+  // casts the shadow of an opaque rectangle instead of its own silhouette.
   patchDepth(material) {
     material.onBeforeCompile = (shader) => {
-      Object.entries(shared).forEach(([k, v]) => {
-        shader.uniforms[k] = v;
-      });
+      this.bind(shader);
       shader.vertexShader = shader.vertexShader
         .replace(
           'void main() {',
           `attribute vec4 aSpin;
            attribute float aBaseY;
            attribute float aWind;
+           attribute vec2 aUv;
+           attribute float aLayer;
            uniform float uTime;
            uniform float uWind;
+           varying vec2 vAtlasUv;
+           flat varying float vLayer;
            ${WAVE_GLSL}
            void main() {`
         )
         .replace(
           '#include <begin_vertex>',
-          `#include <begin_vertex>\n${WIND_BODY}\n${SPIN_POSITION}\n${WAVE_BODY}`
+          `#include <begin_vertex>
+           vAtlasUv = aUv;
+           vLayer = aLayer;
+           ${WIND_BODY}
+           ${SPIN_POSITION}
+           ${WAVE_BODY}`
         );
+      // Billboard scroll/swap is skipped here — a shadow a frame behind a
+      // scrolling sign is invisible, and the cutout test only needs the still
+      // crop to know where the holes are.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'void main() {',
+        `precision highp sampler2DArray;
+         uniform sampler2DArray uAtlas;
+         uniform sampler2D uRects;
+         uniform sampler2D uCutoutFlags;
+         varying vec2 vAtlasUv;
+         flat varying float vLayer;
+         void main() {
+           if (vLayer > -0.5) {
+             int ccIndex = int(vLayer + 0.5);
+             float ccCutout = texelFetch(uCutoutFlags, ivec2(ccIndex, 0), 0).r;
+             if (ccCutout > 0.5) {
+               vec4 ccRect = texelFetch(uRects, ivec2(ccIndex, 0), 0);
+               vec2 ccUv = ccRect.xy + clamp(vAtlasUv, 0.0, 1.0) * ccRect.zw;
+               if (texture(uAtlas, vec3(ccUv, float(ccIndex))).a < 0.5) discard;
+             }
+           }`
+      );
     };
     material.customProgramCacheKey = () => 'awesome-town-depth-' + shaderVersion();
   }
@@ -297,6 +375,15 @@ export class CityMaterial {
     this.uniforms.uAtlas.value = pool.texture;
     this.uniforms.uRects.value = pool.rectTexture;
     this.uniforms.uLayerCount.value = Math.max(1, pool.length);
+    this.uniforms.uCutoutFlags.value = pool.cutoutTexture;
+  }
+
+  setMatAtlas(pool) {
+    this.uniforms.uMatAtlas.value = pool.texture;
+  }
+
+  setGlassTint(color) {
+    this.uniforms.uGlassTint.value.set(color);
   }
 
   // What share of lit faces behave like animated billboards.

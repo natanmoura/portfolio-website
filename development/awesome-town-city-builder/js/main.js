@@ -25,7 +25,7 @@ import {
   ROOF_KINDS,
   KIND_LABEL,
 } from './generate.js';
-import { PALETTES, PALETTE_KEYS, getPalette } from './palettes.js';
+import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
 import { ROAD_PATTERNS, PATTERN_LABEL } from './layout.js';
 import { Traffic } from './traffic.js';
@@ -51,6 +51,7 @@ const ENV_DEFAULTS = {
   softShadows: true,
   shadowLightSize: 0.015,
   shadowSoftness: 1,
+  shadowSamples: 32,
   shadowDetail: 8192,
   ao: 0,
   aoRadius: 2.4,
@@ -148,6 +149,7 @@ const statusEl = document.getElementById('status');
 const statsEl = document.getElementById('stats');
 
 const pool = new ImagePool();
+const matPool = new ImagePool();
 let stage;
 let materials;
 let builder;
@@ -168,6 +170,7 @@ async function boot() {
       loadingEl.querySelector('.bar span').style.width = `${(done / total) * 100}%`;
       loadingEl.querySelector('.count').textContent = `${Math.min(done, total)} / ${total}`;
     });
+    await matPool.loadMaterialManifest('collage');
   } catch (err) {
     loadingEl.querySelector('.count').textContent = String(err.message || err);
     console.error(err);
@@ -176,6 +179,7 @@ async function boot() {
   stage = new Stage(viewport);
   materials = new CityMaterial();
   materials.setAtlas(pool);
+  materials.setMatAtlas(matPool);
   builder = new CityBuilder(pool, materials);
   stage.scene.add(builder.root);
   picker = new Picker(stage, builder);
@@ -193,6 +197,7 @@ async function boot() {
   stage.scene.add(traffic.group);
   flyby = new Flyby(stage);
   pool.onChange(() => materials.setAtlas(pool));
+  matPool.onChange(() => materials.setMatAtlas(matPool));
 
   rebuildAll();
   frameCity();
@@ -264,7 +269,7 @@ function rebuildAll() {
     extentKey = key;
     stage.setExtent(p);
   }
-  state.city = generateCity(p, state.overrides, pool.length, groundAt);
+  state.city = generateCity(p, state.overrides, pool.length, matPool.length, groundAt);
   stage.ground.setRoads(state.city.layout.roads, p);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   flyby.build(state.city.layout.roads, p);
@@ -281,7 +286,15 @@ function rebuildLot(id) {
   const list = state.city.buildings;
   const at = list.findIndex((b) => b.id === id);
   const previous = at >= 0 ? list[at] : null;
-  const building = generateLot(site, state.params, state.overrides, pool.length, groundAt, layout.half);
+  const building = generateLot(
+    site,
+    state.params,
+    state.overrides,
+    pool.length,
+    matPool.length,
+    groundAt,
+    layout.half
+  );
 
   if (building) {
     if (at >= 0) list[at] = building;
@@ -314,6 +327,7 @@ function applyEnv() {
   const night = stage.apply(p, palette);
   materials.setGlow(p.glowChance, p.glowStrength, night);
   materials.setGlowResponse(p.glowTint, p.glowImage);
+  materials.setGlassTint(glassTint(palette));
   materials.setBillboards(p.scrollShare, p.swapShare, p.flickerShare);
   materials.setDuotone(p.duotone, palette.ink, palette.paper);
   materials.setWaves(p.waveHeight, p.waveScale, p.waveSpeed, p.waveRock);
@@ -334,7 +348,7 @@ function applyEnv() {
   }
   stage.setBloom(p.bloomOn);
   stage.setShadows(p.shadows, p.shadowSoftness, p.shadowDetail);
-  stage.setShadowQuality(p.softShadows, p.shadowLightSize);
+  stage.setShadowQuality(p.softShadows, p.shadowLightSize, p.shadowSamples);
   materials.setOcclusion(p.occlusion, p.occlusionHeight);
   stage.setGridVisible(p.showGrid);
   stage.ground.setRoadsVisible(p.showRoads);
@@ -689,7 +703,7 @@ function buildUI() {
     }
   );
 
-  inspector = new Inspector(document.getElementById('inspector'), pool, actions);
+  inspector = new Inspector(document.getElementById('inspector'), pool, actions, matPool);
 
   document.getElementById('btn-frame').onclick = () => frameCity();
   document.getElementById('btn-shot').onclick = snapshot;

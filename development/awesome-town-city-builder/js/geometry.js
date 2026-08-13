@@ -118,8 +118,15 @@ class Raw {
     }
   }
 
-  finish(faces) {
-    this.slots.forEach((slot, i) => applyFace(this.uv, slot, faces && faces[i]));
+  finish(faces, opts = {}) {
+    if (opts.tile) {
+      // A material covers every slot uniformly — there is no per-face image to
+      // crop toward, just a repeat count set by how big the face physically
+      // is, so a tall cylinder shows more tiles than a short one.
+      this.slots.forEach((slot) => tileFace(this.uv, slot));
+    } else {
+      this.slots.forEach((slot, i) => applyFace(this.uv, slot, faces && faces[i]));
+    }
     return {
       pos: new Float32Array(this.pos),
       nor: new Float32Array(this.nor),
@@ -150,6 +157,19 @@ function applyFace(uv, slot, face) {
   for (let i = slot.start; i < slot.start + slot.count; i++) {
     uv[i * 2] = ox + uv[i * 2] * rx;
     uv[i * 2 + 1] = oy + uv[i * 2 + 1] * ry;
+  }
+}
+
+// How large one repeat of a material reads in world units. The shader wraps
+// with fract(), so this only has to set the repeat count, not stay in 0..1.
+const MATERIAL_TILE = 2.4;
+
+function tileFace(uv, slot) {
+  const rx = Math.max(0.25, slot.w / MATERIAL_TILE);
+  const ry = Math.max(0.25, slot.h / MATERIAL_TILE);
+  for (let i = slot.start; i < slot.start + slot.count; i++) {
+    uv[i * 2] *= rx;
+    uv[i * 2 + 1] *= ry;
   }
 }
 
@@ -564,7 +584,7 @@ export function buildShape(kind, w, h, d, faces, opts = {}) {
     default:
       box(r, w, h, d);
   }
-  return r.finish(faces);
+  return r.finish(faces, opts);
 }
 
 export function slotCount(kind, blades = 1) {

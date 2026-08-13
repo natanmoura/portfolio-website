@@ -336,6 +336,7 @@ export const CONTROL_DEFS = [
       },
       R('shadowLightSize', 'Sun size', 0.001, 0.03, 0.001, 'How large the sun appears from the ground, which is what sets how fast a shadow softens with distance from whatever casts it. Commits when you let go, because it recompiles.', { live: false, hard: [0.0001, 0.2] }),
       R('shadowSoftness', 'Softness', 0.1, 4, 0.05, 'Scales the whole penumbra on top of sun size. One is the natural result.', { cheap: true, hard: [0.05, 8] }),
+      R('shadowSamples', 'Edge samples', 12, 48, 4, 'How many taps go into a soft shadow edge. Too few and the edge speckles instead of grading smoothly. Commits when you let go, because it recompiles.', { live: false, hard: [8, 64] }),
       R('shadowDetail', 'Detail', 1024, 8192, 1024, 'Resolution of the shadow map. Note that shimmer is almost never a resolution problem, so reach for this last. 8192 costs 256MB of video memory and 16384 costs a full gigabyte.', { live: false, hard: [256, 16384] }),
     ],
   },

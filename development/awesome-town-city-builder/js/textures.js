@@ -7,6 +7,18 @@
 // Each image is letterboxed into its square layer over a stretched copy of
 // itself, so mip levels blur into something related rather than into black.
 // The used sub-rect is recorded and folded into the UVs at build time.
+//
+// Two kinds share this pool: photographs ("image") and alpha-cut stickers
+// ("cutout"). They are picked and cropped identically — the only difference
+// is that a cutout's transparent pixels should punch through instead of
+// rendering as an opaque rectangle. Which layers are cutouts is recorded in
+// its own small texture, indexed by layer, so a billboard that swaps to a
+// different picture at runtime looks up the flag for whatever it swapped to
+// rather than the flag baked in at build time.
+//
+// A separate pool (same class, different fit) holds tileable materials —
+// concrete, brick, wood. Those cover their whole layer with no letterbox,
+// since they are read by repeating the UV rather than cropping to a rect.
 
 import * as THREE from 'three';
 
@@ -14,7 +26,7 @@ const LAYER = 512;
 
 export class ImagePool {
   constructor() {
-    this.items = []; // { name, aspect, rect, hot, avg, url }
+    this.items = []; // { name, kind, aspect, rect, hot, avg, url }
     this.texture = null;
     this.listeners = new Set();
     this.canvas = document.createElement('canvas');
@@ -38,33 +50,60 @@ export class ImagePool {
     return () => this.listeners.delete(fn);
   }
 
+  // Loads the images/ and cutouts/ folders into one combined pool. Both crop
+  // to cover their face the same way; only the cutout flag differs.
   async loadManifest(dir = 'collage', onProgress = () => {}) {
-    const res = await fetch(`${dir}/manifest.json`);
-    if (!res.ok) throw new Error(`No ${dir}/manifest.json — run: node tools/scan.mjs`);
-    const { images } = await res.json();
-    let done = 0;
-    const batch = 6;
-    for (let i = 0; i < images.length; i += batch) {
-      const slice = images.slice(i, i + batch);
-      const blobs = await Promise.all(
-        slice.map((name) =>
-          fetch(`${dir}/${name}`)
-            .then((r) => (r.ok ? r.blob() : null))
-            .catch(() => null)
-        )
-      );
-      for (let k = 0; k < slice.length; k++) {
-        if (blobs[k]) await this.addBlob(blobs[k], slice[k]);
-      }
-      done += slice.length;
-      onProgress(done, images.length);
-    }
-    this.rebuildTexture();
-    this.listeners.forEach((fn) => fn(this));
+    const manifest = await this.fetchManifest(dir);
+    const groups = [
+      { sub: 'images', kind: 'image', names: manifest.images || [] },
+      { sub: 'cutouts', kind: 'cutout', names: manifest.cutouts || [] },
+    ];
+    await this.loadGroups(dir, groups, 'contain', onProgress);
     return this.items.length;
   }
 
-  async addBlob(blob, name) {
+  // Loads materials/ into its own pool (a separate ImagePool instance in
+  // practice), covering the whole layer with no letterbox since these tile.
+  async loadMaterialManifest(dir = 'collage', onProgress = () => {}) {
+    const manifest = await this.fetchManifest(dir);
+    const groups = [{ sub: 'materials', kind: 'material', names: manifest.materials || [] }];
+    await this.loadGroups(dir, groups, 'cover', onProgress);
+    return this.items.length;
+  }
+
+  async fetchManifest(dir) {
+    const res = await fetch(`${dir}/manifest.json`);
+    if (!res.ok) throw new Error(`No ${dir}/manifest.json — run: node tools/scan.mjs`);
+    return res.json();
+  }
+
+  async loadGroups(dir, groups, fit, onProgress) {
+    const total = groups.reduce((n, g) => n + g.names.length, 0) || 1;
+    let done = 0;
+    const batch = 6;
+    for (const g of groups) {
+      for (let i = 0; i < g.names.length; i += batch) {
+        const slice = g.names.slice(i, i + batch);
+        const blobs = await Promise.all(
+          slice.map((name) =>
+            fetch(`${dir}/${g.sub}/${name}`)
+              .then((r) => (r.ok ? r.blob() : null))
+              .catch(() => null)
+          )
+        );
+        for (let k = 0; k < slice.length; k++) {
+          if (blobs[k]) await this.addBlob(blobs[k], slice[k], { kind: g.kind, fit });
+        }
+        done += slice.length;
+        onProgress(done, total);
+      }
+    }
+    this.rebuildTexture();
+    this.listeners.forEach((fn) => fn(this));
+  }
+
+  async addBlob(blob, name, opts = {}) {
+    const { kind = 'image', fit = 'contain' } = opts;
     // texture.flipY does nothing for bitmap and raw-data sources, so the flip
     // happens at decode time. Drawing a flipped bitmap into the canvas puts
     // row 0 of the pixel data at v = 0, which is what the sampler expects.
@@ -76,24 +115,39 @@ export class ImagePool {
     }
     const aspect = bitmap.width / bitmap.height;
     const { ctx } = this;
-
-    // Stretched underlay first, so mip levels bleed into related colour.
     ctx.clearRect(0, 0, LAYER, LAYER);
-    ctx.drawImage(bitmap, 0, 0, LAYER, LAYER);
 
-    const w = aspect >= 1 ? LAYER : Math.round(LAYER * aspect);
-    const h = aspect >= 1 ? Math.round(LAYER / aspect) : LAYER;
-    const x = Math.round((LAYER - w) / 2);
-    const y = Math.round((LAYER - h) / 2);
-    ctx.drawImage(bitmap, x, y, w, h);
+    let rect;
+    if (fit === 'cover') {
+      // A material tiles across its whole layer in the shader, so there is no
+      // letterbox to hide — crop to fill instead of contain.
+      const w = aspect >= 1 ? LAYER * aspect : LAYER;
+      const h = aspect >= 1 ? LAYER : LAYER / aspect;
+      ctx.drawImage(bitmap, (LAYER - w) / 2, (LAYER - h) / 2, w, h);
+      rect = [0, 0, 1, 1];
+    } else {
+      const w = aspect >= 1 ? LAYER : Math.round(LAYER * aspect);
+      const h = aspect >= 1 ? Math.round(LAYER / aspect) : LAYER;
+      const x = Math.round((LAYER - w) / 2);
+      const y = Math.round((LAYER - h) / 2);
+      // Stretched underlay first, so mip levels bleed into related colour
+      // instead of the letterbox padding. Skipped for cutouts: their padding
+      // is meant to stay fully transparent, and a stretched copy of the same
+      // source showed straight through the sticker's own transparent gaps as
+      // a second, distorted exposure of the same picture.
+      if (kind !== 'cutout') ctx.drawImage(bitmap, 0, 0, LAYER, LAYER);
+      ctx.drawImage(bitmap, x, y, w, h);
+      rect = [x / LAYER, y / LAYER, w / LAYER, h / LAYER];
+    }
     bitmap.close();
 
     const pixels = ctx.getImageData(0, 0, LAYER, LAYER).data;
     this.layers.push(new Uint8Array(pixels));
     this.items.push({
       name,
+      kind,
       aspect,
-      rect: [x / LAYER, y / LAYER, w / LAYER, h / LAYER],
+      rect,
       ...sampleColours(pixels),
       url: this.thumbnail(),
     });
@@ -139,6 +193,7 @@ export class ImagePool {
     texture.needsUpdate = true;
     this.texture = texture;
     this.buildRects();
+    this.buildCutoutFlags();
     return texture;
   }
 
@@ -158,11 +213,31 @@ export class ImagePool {
     return tex;
   }
 
+  // Whether a layer is a cutout, indexed by layer. Read at whatever layer is
+  // actually being sampled — including a swapped-to layer, not just the one
+  // baked into the vertex at build time — so a lit billboard swapping between
+  // a photo and a sticker still discards the sticker's transparent pixels
+  // instead of drawing them as an opaque black rectangle.
+  buildCutoutFlags() {
+    if (this.cutoutTexture) this.cutoutTexture.dispose();
+    const n = Math.max(1, this.items.length);
+    const data = new Float32Array(n);
+    this.items.forEach((item, i) => {
+      data[i] = item.kind === 'cutout' ? 1 : 0;
+    });
+    const tex = new THREE.DataTexture(data, n, 1, THREE.RedFormat, THREE.FloatType);
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+    tex.needsUpdate = true;
+    this.cutoutTexture = tex;
+    return tex;
+  }
+
   // Drag-and-drop additions, for the current session only. Copy the files into
-  // collage/ and rerun the scan to keep them.
+  // collage/images/ and rerun the scan to keep them.
   async addFiles(fileList) {
     const files = [...fileList].filter((f) => f.type.startsWith('image/'));
-    for (const file of files) await this.addBlob(file, file.name);
+    for (const file of files) await this.addBlob(file, file.name, { kind: 'image', fit: 'contain' });
     if (files.length) {
       this.rebuildTexture();
       this.listeners.forEach((fn) => fn(this));

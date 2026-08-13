@@ -191,7 +191,10 @@ export class CityBuilder {
     for (let bi = 0; bi < buildings.length; bi++) {
       const b = buildings[bi];
       for (const m of b.modules) {
-        const shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), { blades: m.blades });
+        const shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {
+          blades: m.blades,
+          tile: !!m.matKind,
+        });
         parts.push({ bi, b, m, shape });
         vertices += shape.pos.length / 3;
       }
@@ -202,6 +205,11 @@ export class CityBuilder {
     const uv = new Float32Array(vertices * 2);
     const col = new Float32Array(vertices * 3);
     const layer = new Float32Array(vertices);
+    // Which material tiles this face, per module rather than per face — a
+    // building only ever wears one material, so the whole module reads it.
+    // -1 is no material, -2 is the glass shader (no texture, PBR override
+    // only), >=0 indexes the material pool.
+    const matLayer = new Float32Array(vertices);
     const glowTicket = new Float32Array(vertices);
     const emissive = new Float32Array(vertices * 3);
     // Billboard tickets: scroll, swap, flicker. The shader compares each
@@ -252,13 +260,20 @@ export class CityBuilder {
       const gg = glowColor.g * strength;
       const gb = glowColor.b * strength;
       const [an0, an1, an2] = m.anim || [1, 1, 1];
+      // Whole-module, not per-face: a building wears one material at most, so
+      // every eligible module in it reads the same index.
+      const matIndex = m.matKind === 'material' ? m.matIndex ?? 0 : m.matKind === 'glass' ? -2 : -1;
 
       shape.slots.forEach((slot, si) => {
         const face = m.faces[si] || m.faces[0];
         const count = this.pool.length;
         const layerIndex =
-          face.image == null || !count ? -1 : ((face.image % count) + count) % count;
-        const c = this._color.set(layerIndex >= 0 ? '#ffffff' : face.color || '#cccccc');
+          matIndex !== -1 || face.image == null || !count
+            ? -1
+            : ((face.image % count) + count) % count;
+        const c = this._color.set(
+          layerIndex >= 0 || matIndex !== -1 ? '#ffffff' : face.color || '#cccccc'
+        );
         const cr = c.r;
         const cg = c.g;
         const cb = c.b;
@@ -310,6 +325,7 @@ export class CityBuilder {
           uv[v * 2] = shape.uv[i * 2];
           uv[v * 2 + 1] = shape.uv[i * 2 + 1];
           layer[v] = layerIndex;
+          matLayer[v] = matIndex;
           glowTicket[v] = ticket;
           spin[v * 4] = ox;
           spin[v * 4 + 1] = oy;
@@ -335,6 +351,7 @@ export class CityBuilder {
     geo.setAttribute('aUv', new THREE.BufferAttribute(uv, 2));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setAttribute('aLayer', new THREE.BufferAttribute(layer, 1));
+    geo.setAttribute('aMatLayer', new THREE.BufferAttribute(matLayer, 1));
     geo.setAttribute('aGlow', new THREE.BufferAttribute(glowTicket, 1));
     geo.setAttribute('aEmissive', new THREE.BufferAttribute(emissive, 3));
     geo.setAttribute('aAnim', new THREE.BufferAttribute(anim, 3));

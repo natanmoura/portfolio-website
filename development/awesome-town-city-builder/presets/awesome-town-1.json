@@ -1,0 +1,242 @@
+{
+  "version": 2,
+  "name": "Awesome Town 1",
+  "params": {
+    "seed": 47340,
+    "cols": 50,
+    "rows": 50,
+    "cell": 16,
+    "density": 0.7,
+    "lotFill": 0.72,
+    "lotJitter": 0.04,
+    "roadPattern": "boulevard",
+    "roadSkew": 0.25,
+    "blockWidth": 2.95,
+    "blockDepth": 4.95,
+    "blockDepthRatio": 1.03,
+    "frontageSpacing": 1.32,
+    "setback": 0.7,
+    "highwayWidth": 14,
+    "streetWidth": 6.2,
+    "showRoads": true,
+    "carCount": 1200,
+    "flyerCount": 600,
+    "mainRoadBias": 0.7,
+    "carSpeed": 25,
+    "carSize": 0.91,
+    "flyerHeight": 100,
+    "minFloors": 5,
+    "maxFloors": 50,
+    "centerBias": 1,
+    "floorHeight": 10,
+    "floorJitter": 0.69,
+    "setbackChance": 0.17,
+    "setbackAmount": 0.07,
+    "bend": 0,
+    "cohesion": 0.72,
+    "collageChance": 0.82,
+    "imageChance": 0.52,
+    "sameImageChance": 0.73,
+    "materialChance": 0.16,
+    "glassChance": 0.3,
+    "zoomJitter": 0.94,
+    "slabChance": 0,
+    "rotateChance": 0.12,
+    "glowChance": 0.17,
+    "glowStrength": 1.39,
+    "glowTint": 0.94,
+    "glowImage": 0.74,
+    "palette": "arcade",
+    "duotone": 0.09,
+    "spireChance": 0.6,
+    "scrollShare": 1,
+    "swapShare": 1,
+    "flickerShare": 0.11,
+    "terrainHeight": 0,
+    "terrainScale": 4,
+    "terrainDetail": 3,
+    "moduleMix": {
+      "box": 46.5328613566137,
+      "octagon": 12.05379774748284,
+      "cylinder": 17.488401388985576,
+      "pillars": 0.007018246398991401,
+      "pillars8": 2.5875483880379853,
+      "post": 8.835639995670373,
+      "sphere": 0.2027344564212304,
+      "spin": 15.492263362664048
+    },
+    "roofMix": {
+      "flat": 28,
+      "pyramid": 31.764540866527206,
+      "gable": 25.162297283089252,
+      "cone": 15.818778349991302,
+      "dome": 13.863592363507962
+    },
+    "hour": 4.9,
+    "sunAzimuth": -60,
+    "sunStrength": 1.9,
+    "ambient": 1.09,
+    "exposure": 1.32,
+    "skyCustom": true,
+    "skyColor": "#758fff",
+    "fog": 0.56,
+    "fogCustom": false,
+    "fogColor": "#d8da52",
+    "bloomOn": true,
+    "bloomStrength": 1.03,
+    "shadows": true,
+    "softShadows": true,
+    "shadowLightSize": 0.0015,
+    "shadowSoftness": 8,
+    "shadowSamples": 32,
+    "shadowDetail": 12288,
+    "ao": 0,
+    "aoRadius": 7,
+    "aoSmoothing": 2,
+    "aoBias": 0.125,
+    "aoSamples": 24,
+    "aoTint": true,
+    "aoColor": "#2a3550",
+    "occlusion": 0.79,
+    "occlusionHeight": 19.1,
+    "showGrid": false,
+    "showStats": false,
+    "waveHeight": 0,
+    "waveScale": 0.2,
+    "waveSpeed": 0.6,
+    "waveRock": 0.08,
+    "wind": 0.79,
+    "dof": 0,
+    "dofAuto": true,
+    "dofFocus": 45,
+    "dofRange": 55,
+    "bokeh": 0.4,
+    "halftone": 0,
+    "halftoneScale": 4,
+    "posterize": 0,
+    "posterizeSteps": 6,
+    "vignette": 0.09,
+    "grain": 0,
+    "contrast": 1.05,
+    "saturation": 1.04,
+    "shadowTintOn": false,
+    "shadowTint": "#8fa8d8",
+    "highlightTintOn": false,
+    "highlightTint": "#ffe6c0",
+    "showCars": true,
+    "flybySpeed": 59,
+    "flybyHeight": 29.7,
+    "flybyLookAhead": 16,
+    "flybyBank": 0.73,
+    "flybyPitch": 0.8
+  },
+  "overrides": {
+    "b9_8_m5": {
+      "h": 2.005297105861828
+    },
+    "b9_6_m6": {
+      "h": 3.0993867701421625
+    },
+    "b26_25_m8": {
+      "faces": [
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        }
+      ],
+      "glowColor": "#ff9ec4"
+    },
+    "b31_7_m3": {
+      "faces": [
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        }
+      ]
+    },
+    "b37_7_m13": {
+      "kind": "flag",
+      "faces": [
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1.9
+        },
+        {
+          "image": 2,
+          "color": "#ffffff"
+        },
+        null,
+        {
+          "image": 2,
+          "color": "#ffffff"
+        }
+      ],
+      "glowStrength": 1.7,
+      "pattern": "solid"
+    },
+    "b37_7": {
+      "footprintScale": 1.1,
+      "rotY": 1.13
+    },
+    "b8_30_m17": {
+      "h": 13.27
+    },
+    "b10_22_m47": {
+      "kind": "flag"
+    },
+    "b10_19_m50": {
+      "kind": "cylinder"
+    },
+    "b2_1": {
+      "floorsDelta": 0
+    },
+    "b10_19": {
+      "floorsDelta": 3
+    },
+    "b10_19_m53": {
+      "kind": "flag"
+    },
+    "b10_19_m52": {
+      "kind": "cone"
+    },
+    "b10_22_m41": {
+      "kind": "post"
+    },
+    "b10_16_m42": {
+      "h": 14.97
+    }
+  }
+}

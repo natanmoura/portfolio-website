@@ -58,6 +58,12 @@ export const FAMILY = {
 // Roofs that come to a point can carry a spire.
 export const POINTED_ROOFS = new Set(['pyramid', 'cone']);
 
+// What a building's material — concrete, brick, wood, or the reflective glass
+// shader — is allowed to cover. Never a roof, but pillars are fair game even
+// though they never take a picture: a column being made of stone or wood
+// reads fine, a photo wrapped round one inch of it does not.
+export const MATERIAL_KINDS = new Set(['box', 'octagon', 'cylinder', 'sphere', 'pillars', 'pillars8']);
+
 export const ROOFS_BY_FAMILY = {
   boxy: ['flat', 'pyramid', 'gable'],
   round: ['flat', 'cone', 'dome'],
@@ -103,6 +109,11 @@ export const DEFAULTS = {
   collageChance: 0.68,
   imageChance: 0.62,
   sameImageChance: 0.3,
+  // Share of buildings that wear a material instead of loose colour. Of those,
+  // glassChance is how many get the reflective glass shader instead of a
+  // concrete/brick/wood texture.
+  materialChance: 0.16,
+  glassChance: 0.3,
   zoomJitter: 0.3,
   slabChance: 0.16,
   rotateChance: 0.25,
@@ -201,10 +212,13 @@ const PATTERNS = ['solid', 'alternate', 'half', 'mirror', 'caps', 'banded'];
 // Two colours per module, laid out geometrically. Which slots count as caps
 // depends on the shape, so a colour break lands where the form breaks.
 function capSlots(kind, n) {
+  // Only a real hidden base counts as a cap, and pyramid/gable/cone already
+  // carry theirs in FLAT_SLOTS. A dome has no such slot — its panels are all
+  // visible sides of one hemisphere — so there is nothing here for it to
+  // fall back to without picking an arbitrary panel and painting it alone,
+  // which is exactly the stray single-colour patch this used to produce.
   const flat = flatSlots(kind);
-  if (flat.length) return new Set(flat);
-  if (ROOF_SET.has(kind)) return new Set([n - 1]);
-  return new Set();
+  return flat.length ? new Set(flat) : new Set();
 }
 
 // A colonnade is one object. Striping the columns different colours reads as a
@@ -247,8 +261,9 @@ function paintSlots(kind, n, pattern, a, b) {
 
 // A sloped roof carries no collage, but a cube used as a cap is still a cube.
 // Spires and colonnades are structure, not surface: an image wrapped round a
-// column an inch wide is unreadable smear.
-const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8']);
+// column an inch wide is unreadable smear. A sphere is never a canvas either —
+// a picture curved fully around a ball reads as a mistake from every angle.
+const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8', 'sphere']);
 
 function imagesAllowed(kind) {
   return !ROOF_SET.has(kind) && !NO_IMAGES.has(kind);
@@ -269,7 +284,7 @@ function buildingScheme(rng, palette) {
 // --- modules ---------------------------------------------------------------
 
 function makeModule(t, params, palette, ctx, index, id) {
-  const { signature, family, scheme, collage, imageCount, isRoof } = ctx;
+  const { signature, family, scheme, collage, imageCount, isRoof, material } = ctx;
 
   let kind;
   if (isRoof) {
@@ -318,6 +333,13 @@ function makeModule(t, params, palette, ctx, index, id) {
 
   const spins = kind === 'spin' || (kind === 'cylinder' && t.spinIs < 0.45);
 
+  // A building wears at most one material, and every eligible module in it
+  // wears the same one — that consistency is the whole point, so this is a
+  // straight shape check against the building's single choice rather than a
+  // per-module roll. A roof never qualifies regardless of what shape it
+  // resolved to, since a flat roof is a box underneath.
+  const usesMaterial = !isRoof && material && MATERIAL_KINDS.has(kind);
+
   // The glow ticket travels to the shader rather than being resolved here, so
   // the "lit modules" slider switches existing modules on and off instead of
   // shifting the random stream and rebuilding the city around it. An explicit
@@ -333,6 +355,8 @@ function makeModule(t, params, palette, ctx, index, id) {
     glowTicket: t.glow,
     glowColor: palette.glow[Math.floor(t.glowColour * palette.glow.length)],
     glowStrength: mix(0.6, 1.4, t.glowStrength),
+    matKind: usesMaterial ? material.kind : null,
+    matIndex: usesMaterial && material.kind === 'material' ? material.index : null,
     // Billboard tickets, read against the global shares in the shader.
     anim: [t.scroll, t.swap, t.flicker],
     pattern,
@@ -343,7 +367,7 @@ function makeModule(t, params, palette, ctx, index, id) {
 
 // --- lot -------------------------------------------------------------------
 
-export function generateLot(site, params, overrides, imageCount, groundAt, half) {
+export function generateLot(site, params, overrides, imageCount, materialCount, groundAt, half) {
   const palette = getPalette(params.palette);
   const id = site.id;
   const bOver = overrides[id] || {};
@@ -358,6 +382,21 @@ export function generateLot(site, params, overrides, imageCount, groundAt, half)
   const family = FAMILY[signature] || 'boxy';
   const scheme = buildingScheme(brng, palette);
   const collage = brng.float() < params.collageChance;
+  const materialRoll = brng.float();
+  const glassRoll = brng.float();
+  const matPickRoll = brng.float();
+  // At most one material per building — glass if within the glass share (or
+  // if no material textures are loaded), otherwise one texture from the pool.
+  // A hand pick from the inspector overrides the roll outright, including
+  // picking null to strip a material the roll would otherwise have given it.
+  let material = null;
+  if (materialRoll < params.materialChance) {
+    material =
+      materialCount > 0 && glassRoll >= params.glassChance
+        ? { kind: 'material', index: Math.floor(matPickRoll * materialCount) }
+        : { kind: 'glass' };
+  }
+  if (bOver.material !== undefined) material = bOver.material;
   const shapeRoll = brng.float();
   const sizeRollW = brng.float();
   const sizeRollD = brng.float();
@@ -376,7 +415,7 @@ export function generateLot(site, params, overrides, imageCount, groundAt, half)
   let w = site.w * (1 + (sizeRollW * 2 - 1) * params.lotJitter * 0.4);
   let d = site.d * (1 + (sizeRollD * 2 - 1) * params.lotJitter * 0.4);
 
-  const ctx = { signature, family, scheme, collage, imageCount, isRoof: false };
+  const ctx = { signature, family, scheme, collage, imageCount, isRoof: false, material };
   let modules = [];
   for (let i = 0; i < floors; i++) {
     const t = tickets(new Rng(hashIdModule(seed, id, i)));
@@ -502,6 +541,7 @@ export function generateLot(site, params, overrides, imageCount, groundAt, half)
     family,
     scheme,
     collage,
+    material,
     modules,
   };
 }
@@ -568,6 +608,13 @@ function applyOverride(module, override) {
   Object.assign(module, rest);
   // Switching a module to a sphere by hand has to cube its box too.
   if (rest.kind === 'sphere') module.w = module.d = module.h = Math.min(module.w, module.d);
+  // A hand shape change can move a module off of material-eligible ground —
+  // pillars and roofs never wear a material regardless of what they wore a
+  // moment ago.
+  if (rest.kind !== undefined && !MATERIAL_KINDS.has(module.kind)) {
+    module.matKind = null;
+    module.matIndex = null;
+  }
   if (repaint) {
     const n = slotCount(module.kind, module.blades);
     const [a, b] = module.scheme;
@@ -588,11 +635,11 @@ function applyOverride(module, override) {
   return module;
 }
 
-export function generateCity(params, overrides = {}, imageCount = 0, groundAt = null) {
+export function generateCity(params, overrides = {}, imageCount = 0, materialCount = 0, groundAt = null) {
   const layout = buildLayout(params);
   const buildings = [];
   for (const site of layout.sites) {
-    const b = generateLot(site, params, overrides, imageCount, groundAt, layout.half);
+    const b = generateLot(site, params, overrides, imageCount, materialCount, groundAt, layout.half);
     if (b) buildings.push(b);
   }
   return {
