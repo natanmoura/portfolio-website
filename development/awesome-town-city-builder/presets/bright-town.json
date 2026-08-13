@@ -1,0 +1,200 @@
+{
+  "version": 2,
+  "name": "Newsprint 34967",
+  "params": {
+    "seed": 34967,
+    "cols": 30,
+    "rows": 30,
+    "cell": 8,
+    "density": 0.96,
+    "lotFill": 0.52,
+    "lotJitter": 0.09,
+    "roadPattern": "grid",
+    "roadSkew": 0.06794143403328289,
+    "blockWidth": 3.3,
+    "blockDepth": 3.8,
+    "blockDepthRatio": 1.2450691219052659,
+    "frontageSpacing": 0.6,
+    "setback": 0.8386737617700648,
+    "highwayWidth": 20,
+    "streetWidth": 2.070248557644541,
+    "showRoads": true,
+    "carCount": 335,
+    "flyerCount": 0,
+    "mainRoadBias": 0.81300367468391,
+    "carSpeed": 3.9,
+    "carSize": 2.69,
+    "flyerHeight": 14.721488199932532,
+    "minFloors": 3,
+    "maxFloors": 26,
+    "centerBias": 0.7094213760888113,
+    "floorHeight": 3.3,
+    "floorJitter": 0.53,
+    "setbackChance": 0.15,
+    "setbackAmount": 0.07,
+    "bend": 0,
+    "cohesion": 0.32,
+    "surfaceMix": {
+      "texture": 5.222059258116456,
+      "glass": 0,
+      "mirror": 0,
+      "image": 40.61706621878009,
+      "cutout": 63.82411894354903,
+      "colour": 0
+    },
+    "imageChance": 1,
+    "sameImageChance": 0.35,
+    "zoomJitter": 1.5,
+    "slabChance": 0.17,
+    "rotateChance": 0.29,
+    "glowChance": 0.6,
+    "glowStrength": 1.44,
+    "glowTint": 1,
+    "glowImage": 0.56,
+    "palette": "newsprint",
+    "duotone": 0,
+    "spireChance": 0,
+    "scrollShare": 0.84,
+    "swapShare": 0.21,
+    "flickerShare": 0,
+    "terrainHeight": 0,
+    "terrainScale": 0.9514021048383334,
+    "terrainDetail": 4,
+    "moduleMix": {
+      "box": 17.4698160609375,
+      "octagon": 3,
+      "cylinder": 4,
+      "pillars": 0,
+      "pillars8": 0,
+      "post": 20,
+      "sphere": 0,
+      "spin": 9
+    },
+    "roofMix": {
+      "flat": 45.4349196391681,
+      "pyramid": 0,
+      "gable": 3.1737427332591133,
+      "cone": 46.813623515625004,
+      "dome": 8.53164505354934
+    },
+    "hour": 5.522540852905661,
+    "sunAzimuth": -4.606413511737799,
+    "sunStrength": 1.1179334040160005,
+    "ambient": 3,
+    "exposure": 0.92,
+    "skyCustom": true,
+    "skyColor": "#3ae4d9",
+    "fog": 0.3491893638877253,
+    "fogCustom": false,
+    "fogColor": "#7c6c22",
+    "bloomOn": true,
+    "bloomStrength": 0.7,
+    "shadows": true,
+    "softShadows": true,
+    "shadowLightSize": 0.016,
+    "shadowSoftness": 3.426492928614335,
+    "shadowSamples": 32,
+    "shadowDetail": 8192,
+    "ao": 0.96,
+    "aoRadius": 10.3,
+    "aoSmoothing": 2,
+    "aoBias": 0.135,
+    "aoSamples": 20,
+    "aoTint": true,
+    "aoColor": "#2a3550",
+    "occlusion": 0.44438746821916153,
+    "occlusionHeight": 3.2730632937038715,
+    "showGrid": false,
+    "showStats": true,
+    "waveHeight": 0,
+    "waveScale": 1.7320665012009617,
+    "waveSpeed": 0.30148466685729186,
+    "waveRock": 0.28143623668546147,
+    "wind": 0.06060443483057741,
+    "dof": 0,
+    "dofAuto": false,
+    "dofFocus": 32.24322686912598,
+    "dofRange": 20.36716236429623,
+    "bokeh": 0.3485841509756399,
+    "halftone": 0,
+    "halftoneScale": 4.6,
+    "posterize": 0,
+    "posterizeSteps": 2,
+    "vignette": 0,
+    "grain": 0,
+    "contrast": 1.0867174340573662,
+    "saturation": 1.3518572772313813,
+    "shadowTintOn": true,
+    "shadowTint": "#c582ce",
+    "highlightTintOn": false,
+    "highlightTint": "#afe1a6",
+    "showCars": true,
+    "flybySpeed": 16,
+    "flybyHeight": 3.2,
+    "flybyLookAhead": 16,
+    "flybyBank": 0.8,
+    "flybyPitch": 1.5
+  },
+  "overrides": {
+    "b6_3": {
+      "material": {
+        "kind": "mirror"
+      }
+    },
+    "b10_3": {
+      "material": {
+        "kind": "mirror"
+      }
+    },
+    "b2_0": {
+      "material": {
+        "kind": "mirror"
+      }
+    },
+    "b10_0": {
+      "material": {
+        "kind": "mirror"
+      }
+    },
+    "b7_36_m15": {
+      "w": 4.98,
+      "kind": "box",
+      "faces": [
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        }
+      ],
+      "glowStrength": 1.18
+    },
+    "b6_53": {
+      "seedNudge": 5
+    }
+  }
+}

@@ -1,0 +1,250 @@
+{
+  "version": 2,
+  "name": "Concrete 20629",
+  "params": {
+    "seed": 20629,
+    "cols": 35,
+    "rows": 34,
+    "cell": 6.3,
+    "density": 0.6,
+    "lotFill": 0.9446803558767833,
+    "lotJitter": 0.16,
+    "roadPattern": "organic",
+    "roadSkew": 0.8513657822319185,
+    "blockWidth": 2.95,
+    "blockDepth": 2.3,
+    "blockDepthRatio": 1.25,
+    "frontageSpacing": 1.4317014810184974,
+    "setback": 1.6,
+    "highwayWidth": 8.7,
+    "streetWidth": 3.3,
+    "showRoads": true,
+    "carCount": 26,
+    "flyerCount": 5,
+    "mainRoadBias": 0.5163854459616722,
+    "carSpeed": 7.474678779917907,
+    "carSize": 1.2220381019266724,
+    "flyerHeight": 14.5,
+    "minFloors": 1,
+    "maxFloors": 18,
+    "centerBias": 0.99,
+    "floorHeight": 3.2,
+    "floorJitter": 0.23,
+    "setbackChance": 0.43018011073702,
+    "setbackAmount": 0.19984590872440872,
+    "bend": 0.16,
+    "cohesion": 0.8225088849398685,
+    "surfaceMix": {
+      "texture": 4.328553143771095,
+      "glass": 4.941950977797671,
+      "mirror": 0,
+      "image": 55.049114625471894,
+      "cutout": 62.69507333580182,
+      "colour": 7.801522891189367
+    },
+    "imageChance": 0.5,
+    "sameImageChance": 0.6136444833165302,
+    "zoomJitter": 0.2,
+    "slabChance": 0,
+    "rotateChance": 0.09,
+    "glowChance": 0.58,
+    "glowStrength": 1.15,
+    "glowTint": 0.33505553796978504,
+    "glowImage": 0.56,
+    "palette": "concrete",
+    "duotone": 0.02,
+    "spireChance": 0.6399745266072809,
+    "scrollShare": 0,
+    "swapShare": 0,
+    "flickerShare": 0.51,
+    "terrainHeight": 20,
+    "terrainScale": 0.84,
+    "terrainDetail": 1,
+    "moduleMix": {
+      "box": 65,
+      "octagon": 2,
+      "cylinder": 11,
+      "pillars": 0,
+      "pillars8": 0,
+      "post": 2,
+      "sphere": 2.7375,
+      "spin": 3
+    },
+    "roofMix": {
+      "flat": 13,
+      "pyramid": 2,
+      "gable": 12,
+      "cone": 59,
+      "dome": 14
+    },
+    "hour": 12.720260855529578,
+    "sunAzimuth": -88.02839493913902,
+    "sunStrength": 1.243029772176388,
+    "ambient": 0.6121488101017191,
+    "exposure": 1.081627872859568,
+    "skyCustom": true,
+    "skyColor": "#f5f5f5",
+    "fog": 0.89,
+    "fogCustom": true,
+    "fogColor": "#b0b0b0",
+    "bloomOn": true,
+    "bloomStrength": 0.7864286578645422,
+    "shadows": true,
+    "softShadows": true,
+    "shadowLightSize": 0.006,
+    "shadowSoftness": 3.2,
+    "shadowSamples": 32,
+    "shadowDetail": 6144,
+    "ao": 0.53,
+    "aoRadius": 10.7,
+    "aoSmoothing": 3,
+    "aoBias": 0.17,
+    "aoSamples": 24,
+    "aoTint": true,
+    "aoColor": "#2a3550",
+    "occlusion": 0.59,
+    "occlusionHeight": 4.951761973436928,
+    "showGrid": false,
+    "showStats": true,
+    "waveHeight": 0,
+    "waveScale": 2.202289102546119,
+    "waveSpeed": 0.6059033860119574,
+    "waveRock": 0.16975066574258382,
+    "wind": 0.17,
+    "dof": 0.4,
+    "dofAuto": true,
+    "dofFocus": 90,
+    "dofRange": 25,
+    "bokeh": 0.67,
+    "halftone": 0,
+    "halftoneScale": 4.282600022158859,
+    "posterize": 0,
+    "posterizeSteps": 5,
+    "vignette": 0,
+    "grain": 0,
+    "contrast": 0.88,
+    "saturation": 1.11,
+    "shadowTintOn": false,
+    "shadowTint": "#d936b5",
+    "highlightTintOn": false,
+    "highlightTint": "#ffffff",
+    "showCars": true,
+    "flybySpeed": 59,
+    "flybyHeight": 29.7,
+    "flybyLookAhead": 16,
+    "flybyBank": 0.73,
+    "flybyPitch": 0.8,
+    "collageChance": 0.82,
+    "materialChance": 0.16,
+    "glassChance": 0.3
+  },
+  "overrides": {
+    "b9_8_m5": {
+      "h": 2.005297105861828
+    },
+    "b9_6_m6": {
+      "h": 3.0993867701421625
+    },
+    "b26_25_m8": {
+      "faces": [
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1
+        }
+      ],
+      "glowColor": "#ff9ec4"
+    },
+    "b31_7_m3": {
+      "faces": [
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        },
+        {
+          "image": 19,
+          "color": "#ffffff"
+        }
+      ]
+    },
+    "b37_7_m13": {
+      "kind": "flag",
+      "faces": [
+        {
+          "image": 2,
+          "color": "#ffffff",
+          "zoom": 1.9
+        },
+        {
+          "image": 2,
+          "color": "#ffffff"
+        },
+        null,
+        {
+          "image": 2,
+          "color": "#ffffff"
+        }
+      ],
+      "glowStrength": 1.7,
+      "pattern": "solid"
+    },
+    "b37_7": {
+      "footprintScale": 1.1,
+      "rotY": 1.13
+    },
+    "b8_30_m17": {
+      "h": 13.27
+    },
+    "b10_22_m47": {
+      "kind": "flag"
+    },
+    "b10_19_m50": {
+      "kind": "cylinder"
+    },
+    "b2_1": {
+      "floorsDelta": 0
+    },
+    "b10_19": {
+      "floorsDelta": 3
+    },
+    "b10_19_m53": {
+      "kind": "flag"
+    },
+    "b10_19_m52": {
+      "kind": "cone"
+    },
+    "b10_22_m41": {
+      "kind": "post"
+    },
+    "b10_16_m42": {
+      "h": 14.97
+    }
+  }
+}
