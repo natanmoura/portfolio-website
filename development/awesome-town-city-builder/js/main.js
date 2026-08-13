@@ -524,11 +524,11 @@ function refreshInspector() {
   const building = byBuilding.get(state.selection.buildingId);
   if (!building) return inspector.hide();
   if (state.selection.mode === 'building') {
-    return inspector.show(state.selection, null, building, palette);
+    return inspector.show(state.selection, null, building, palette, state.params);
   }
   const entry = byModule.get(state.selection.moduleId);
   if (!entry) return inspector.hide();
-  inspector.show(state.selection, entry.module, building, palette);
+  inspector.show(state.selection, entry.module, building, palette, state.params);
 }
 
 // --- input -----------------------------------------------------------------
@@ -736,7 +736,13 @@ function buildUI() {
     }
   );
 
-  inspector = new Inspector(document.getElementById('inspector'), pool, actions, matPool);
+  inspector = new Inspector(
+    document.getElementById('inspector'),
+    pool,
+    actions,
+    matPool,
+    () => stage.clockTime || 0
+  );
 
   document.getElementById('btn-frame').onclick = () => frameCity();
   document.getElementById('btn-shot').onclick = snapshot;

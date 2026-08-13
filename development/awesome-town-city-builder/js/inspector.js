@@ -56,11 +56,12 @@ const HELP = {
 };
 
 export class Inspector {
-  constructor(root, pool, actions, matPool) {
+  constructor(root, pool, actions, matPool, getTime) {
     this.root = root;
     this.pool = pool;
     this.matPool = matPool;
     this.actions = actions;
+    this.getTime = getTime || (() => 0);
     this.locked = false;
     this.applyAll = false;
     this.body = h('div', { class: 'insp-body' });
@@ -76,6 +77,20 @@ export class Inspector {
 
     // A drag can end anywhere, so the release is caught on the window.
     addEventListener('pointerup', () => this.unlock());
+
+    // A swapping billboard changes which picture is on a face every several
+    // seconds, on the GPU, without touching the module data the panel reads.
+    // Left alone the thumbnail grid would go stale the moment a swap fired,
+    // highlighting the picture that used to be there instead of the one the
+    // building is actually showing. Skipped while anything in the panel has
+    // focus, so a redraw never interrupts typing into the crop box mid-edit.
+    setInterval(() => {
+      if (this.locked || !this.actions.refresh) return;
+      const active = document.activeElement;
+      if (active && active.tagName === 'INPUT' && this.root.contains(active)) return;
+      this.actions.refresh();
+    }, 1000);
+
     this.hide();
   }
 
@@ -94,12 +109,12 @@ export class Inspector {
     );
   }
 
-  show(selection, module, building, palette) {
+  show(selection, module, building, palette, params) {
     if (this.locked) return; // a slider is mid-drag, leave the DOM alone
     this.root.classList.remove('empty');
     this.selection = selection;
     if (selection.mode === 'building') this.renderBuilding(building);
-    else this.renderModule(selection, module, building, palette);
+    else this.renderModule(selection, module, building, palette, params);
   }
 
   tabs(selection) {
@@ -126,7 +141,7 @@ export class Inspector {
 
   // --- module --------------------------------------------------------------
 
-  renderModule(selection, module, building, palette) {
+  renderModule(selection, module, building, palette, params) {
     const { actions } = this;
     const id = module.id;
     this.head.textContent = `Module ${module.index + 1} of ${building.modules.length}`;
@@ -159,6 +174,22 @@ export class Inspector {
     const slot = Math.min(selection.slot || 0, n - 1);
     const face = module.faces[slot] || module.faces[0];
     const setFace = (patch) => actions.setFace(id, slot, patch, this.applyAll, n);
+
+    // A lit, swapping face shows a different picture on the GPU every few
+    // seconds without the module data ever changing — mirrors the shader's
+    // own formula so the thumbnail grid highlights what is actually on the
+    // building right now rather than the picture it started on.
+    const poolLen = this.pool.length;
+    const anim = module.anim || [1, 1, 1];
+    const swapping = module.glow && params && anim[1] < (params.swapShare ?? 0) && poolLen > 1 && face.image != null;
+    let displayImage = face.image;
+    let swapNote = null;
+    if (swapping) {
+      const every = 5 + anim[1] * 5;
+      const step = Math.floor(this.getTime() / every + anim[1] * 13);
+      displayImage = (((face.image + step * 7) % poolLen) + poolLen) % poolLen;
+      if (displayImage !== face.image) swapNote = this.pool.get(displayImage)?.name;
+    }
 
     const schemeRow = withHelp(
       h(
@@ -340,7 +371,8 @@ export class Inspector {
       !isRoof && !usesMaterial && imageRow,
       !isRoof && !usesMaterial && this.slider('Crop', face.zoom || 1, 1, 3, 0.01, (v) => setFace({ zoom: v }), HELP.crop),
       !isRoof && !usesMaterial && label('Images'),
-      !isRoof && !usesMaterial && withHelp(this.thumbGrid(face, setFace), HELP.thumbs, 'Image pool'),
+      !isRoof && !usesMaterial && swapNote && h('p', { class: 'hint' }, `Swapping — this face is showing "${swapNote}" right now. Picking a new image sets what it swaps back to.`),
+      !isRoof && !usesMaterial && withHelp(this.thumbGrid(face, setFace, displayImage), HELP.thumbs, 'Image pool'),
       !isRoof && usesMaterial && h('p', { class: 'hint' }, 'This module is wearing the building material — every face, no picture.'),
       withHelp(
         h(
@@ -360,7 +392,7 @@ export class Inspector {
     return this.pool.length ? Math.floor(Math.random() * this.pool.length) : null;
   }
 
-  thumbGrid(face, setFace) {
+  thumbGrid(face, setFace, displayImage) {
     if (!this.thumbs) {
       this.thumbs = h(
         'div',
@@ -379,8 +411,11 @@ export class Inspector {
       const btn = e.target.closest('.thumb');
       if (btn) setFace({ image: Number(btn.dataset.i), color: '#ffffff' });
     };
+    // Highlights whatever is actually showing right now, which for a
+    // swapping face is not always the one stored on it — see displayImage.
+    const shown = displayImage ?? face.image;
     this.thumbs.querySelectorAll('.thumb').forEach((btn, i) => {
-      btn.classList.toggle('on', face.image === i);
+      btn.classList.toggle('on', shown === i);
     });
     return this.thumbs;
   }
