@@ -1,7 +1,10 @@
 {
   "files": [
-    "awesome-town-day.json",
+    "big-town-day.json",
+    "big-town-night.json",
+    "bright-town.json",
     "disco-town.json",
+    "grey-town.json",
     "small-town-edit.json"
   ]
 }
