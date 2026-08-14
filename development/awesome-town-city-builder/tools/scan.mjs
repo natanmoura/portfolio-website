@@ -2,7 +2,7 @@
 // presets/manifest.json from whatever scene files are sitting in presets/.
 // Drop new files in, then:
 //   node tools/scan.mjs
-import { readdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -38,5 +38,36 @@ console.log(
 );
 
 const files = sceneFiles.filter((f) => f !== 'manifest.json');
+
+// A preset's displayed name always tracks its filename — dropping in
+// "big-town-day.json" and calling it that on disk is the only naming step;
+// the label in the editor follows automatically rather than drifting from
+// whatever the file happened to be called when it was first saved.
+const titleFromFilename = (file) =>
+  file
+    .replace(/\.json$/i, '')
+    .split('-')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+
+let renamed = 0;
+for (const file of files) {
+  const full = path.join(presets, file);
+  let data;
+  try {
+    data = JSON.parse(await readFile(full, 'utf8'));
+  } catch {
+    console.warn(`presets/${file} -> could not parse, left alone`);
+    continue;
+  }
+  const wanted = titleFromFilename(file);
+  if (data.name !== wanted) {
+    data.name = wanted;
+    await writeFile(full, JSON.stringify(data, null, 2) + '\n');
+    renamed++;
+  }
+}
+
 await writeFile(path.join(presets, 'manifest.json'), JSON.stringify({ files }, null, 2) + '\n');
-console.log(`presets/manifest.json -> ${files.length} presets`);
+console.log(`presets/manifest.json -> ${files.length} presets${renamed ? `, ${renamed} renamed to match their file` : ''}`);

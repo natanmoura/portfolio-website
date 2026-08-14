@@ -1,0 +1,466 @@
+{
+  "version": 2,
+  "name": "Bauhaus 4147",
+  "params": {
+    "seed": 4147,
+    "cols": 9,
+    "rows": 11,
+    "cell": 4.5712737905722305,
+    "density": 0.599699098117177,
+    "lotFill": 0.585876141117234,
+    "lotJitter": 0.13311475795956249,
+    "roadPattern": "organic",
+    "roadSkew": 0.5128683634371924,
+    "blockWidth": 1.4133491974341228,
+    "blockDepth": 1.5108892433032715,
+    "blockDepthRatio": 0.7781505261271803,
+    "frontageSpacing": 1.266750882565645,
+    "setback": 0.24654843916081529,
+    "highwayWidth": 4.737084148217912,
+    "streetWidth": 2.297379866073176,
+    "showRoads": true,
+    "carCount": 96,
+    "flyerCount": 16,
+    "mainRoadBias": 0.5100783504182622,
+    "carSpeed": 8.747338974680893,
+    "carSize": 1.375988692859901,
+    "flyerHeight": 32.0639489273899,
+    "minFloors": 4,
+    "maxFloors": 19,
+    "centerBias": 0.36813876122751754,
+    "floorHeight": 2.3670745893873164,
+    "floorJitter": 0.13172407125561764,
+    "setbackChance": 0.4322507310773189,
+    "setbackAmount": 0.24591117185937217,
+    "bend": 0.032594076797829365,
+    "cohesion": 0.6143824614739397,
+    "surfaceMix": {
+      "texture": 5.656808580901676,
+      "glass": 9.348365289197105,
+      "mirror": 3.850366237791183,
+      "image": 42.38809627558169,
+      "cutout": 22.12620265230666,
+      "colour": 16.63016096422169
+    },
+    "imageChance": 0.7703030076923457,
+    "sameImageChance": 0.20931108006623345,
+    "zoomJitter": 0.7110772826773317,
+    "slabChance": 0.056324800093409046,
+    "rotateChance": 0.20511134473719425,
+    "glowChance": 0.5002506132678111,
+    "glowStrength": 1.669405166713207,
+    "glowTint": 0.4258132350390417,
+    "glowImage": 0.8275701429560072,
+    "palette": "bauhaus",
+    "duotone": 0,
+    "spireChance": 0.020438474275546882,
+    "scrollShare": 0.4504958222161253,
+    "swapShare": 0.3653202654481974,
+    "flickerShare": 0.003496475598233128,
+    "terrainHeight": 0,
+    "terrainScale": 1.2018923959831935,
+    "terrainDetail": 3,
+    "moduleMix": {
+      "box": 6,
+      "octagon": 14,
+      "cylinder": 7,
+      "pillars": 0,
+      "pillars8": 0,
+      "post": 37,
+      "sphere": 2,
+      "spin": 15
+    },
+    "roofMix": {
+      "flat": 63,
+      "pyramid": 6,
+      "gable": 22,
+      "cone": 1,
+      "dome": 8
+    },
+    "hour": 8.02311493268427,
+    "sunAzimuth": -116.53922474127876,
+    "sunStrength": 1.3745029403502893,
+    "ambient": 0.9873727431759437,
+    "exposure": 0.8458537183115569,
+    "skyCustom": false,
+    "skyColor": "#8a6470",
+    "fog": 0.14452939869238282,
+    "fogCustom": false,
+    "fogColor": "#7cb4e9",
+    "bloomOn": true,
+    "bloomStrength": 1.3002747832990538,
+    "shadows": true,
+    "softShadows": true,
+    "shadowLightSize": 0.015,
+    "shadowSoftness": 3.407917265403292,
+    "shadowSamples": 32,
+    "shadowDetail": 8192,
+    "ao": 0,
+    "aoRadius": 2.4,
+    "aoSmoothing": 2,
+    "aoBias": 0.06,
+    "aoSamples": 20,
+    "aoTint": true,
+    "aoColor": "#2a3550",
+    "occlusion": 0.42920352581166876,
+    "occlusionHeight": 5.9013898702547625,
+    "showGrid": false,
+    "showStats": true,
+    "waveHeight": 0,
+    "waveScale": 1.5466315472011098,
+    "waveSpeed": 0.724734685703583,
+    "waveRock": 0.2627449768490321,
+    "wind": 0.10954261811859713,
+    "dof": 0,
+    "dofAuto": true,
+    "dofFocus": 47.905234737818844,
+    "dofRange": 29.764758131384966,
+    "bokeh": 0.2073248130652321,
+    "halftone": 0,
+    "halftoneScale": 3.7644141892789773,
+    "posterize": 0,
+    "posterizeSteps": 5,
+    "vignette": 0,
+    "grain": 0,
+    "contrast": 1.1046966499442976,
+    "saturation": 1.5003466258735543,
+    "shadowTintOn": true,
+    "shadowTint": "#6270c0",
+    "highlightTintOn": false,
+    "highlightTint": "#ebf3f2",
+    "showCars": true,
+    "flybySpeed": 16,
+    "flybyHeight": 3.2,
+    "flybyLookAhead": 16,
+    "flybyBank": 0.8,
+    "flybyPitch": 1.5,
+    "collageChance": 0.9471944947085893,
+    "materialChance": 0.007399614192292514,
+    "glassChance": 0.30248645622511383
+  },
+  "overrides": {
+    "b3_3": {
+      "seedNudge": 7
+    },
+    "b6_2": {
+      "seedNudge": 10
+    },
+    "b0_2": {
+      "seedNudge": 2,
+      "material": {
+        "kind": "material",
+        "index": 3
+      }
+    },
+    "b5_3": {
+      "seedNudge": 8
+    },
+    "b7_0": {
+      "seedNudge": 6
+    },
+    "b1_2": {
+      "seedNudge": 11
+    },
+    "b0_1": {
+      "seedNudge": 13,
+      "material": {
+        "kind": "material",
+        "index": 1
+      },
+      "floorsDelta": 1
+    },
+    "b0_5": {
+      "seedNudge": 7,
+      "material": {
+        "kind": "material",
+        "index": 2
+      }
+    },
+    "b9_0": {
+      "seedNudge": 13
+    },
+    "b9_0_m0": {
+      "kind": "spin"
+    },
+    "b4_2_m6": {
+      "faces": [
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 10,
+          "color": "#ffffff",
+          "zoom": 1
+        }
+      ],
+      "h": 4.01,
+      "w": 3.44,
+      "d": 0.2
+    },
+    "b0_1_m16": {
+      "kind": "spin",
+      "h": 0.21,
+      "w": 12.38,
+      "spinSpeed": 0.48,
+      "blades": 4,
+      "faces": [
+        {
+          "image": 27
+        },
+        {
+          "image": 27
+        },
+        {
+          "image": 27,
+          "color": "#ffffff"
+        },
+        {
+          "image": 27
+        }
+      ]
+    },
+    "b10_1": {
+      "material": {
+        "kind": "material",
+        "index": 3
+      },
+      "floorsDelta": 2
+    },
+    "b10_1_m8": {
+      "kind": "cylinder",
+      "h": 2.81,
+      "w": 4.5,
+      "d": 4.5
+    },
+    "b10_1_m9": {
+      "kind": "cone",
+      "glowColor": "#f5c518",
+      "scheme": [
+        "#8d8f93",
+        "#111111"
+      ],
+      "glowTicket": 2,
+      "glowStrength": 1.32,
+      "deleted": true
+    },
+    "b0_2_m7": {
+      "deleted": true
+    },
+    "b7_1_m5": {
+      "kind": "post"
+    },
+    "b5_4_m6": {
+      "h": 5.97,
+      "d": 0.36,
+      "w": 5.02,
+      "glowStrength": 0.92,
+      "faces": [
+        {
+          "zoom": 1
+        },
+        {
+          "zoom": 1
+        },
+        {
+          "zoom": 1
+        },
+        {
+          "zoom": 1
+        },
+        {
+          "zoom": 1
+        },
+        {
+          "zoom": 1
+        }
+      ],
+      "rotY": 2.59,
+      "spinSpeed": 0.56
+    },
+    "b5_3_m11": {
+      "faces": [
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        },
+        {
+          "zoom": 1,
+          "image": 3,
+          "color": "#ffffff"
+        },
+        {
+          "image": 3,
+          "color": "#ffffff",
+          "zoom": 1
+        }
+      ],
+      "h": 2.53,
+      "w": 4.4,
+      "d": 0.2
+    },
+    "b5_3_m0": {
+      "h": 5.13
+    },
+    "b0_3": {
+      "seedNudge": 9,
+      "floorsDelta": 1
+    },
+    "b0_3_m9": {
+      "w": 4.94,
+      "h": 5.69
+    },
+    "b0_3_m13": {
+      "kind": "cone"
+    },
+    "b11_1_m9": {
+      "kind": "post"
+    },
+    "b11_1_m10": {
+      "kind": "post"
+    },
+    "b11_1_m11": {
+      "kind": "pyramid"
+    },
+    "b11_1_m8": {
+      "scheme": [
+        "#1b4dae",
+        "#111111"
+      ]
+    },
+    "b4_1_m9": {
+      "kind": "gable",
+      "deleted": true
+    },
+    "b4_1_m10": {
+      "kind": "cone"
+    },
+    "b10_1_m10": {
+      "kind": "cylinder",
+      "h": 1.61,
+      "d": 3,
+      "w": 3.08
+    },
+    "b7_1_m6": {
+      "kind": "pillars8"
+    },
+    "b0_1_m17": {
+      "kind": "flag"
+    },
+    "b0_0_m11": {
+      "kind": "spin",
+      "h": 5.35,
+      "w": 8.52,
+      "spinSpeed": 0.72,
+      "faces": [
+        {
+          "zoom": 1.07,
+          "image": 46
+        },
+        {
+          "image": 46
+        },
+        {
+          "image": 46
+        }
+      ]
+    },
+    "b8_0_m6": {
+      "blades": 1,
+      "faces": [
+        {
+          "image": 62,
+          "color": "#ffffff"
+        }
+      ],
+      "h": 4.71,
+      "w": 4.06
+    },
+    "b2_0": {
+      "seedNudge": 14
+    },
+    "b0_4": {
+      "seedNudge": 4,
+      "material": {
+        "kind": "material",
+        "index": 1
+      }
+    },
+    "b0_4_m5": {
+      "faces": [
+        {
+          "image": 9,
+          "color": "#ffffff"
+        },
+        {
+          "image": 9,
+          "color": "#ffffff"
+        },
+        {
+          "image": 9,
+          "color": "#ffffff"
+        },
+        {
+          "image": 9,
+          "color": "#ffffff"
+        },
+        {
+          "image": 9,
+          "color": "#ffffff"
+        },
+        {
+          "image": 9,
+          "color": "#ffffff"
+        }
+      ],
+      "d": 3.36,
+      "h": 1.19,
+      "rotY": 2.2,
+      "w": 3.44,
+      "kind": "octagon",
+      "matKind": null,
+      "matIndex": null,
+      "scheme": [
+        "#d5312a",
+        "#f2efe6"
+      ]
+    }
+  }
+}
