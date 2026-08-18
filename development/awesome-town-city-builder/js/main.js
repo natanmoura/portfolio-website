@@ -35,6 +35,8 @@ import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
 import { loadEditedLibrary, EDITS_KEY } from './library.js';
+import { openShelfPicker } from './shelfpicker.js';
+import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
 import { buildExport, downloadExport } from './exporter.js';
@@ -138,8 +140,15 @@ const WHEEL_COLORS = {
   cone: '#3f6f6a',
   dome: '#5a3f7a',
 };
+// The wheel names its slices from the library when it can, so a component
+// renamed in the editor renames its slice here too.
 const wheelMeta = (keys) =>
-  Object.fromEntries(keys.map((k) => [k, { label: KIND_LABEL[k], color: WHEEL_COLORS[k] }]));
+  Object.fromEntries(
+    keys.map((k) => [
+      k,
+      { label: library?.components.get(k)?.label || KIND_LABEL[k] || k, color: WHEEL_COLORS[k] },
+    ])
+  );
 
 const SURFACE_COLORS = {
   texture: '#9a8f74',
@@ -831,27 +840,52 @@ function buildUI() {
     );
   };
 
+  // Which components a role may use, shown as the things themselves rather
+  // than a column of labels. Clicking opens the library as an overlay, and
+  // what comes back is what the wheel underneath then divides up — so
+  // choosing *what* and setting *how much* stay two separate, visible acts.
   const buildRoleToggles = (mountKey, role, wheelKey) => {
     const mount = controls.mounts.get(mountKey);
     if (!mount) return;
+
     const draw = () => {
       const on = includedFor(state.params, role);
-      const boxes = ROLES[role].defaults.map((id) => {
-        const input = h('input', {
-          type: 'checkbox',
-          ...(on.includes(id) ? { checked: '' } : {}),
+      const docs = on.map((id) => library?.components.get(id)).filter(Boolean);
+
+      const strip = h(
+        'button',
+        { class: 'role-strip', title: 'Choose which components this role uses' },
+        ...docs.slice(0, 7).map((doc) =>
+          h('img', { class: 'role-thumb', src: renderThumb(doc, library, 3), alt: doc.label, title: doc.label })
+        ),
+        docs.length > 7 ? h('span', { class: 'role-more' }, `+${docs.length - 7}`) : null,
+        h('span', { class: 'role-pick' }, `${on.length} chosen`)
+      );
+
+      strip.addEventListener('click', () => {
+        const candidates = ROLES[role].defaults
+          .map((id) => library?.components.get(id))
+          .filter(Boolean);
+        openShelfPicker({
+          title: `${ROLES[role].label} components`,
+          help: ROLES[role].help,
+          candidates,
+          selected: includedFor(state.params, role),
+          library,
+          onCommit: (ids) => {
+            state.params.roles = { ...(state.params.roles || {}), [role]: ids };
+            draw();
+            buildMixWheel(wheelKey, role);
+            markAll();
+            history?.record(null);
+            noteStatus(`${ROLES[role].label}: ${ids.length} components`);
+          },
         });
-        input.addEventListener('change', () => {
-          state.params.roles = toggleInRole(state.params, role, id);
-          draw();
-          buildMixWheel(wheelKey, role);
-          markAll();
-          history?.record(null);
-        });
-        return h('label', { class: 'role-item' }, input, h('span', {}, roleLabel(id)));
       });
-      setChildren(mount, h('div', { class: 'role-set' }, ...boxes));
+
+      setChildren(mount, strip);
     };
+
     roleRedraws.push(draw);
     draw();
   };

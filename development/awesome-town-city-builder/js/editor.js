@@ -73,13 +73,19 @@ function persist() {
 
 // Every write goes through here, so there is exactly one place that decides
 // what "changed" means and one place that refreshes.
-function mutate(patch, id = currentId()) {
+//
+// `live` is a drag in progress. The model and the viewport keep up, but the
+// panel is left alone: rebuilding it would replace the very slider being
+// dragged, which is what makes a control feel like it is sticking. The
+// release fires again without the flag and the panel catches up then.
+function mutate(patch, opts = {}, id = currentId()) {
   if (!id) return;
   const base = shipped.components.get(id);
   edits[id] = { ...(edits[id] || {}), ...(docOf(id) || {}), ...patch };
   if (base && JSON.stringify(edits[id]) === JSON.stringify(base)) delete edits[id];
   persist();
-  render();
+  if (opts.live) refreshViewport();
+  else render();
 }
 
 const isDirty = (id) => Boolean(edits[id]);
@@ -153,7 +159,9 @@ function refreshViewport() {
     const mesh = new THREE.Mesh(geo, piece.partIndex === selectedPart ? pickMat : baseMat);
     // Shapes are built centred on their origin, so a piece sitting at offset
     // y needs lifting by half its height to put its base there.
-    mesh.position.set(piece.offset[0], piece.offset[1] + piece.bounds.h / 2, piece.offset[2]);
+    const sc = piece.scale ?? 1;
+    mesh.scale.setScalar(sc);
+    mesh.position.set(piece.offset[0], piece.offset[1] + (piece.bounds.h * sc) / 2, piece.offset[2]);
     if (piece.rotY) mesh.rotation.y = piece.rotY;
     mesh.userData.partIndex = piece.partIndex;
     shown.add(mesh);
@@ -243,6 +251,22 @@ function popTo(depth) {
 
 function renderCrumbs() {
   const kids = [];
+
+  // Stepping out is the move you make most while editing nested assemblies,
+  // so it gets a real target that names where it goes rather than an icon
+  // you have to remember the meaning of.
+  if (trail.length > 1) {
+    const parent = docOf(trail[trail.length - 2]);
+    const back = h(
+      'button',
+      { class: 'crumb-back', title: `Back to ${parent?.label || 'the assembly'}` },
+      h('span', { class: 'crumb-arrow' }, '←'),
+      h('span', {}, parent?.label || 'back')
+    );
+    back.addEventListener('click', () => popTo(trail.length - 2));
+    kids.push(back);
+  }
+
   trail.forEach((id, i) => {
     const doc = docOf(id);
     if (i) kids.push(h('span', { class: 'crumb-sep' }, '›'));
@@ -250,11 +274,7 @@ function renderCrumbs() {
     b.addEventListener('click', () => popTo(i));
     kids.push(b);
   });
-  if (trail.length > 1) {
-    const up = h('button', { class: 'crumb-up', title: 'Back out one level' }, '↰ out');
-    up.addEventListener('click', () => popTo(trail.length - 2));
-    kids.push(up);
-  }
+
   setChildren(crumbEl, ...kids);
 }
 
@@ -391,8 +411,8 @@ function slotBlock(doc, part, i) {
   const chosenDoc = docOf(chosen);
   const isChoice = slotIsChoice(part);
 
-  const write = (next) => mutate({ parts: next });
-  const replace = (patch) => write(doc.parts.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+  const write = (next, o) => mutate({ parts: next }, o);
+  const replace = (patch, o) => write(doc.parts.map((e, j) => (j === i ? { ...e, ...patch } : e)), o);
   const move = (delta) => {
     const next = doc.parts.slice();
     const j = i + delta;
@@ -473,7 +493,7 @@ function slotBlock(doc, part, i) {
   const pins = part.params || {};
   const schema = { ...(chosenDoc?.params || {}), ...pins };
   const rows = Object.entries(schema).map(([key, value]) =>
-    paramRow(key, value, (next) => replace({ params: { ...pins, [key]: next } }))
+    paramRow(key, value, (next, o) => replace({ params: { ...pins, [key]: next } }, o))
   );
 
   return h(
@@ -523,8 +543,8 @@ function algorithmSection(doc) {
 
   const params = { ...def.defaults, ...(doc.algorithmParams || {}) };
   const rows = Object.entries(params).map(([name, value]) =>
-    paramRow(name, value, (next) =>
-      mutate({ algorithmParams: { ...(doc.algorithmParams || {}), [name]: next } })
+    paramRow(name, value, (next, o) =>
+      mutate({ algorithmParams: { ...(doc.algorithmParams || {}), [name]: next } }, o)
     )
   );
 
@@ -542,12 +562,12 @@ function algorithmSection(doc) {
 
 function modifierSection(doc) {
   const stack = doc.modifiers || [];
-  const write = (next) => mutate({ modifiers: next });
+  const write = (next, o) => mutate({ modifiers: next }, o);
 
   const blocks = stack.map((entry, i) => {
     const def = MODIFIERS[entry.type];
     if (!def) return null;
-    const replace = (patch) => write(stack.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+    const replace = (patch, o) => write(stack.map((e, j) => (j === i ? { ...e, ...patch } : e)), o);
     const move = (delta) => {
       const next = stack.slice();
       const j = i + delta;
@@ -567,7 +587,7 @@ function modifierSection(doc) {
 
     const params = { ...def.defaults, ...(entry.params || {}) };
     const rows = Object.entries(params).map(([name, value]) =>
-      paramRow(name, value, (next) => replace({ params: { ...params, [name]: next } }))
+      paramRow(name, value, (next, o) => replace({ params: { ...params, [name]: next } }, o))
     );
 
     return h(
@@ -613,7 +633,7 @@ function variantSection() {
 
 function paramsSection(doc) {
   const rows = Object.entries(doc.params || {}).map(([name, value]) =>
-    paramRow(name, value, (next) => mutate({ params: { ...(doc.params || {}), [name]: next } }))
+    paramRow(name, value, (next, o) => mutate({ params: { ...(doc.params || {}), [name]: next } }, o))
   );
   const add = h('button', { class: 'btn small' }, '+ size params');
   add.addEventListener('click', () =>

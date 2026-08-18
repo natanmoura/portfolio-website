@@ -71,9 +71,11 @@ export function renderThumb(doc, lib, seed = 3) {
       geo.setAttribute('position', new THREE.BufferAttribute(piece.geometry.pos, 3));
       geo.setAttribute('normal', new THREE.BufferAttribute(piece.geometry.nor, 3));
       const mesh = new THREE.Mesh(geo, material);
+      const sc = piece.scale ?? 1;
+      mesh.scale.setScalar(sc);
       mesh.position.set(
         piece.offset[0],
-        piece.offset[1] + piece.bounds.h / 2,
+        piece.offset[1] + (piece.bounds.h * sc) / 2,
         piece.offset[2]
       );
       if (piece.rotY) mesh.rotation.y = piece.rotY;

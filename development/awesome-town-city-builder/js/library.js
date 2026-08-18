@@ -22,7 +22,7 @@
 import { buildShape } from './geometry.js';
 import { applyModifiers } from './modifiers.js';
 import { resolveParams, resolveParamsWith, unit } from './constraints.js';
-import { algorithmOf, DEFAULT_ALGORITHM } from './algorithms.js';
+import { algorithmOf, DEFAULT_ALGORITHM, instanceCountFor } from './algorithms.js';
 
 export const EMPTY_SHAPE = 'empty';
 export const MAX_DEPTH = 8;
@@ -189,21 +189,34 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
     tags,
     params: dims,
     geometry,
-    pieces: [{ id: doc.id, geometry, bounds, offset: [0, 0, 0], rotY: 0, path: p, partIndex: -1 }],
+    pieces: [{ id: doc.id, geometry, bounds, offset: [0, 0, 0], rotY: 0, scale: 1, path: p, partIndex: -1 }],
   };
 }
 
 function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   const nextSeen = new Set(seen).add(doc.id);
-  const resolvedParts = [];
+  const list = doc.parts || [];
 
-  (doc.parts || []).forEach((part, i) => {
-    const partPath = `${p}.part${i}`;
+  const algo = algorithmOf(doc.algorithm || DEFAULT_ALGORITHM);
+  const opts = resolveParams({ ...algo.defaults, ...(doc.algorithmParams || {}) }, seed, `${p}.algo`);
+  // How many the arrangement wants, which for most is more than are listed:
+  // the list is cycled to fill the count. Resolved before the parts, because
+  // the count decides how many there are to resolve.
+  const total = list.length ? instanceCountFor(doc, list, opts) : 0;
+
+  const resolvedParts = [];
+  for (let i = 0; i < total; i++) {
+    const partIndex = i % list.length;
+    const part = list[partIndex];
+    // Each instance draws down its own path, so a slot with several
+    // candidates gives a row of different pillars rather than one pillar
+    // repeated — the variation costs nothing extra.
+    const partPath = `${p}.i${i}`;
     const chosenId = pickSlot(part, seed, partPath);
     const child = chosenId ? lib.components.get(chosenId) : null;
     if (!child) {
       if (chosenId) console.warn(`${doc.id}: no component "${chosenId}"`);
-      return;
+      continue;
     }
     // A slot pins parameters on whatever it picked without touching the
     // component itself, which is how one box is a wide plinth here and a
@@ -213,11 +226,9 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
       ? resolveParams(part.params, seed, `${partPath}.pin`)
       : undefined;
     const r = resolveComponent(child, lib, seed, `${partPath}:${chosenId}`, proposals, depth + 1, nextSeen);
-    if (r) resolvedParts.push({ ...r, partIndex: i, slotId: chosenId });
-  });
+    if (r) resolvedParts.push({ ...r, partIndex, instanceIndex: i, slotId: chosenId, path: partPath });
+  }
 
-  const algo = algorithmOf(doc.algorithm || DEFAULT_ALGORITHM);
-  const opts = resolveParams({ ...algo.defaults, ...(doc.algorithmParams || {}) }, seed, `${p}.algo`);
   const { placed, bounds } = algo.place(resolvedParts, opts);
 
   // Flatten one level: a child's own pieces are already relative to the
@@ -225,16 +236,28 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   // already handled by the time it gets here.
   const pieces = [];
   for (const part of placed) {
+    const s = part.scale ?? 1;
+    const spin = part.rotY || 0;
+    const cos = Math.cos(spin);
+    const sin = Math.sin(spin);
     for (const piece of part.pieces) {
+      // A child's pieces are positioned in the child's own frame, so turning
+      // the child has to turn where its pieces sit, not only which way they
+      // face. Without this an assembly placed round a ring would face
+      // outward while its innards stayed put.
+      const px = piece.offset[0] * s;
+      const pz = piece.offset[2] * s;
       pieces.push({
         ...piece,
         offset: [
-          part.offset[0] + piece.offset[0],
-          part.offset[1] + piece.offset[1],
-          part.offset[2] + piece.offset[2],
+          part.offset[0] + px * cos - pz * sin,
+          part.offset[1] + piece.offset[1] * s,
+          part.offset[2] + px * sin + pz * cos,
         ],
-        rotY: (piece.rotY || 0) + (part.rotY || 0),
+        rotY: (piece.rotY || 0) + spin,
+        scale: (piece.scale ?? 1) * s,
         partIndex: part.partIndex,
+        instanceIndex: part.instanceIndex,
       });
     }
   }
