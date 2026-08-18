@@ -1,3 +1,5 @@
+import { buildIndex, search } from './search.js';
+
 // Global controls panel. Definitions live here, wiring lives in main.js.
 //
 // House rule: nothing ships without hover help. `help` on a definition is
@@ -8,9 +10,9 @@
 
 // replaceChildren stringifies anything that is not a Node, so the common
 // `condition && element` idiom renders the literal text "false" or "null"
-// into the panel whenever the condition fails. h() already filters those
-// out for its own children; this is the same guard for the places that
-// write into an existing node instead of building a new one.
+// into the panel whenever the condition fails. h() already filters those out
+// for its own children; this is the same guard for the places that write to
+// an existing node instead of building a new one.
 export function setChildren(node, ...kids) {
   node.replaceChildren(
     ...kids.flat().filter((kid) => kid !== null && kid !== undefined && kid !== false && kid !== true)
@@ -478,11 +480,13 @@ export class Controls {
     this.ranges = new Map();
     this.mounts = new Map();
     this.pages = new Map();
+    // Where every control ended up, so search can jump to one.
+    this.entries = [];
     this.tab = 'town';
 
     this.tabBar = h('nav', { class: 'tabbar' });
     this.pageWrap = h('div', { class: 'pages' });
-    root.append(this.tabBar, this.pageWrap);
+    root.append(this.buildSearch(), this.tabBar, this.pageWrap);
 
     for (const tab of TABS) {
       const page = h('div', { class: 'page' });
@@ -500,7 +504,106 @@ export class Controls {
       const page = this.pages.get(group.tab) || this.pages.get('town');
       page.append(this.renderSection(group));
     });
+    this.index = buildIndex(this.entries);
     this.show('town');
+  }
+
+  // --- search --------------------------------------------------------------
+
+  buildSearch() {
+    const input = h('input', {
+      type: 'search',
+      class: 'search-input',
+      placeholder: 'Search settings',
+      autocomplete: 'off',
+      spellcheck: 'false',
+    });
+    const results = h('div', { class: 'search-results' });
+    const wrap = h('div', { class: 'search' }, input, results);
+    this.searchInput = input;
+
+    let active = -1;
+    const close = () => {
+      results.replaceChildren();
+      wrap.classList.remove('open');
+      active = -1;
+    };
+
+    const run = () => {
+      const found = search(this.index, input.value);
+      if (!found.length) {
+        if (!input.value.trim()) return close();
+        results.replaceChildren(h('div', { class: 'search-empty' }, 'Nothing matches that'));
+        wrap.classList.add('open');
+        return;
+      }
+      active = -1;
+      results.replaceChildren(
+        ...found.map((entry, i) =>
+          h(
+            'button',
+            {
+              class: 'search-hit',
+              'data-i': i,
+              onclick: () => {
+                this.reveal(entry.key);
+                input.value = '';
+                close();
+              },
+            },
+            h('span', { class: 'search-hit-label' }, entry.label),
+            h('span', { class: 'search-hit-where' }, `${entry.tabLabel} · ${entry.section}`)
+          )
+        )
+      );
+      wrap.classList.add('open');
+    };
+
+    input.addEventListener('input', run);
+    input.addEventListener('focus', () => input.value.trim() && run());
+    input.addEventListener('keydown', (e) => {
+      const hits = [...results.querySelectorAll('.search-hit')];
+      if (e.key === 'Escape') {
+        input.value = '';
+        close();
+        input.blur();
+        return;
+      }
+      if (!hits.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length;
+        hits.forEach((b, i) => b.classList.toggle('on', i === active));
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        (hits[Math.max(0, active)] || hits[0]).click();
+      }
+    });
+    // Clicking anywhere else puts the list away.
+    addEventListener('pointerdown', (e) => {
+      if (!wrap.contains(e.target)) close();
+    });
+
+    return wrap;
+  }
+
+  // Switch to the right tab, open the section if it was collapsed, scroll to
+  // the control and flash it, so the answer to "where is that" is visible
+  // rather than merely navigated to.
+  reveal(key) {
+    const entry = this.entries.find((e) => e.key === key);
+    if (!entry) return;
+    this.show(entry.tab);
+    entry.body?.classList.remove('closed');
+    entry.head?.classList.remove('closed');
+    entry.row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    entry.row.classList.remove('found');
+    // Restart the animation rather than letting a repeat search do nothing.
+    void entry.row.offsetWidth;
+    entry.row.classList.add('found');
+    setTimeout(() => entry.row.classList.remove('found'), 1600);
   }
 
   show(id) {
@@ -512,7 +615,28 @@ export class Controls {
   }
 
   renderSection(group) {
-    const body = h('div', { class: 'sec-body' }, (group.items || []).map((def) => this.renderItem(def)));
+    const tabLabel = (TABS.find((t) => t.id === group.tab) || {}).label || group.tab;
+    const rows = (group.items || []).map((def) => {
+      const row = this.renderItem(def);
+      // Mounts are holes other code fills in, and have no label worth finding.
+      if (def.type !== 'mount') {
+        this.entries.push({
+          key: def.key,
+          label: def.label || def.key,
+          help: def.help || '',
+          section: group.section,
+          tab: group.tab,
+          tabLabel,
+          row,
+        });
+      }
+      return row;
+    });
+    const body = h('div', { class: 'sec-body' }, rows);
+    // Late binding, because the section elements do not exist until below.
+    for (const entry of this.entries) {
+      if (entry.section === group.section && !entry.body) entry.body = body;
+    }
     // Open by default. Collapsing is there for when a section is in the way,
     // not as the resting state.
     const head = h(
@@ -527,6 +651,9 @@ export class Controls {
       h('span', { class: 'sec-name' }, group.section),
       h('span', { class: 'sec-mark' })
     );
+    for (const entry of this.entries) {
+      if (entry.body === body && !entry.head) entry.head = head;
+    }
     return h('section', { class: 'sec' }, head, body);
   }
 
