@@ -44,6 +44,12 @@
       "port": 5182
     },
     {
+      "name": "equus",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/website/development/equus/tools/serve.js", "5183"],
+      "port": 5183
+    },
+    {
       "name": "resume",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],

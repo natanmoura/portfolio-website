@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Equus</title>
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header id="bar">
+  <h1>Equus<em>procedural horse locomotion</em></h1>
+
+  <div class="seg" id="mode-seg">
+    <button class="btn on" data-mode="lab"
+      data-help="A stationary editor for reading motion. The horse still genuinely travels and the camera is welded to its side, because sliding the feet under a standing horse would break the world locked hoof rule this whole system is built on.">Lab</button>
+    <button class="btn" data-mode="field"
+      data-help="The horse in the world with game controls, over terrain with real elevation. Same solver and same parameters as the lab, only the camera and the ground change.">Field</button>
+  </div>
+
+  <div class="seg" id="view-seg"></div>
+
+  <span class="grow"></span>
+  <span id="status" class="status"></span>
+  <button class="btn" id="btn-shot"
+    data-help="Saves the current view as a PNG into the project's shots folder, at the size of the viewport.">Snapshot</button>
+</header>
+
+<main>
+  <aside id="controls" class="panel"></aside>
+
+  <div id="viewport">
+    <canvas id="view"></canvas>
+    <div id="transport">
+      <button class="btn" id="btn-play"
+        data-help="Pause the clock. Everything in the simulation is derived from stride phase, so a pause is a clean freeze rather than a stalled animation.">Pause</button>
+      <button class="btn" id="btn-step"
+        data-help="Advance one frame at a sixtieth of a second while paused, for inspecting a contact or a takeoff frame by frame.">Step</button>
+      <span class="hint" id="clock-hint"></span>
+    </div>
+  </div>
+
+  <aside id="instruments" class="panel">
+    <h2 data-help="One row per limb. Stance is drawn solid and swing is left open, with the playhead at the current stride phase. Comparing this against the published footfall table is how a gait gets verified numerically rather than by eye.">Timing chart</h2>
+    <canvas id="timing"></canvas>
+    <h2 data-help="How hard each hoof is pressing, in newtons per kilogram of body mass. The forces are not authored: the profile shape is, and it is then scaled so the stride average comes out at exactly one gravity, because over a stride the vertical impulse has to equal the weight of the horse. The peaks that fall out land on the measured numbers on their own.">Ground force</h2>
+  <canvas id="forces"></canvas>
+
+  <h2 data-help="Live figures for the stride clock and the body, so you can see what the dials are actually doing to the numbers.">State</h2>
+    <pre id="readout"></pre>
+    <h2 data-help="What is built so far and what is not. Dials for unbuilt phases appear greyed in the panel rather than hidden, so the shape of the whole system stays visible.">Phase</h2>
+    <div id="phase-note"></div>
+  </aside>
+</main>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
