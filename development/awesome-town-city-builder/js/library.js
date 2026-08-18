@@ -12,6 +12,7 @@
 
 import { buildShape } from './geometry.js';
 import { resolveParams, applyModifiers } from './modifiers.js';
+import { stack, stackBounds } from './stacking.js';
 
 export const EMPTY_SHAPE = 'empty';
 
@@ -94,4 +95,58 @@ export function resolveComponent(component, seed, path) {
 export function componentsForTags(components, tags) {
   const wanted = tags || [];
   return [...components.values()].filter((c) => wanted.every((t) => (c.tags || []).includes(t)));
+}
+
+// --- templates --------------------------------------------------------------
+
+// A template is parts plus a construction rule, and resolving one gives back
+// the same shape of object a component does: bounds, anchors, tags. That
+// sameness is the point — a system stacking a template onto a building asks
+// it the same questions it asks a plain box, and never learns which it got.
+export function resolveTemplate(template, lib, seed, path) {
+  const p = path || `template:${template.id}`;
+  const parts = [];
+
+  (template.parts || []).forEach((entry, i) => {
+    const base = lib.components.get(entry.component);
+    if (!base) {
+      console.warn(`template ${template.id}: no component "${entry.component}"`);
+      return;
+    }
+    // A part may pin some of the component's parameters without editing the
+    // component itself, which is how one box serves as a wide plinth here
+    // and a narrow post there.
+    const merged = entry.params ? { ...base, params: { ...base.params, ...entry.params } } : base;
+    // Each part resolves down its own path, so a template using the same
+    // component twice gets two different draws rather than a mirrored pair.
+    parts.push(resolveComponent(merged, seed, `${p}.part${i}:${entry.component}`));
+  });
+
+  const opts = {
+    axis: template.axis || 'y',
+    overlap: template.overlap || 0,
+    gap: template.gap || 0,
+  };
+  const laid = stack(parts, opts);
+  const bounds = stackBounds(laid.parts, opts.axis);
+
+  return {
+    id: template.id,
+    isTemplate: true,
+    bounds,
+    anchors: anchorsFor(bounds.w, bounds.h, bounds.d),
+    tags: template.tags || [],
+    parts: laid.parts,
+    axis: opts.axis,
+  };
+}
+
+// One call for "resolve whatever this id is", so callers that genuinely do
+// not care — the mix wheel, a role pick — can stay ignorant of the split.
+export function resolveEntry(id, lib, seed, path) {
+  const template = lib.templates.get(id);
+  if (template) return resolveTemplate(template, lib, seed, path);
+  const component = lib.components.get(id);
+  if (component) return resolveComponent(component, seed, path);
+  return null;
 }

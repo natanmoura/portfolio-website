@@ -1,0 +1,65 @@
+{
+  "id": "lamp-post",
+  "version": 1,
+  "label": "Lamp Post",
+  "tags": [
+    "street",
+    "sign"
+  ],
+  "axis": "y",
+  "overlap": 0.05,
+  "parts": [
+    {
+      "component": "box",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.34
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 0.12
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.34
+        }
+      }
+    },
+    {
+      "component": "post",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.12
+        },
+        "h": {
+          "mode": "range",
+          "min": 1.6,
+          "max": 2.6
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.12
+        }
+      }
+    },
+    {
+      "component": "sphere",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.3
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 0.3
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.3
+        }
+      }
+    }
+  ]
+}

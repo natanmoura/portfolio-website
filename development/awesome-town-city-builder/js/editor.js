@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { loadLibrary, resolveComponent, isEmptyComponent } from './library.js';
+import { loadLibrary, resolveComponent, resolveTemplate, isEmptyComponent } from './library.js';
 import { MODIFIERS } from './modifiers.js';
 import { h, setChildren } from './ui.js';
 
@@ -46,17 +46,19 @@ function setStatus(text) {
 // edited on top. Everything downstream works from this, so the viewport and
 // the panel can never disagree about which version they are showing.
 function current() {
-  const base = library.components.get(currentId);
+  const base = library.components.get(currentId) || library.templates.get(currentId);
   if (!base) return null;
   return edits[currentId] ? { ...base, ...edits[currentId] } : base;
 }
+
+const isTemplate = (doc) => Boolean(doc && doc.parts);
 
 function isDirty(id) {
   return Boolean(edits[id]);
 }
 
 function mutate(patch) {
-  const base = library.components.get(currentId);
+  const base = library.components.get(currentId) || library.templates.get(currentId);
   edits[currentId] = { ...(edits[currentId] || {}), ...patch };
   // Anything that matches the shipped file again is not an edit, so the
   // dirty marker stays honest rather than sticking once touched.
@@ -99,24 +101,44 @@ const mat = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide,
   flatShading: true,
 });
-let mesh = null;
+const shown = new THREE.Group();
+scene.add(shown);
 const boundsBox = new THREE.Box3Helper(new THREE.Box3(), 0x6f8fbf);
 boundsBox.visible = false;
 scene.add(boundsBox);
 
-function refreshViewport() {
-  const component = current();
-  if (mesh) {
-    scene.remove(mesh);
-    mesh.geometry.dispose();
-    mesh = null;
+function clearShown() {
+  for (const child of [...shown.children]) {
+    shown.remove(child);
+    child.geometry.dispose();
   }
-  if (!component) {
+}
+
+// Shapes are built centred on their own origin, so a part sitting at stack
+// offset y needs lifting by half its height to put its base there.
+function addPart(geometry, bounds, offset) {
+  if (!geometry) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(geometry.pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(geometry.nor, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(geometry.uv, 2));
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(offset[0], offset[1] + bounds.h / 2, offset[2]);
+  shown.add(m);
+}
+
+function refreshViewport() {
+  const doc = current();
+  clearShown();
+  if (!doc) {
     boundsBox.visible = false;
     return;
   }
 
-  const resolved = resolveComponent(component, seed, `editor:${component.id}`);
+  const resolved = isTemplate(doc)
+    ? resolveTemplate(doc, library, seed, `editor:${doc.id}`)
+    : resolveComponent(doc, seed, `editor:${doc.id}`);
+
   const { w, h: hh, d } = resolved.bounds;
   boundsBox.box.set(
     new THREE.Vector3(-w / 2, 0, -d / 2),
@@ -124,16 +146,10 @@ function refreshViewport() {
   );
   boundsBox.visible = true;
 
-  if (resolved.geometry) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(resolved.geometry.pos, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(resolved.geometry.nor, 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(resolved.geometry.uv, 2));
-    mesh = new THREE.Mesh(geo, mat);
-    // Shapes are built centred on their own origin; sit it on the grid so
-    // the base anchor lines up with where it would stack in the town.
-    mesh.position.y = hh / 2;
-    scene.add(mesh);
+  if (resolved.parts) {
+    for (const part of resolved.parts) addPart(part.geometry, part.bounds, part.offset);
+  } else {
+    addPart(resolved.geometry, resolved.bounds, [0, 0, 0]);
   }
   renderStats(resolved);
 }
@@ -219,6 +235,69 @@ function paramsSection(component) {
     )
   );
   return h('div', {}, h('h3', {}, 'Parameters'), ...rows);
+}
+
+// --- template parts ---------------------------------------------------------
+
+// A template's parts are edited as pinned overrides on the component they
+// reference, never by editing the component itself — that is what lets one
+// box be a wide plinth in this template and a narrow post in the next.
+function partsSection(template) {
+  const parts = template.parts || [];
+
+  const blocks = parts.map((entry, i) => {
+    const base = library.components.get(entry.component);
+    const write = (next) => mutate({ parts: next });
+    const replace = (patch) => write(parts.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+    const move = (delta) => {
+      const next = parts.slice();
+      const j = i + delta;
+      if (j < 0 || j >= next.length) return;
+      [next[i], next[j]] = [next[j], next[i]];
+      write(next);
+    };
+
+    const up = h('button', { title: 'Move up' }, '↑');
+    up.addEventListener('click', () => move(-1));
+    const down = h('button', { title: 'Move down' }, '↓');
+    down.addEventListener('click', () => move(1));
+    const del = h('button', { title: 'Remove' }, '✕');
+    del.addEventListener('click', () => write(parts.filter((_, j) => j !== i)));
+
+    const pinned = entry.params || {};
+    const schema = { ...(base?.params || {}), ...pinned };
+    const rows = Object.entries(schema).map(([name, param]) =>
+      lockRow(name, param, (next) => replace({ params: { ...pinned, [name]: next } }))
+    );
+
+    return h(
+      'div',
+      { class: 'mod' },
+      h(
+        'div',
+        { class: 'mod-head' },
+        h('span', { class: 'name' }, base ? base.label : `${entry.component} (missing)`),
+        h('span', { class: 'grow' }),
+        up,
+        down,
+        del
+      ),
+      h('div', { class: 'mod-body' }, ...rows)
+    );
+  });
+
+  const add = h('select', {});
+  add.appendChild(h('option', { value: '' }, 'Add part…'));
+  for (const c of [...library.components.values()].sort((a, b) => a.label.localeCompare(b.label))) {
+    add.appendChild(h('option', { value: c.id }, c.label));
+  }
+  add.addEventListener('change', () => {
+    if (!add.value) return;
+    mutate({ parts: [...parts, { component: add.value, params: {} }] });
+    add.value = '';
+  });
+
+  return h('div', {}, h('h3', {}, 'Parts'), ...blocks, add);
 }
 
 // --- modifier stack ---------------------------------------------------------
@@ -323,8 +402,10 @@ let statsEl = null;
 function renderStats(resolved) {
   if (!statsEl) return;
   const b = resolved.bounds;
-  const tris = resolved.geometry ? resolved.geometry.pos.length / 9 : 0;
-  statsEl.textContent = `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)}  ·  ${tris} tris`;
+  const geos = resolved.parts ? resolved.parts.map((p) => p.geometry) : [resolved.geometry];
+  const tris = geos.reduce((sum, g) => sum + (g ? g.pos.length / 9 : 0), 0);
+  const parts = resolved.parts ? `${resolved.parts.length} parts · ` : '';
+  statsEl.textContent = `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)}  ·  ${parts}${tris} tris`;
 }
 
 // --- panels -----------------------------------------------------------------
@@ -336,10 +417,16 @@ function renderList() {
     if (!byTag.has(tag)) byTag.set(tag, []);
     byTag.get(tag).push(c);
   }
+  // Templates group together rather than scattering through the tags, since
+  // "is this one part or several" is the first thing you want to know.
+  const templates = [...library.templates.values()];
+  const groups = [...byTag.entries()].sort();
+  if (templates.length) groups.push(['templates', templates]);
+
   const kids = [];
-  for (const [tag, items] of [...byTag.entries()].sort()) {
+  for (const [tag, items] of groups) {
     kids.push(h('div', { class: 'lib-group' }, tag));
-    for (const c of items.sort((a, b) => a.label.localeCompare(b.label))) {
+    for (const c of items.slice().sort((a, b) => a.label.localeCompare(b.label))) {
       const btn = h(
         'button',
         { class: `lib-item${c.id === currentId ? ' on' : ''}${isDirty(c.id) ? ' dirty' : ''}` },
@@ -360,18 +447,21 @@ function renderEdit() {
     return;
   }
   statsEl = h('p', { class: 'stat-line' });
+  const template = isTemplate(component);
+  const what = template
+    ? `${component.parts.length} parts, stacked ${component.axis || 'y'}`
+    : isEmptyComponent(component)
+      ? 'no geometry'
+      : component.shape;
+
   setChildren(
     editEl,
     h('h2', {}, component.label),
-    h(
-      'p',
-      { class: 'stat-line' },
-      `${component.id} · v${component.version} · ${isEmptyComponent(component) ? 'no geometry' : component.shape}`
-    ),
+    h('p', { class: 'stat-line' }, `${component.id} · v${component.version} · ${what}`),
     statsEl,
     variantSection(),
-    paramsSection(component),
-    modifiersSection(component)
+    template ? partsSection(component) : paramsSection(component),
+    template ? null : modifiersSection(component)
   );
 }
 
