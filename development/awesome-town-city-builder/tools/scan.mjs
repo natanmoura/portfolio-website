@@ -11,7 +11,6 @@ const root = path.join(here, '..');
 const collage = path.join(root, 'collage');
 const presets = path.join(root, 'presets');
 const libComponents = path.join(root, 'library', 'components');
-const libTemplates = path.join(root, 'library', 'templates');
 const OK = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
 
 async function scan(dir, ok) {
@@ -93,5 +92,6 @@ async function scanLibrary(dir, label) {
   return ids;
 }
 
+// One folder, because a component made of other components is still a
+// component — there was never a second kind of thing to keep apart.
 await scanLibrary(libComponents, 'library/components');
-await scanLibrary(libTemplates, 'library/templates');

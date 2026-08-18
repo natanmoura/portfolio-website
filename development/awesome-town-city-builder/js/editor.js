@@ -1,74 +1,88 @@
-// Component editor. A separate window from the town on purpose: authoring a
-// brick and arranging a city are different jobs, and the editor wants the
-// whole viewport for one object rather than a corner of the town view.
+// Component editor.
 //
-// Editing here never touches the city. A component is loaded from the
-// library, edited, and saved back to localStorage as an override layer keyed
-// by id; the files on disk stay authoritative until someone downloads the
-// edited json and commits it. That keeps the shipped library reproducible
-// while still letting the editor be useful without a server round trip.
+// Three panes, and the middle one is the only one that draws. The shelf on
+// the left is every component in the library; the viewport shows the one
+// being edited; the panel on the right is that component's parts,
+// parameters and modifiers.
+//
+// Editing is prefab-shaped. A part inside an assembly can be opened, edited
+// in its own right, and stepped back out of, with the trail kept as a
+// breadcrumb. Because a part stores an id and never a copy, editing a sphere
+// two levels down changes every component that reaches a sphere, everywhere,
+// immediately. That is the reason for storing ids, and it is what makes the
+// library accumulate instead of fragment.
+//
+// Edits live in localStorage layered over the shipped files. The town reads
+// the same key and listens for changes, so with both windows open the city
+// retunes as parameters are locked.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { loadLibrary, resolveComponent, resolveTemplate, isEmptyComponent } from './library.js';
+import {
+  loadLibrary,
+  applyEdits,
+  readEdits,
+  writeEdits,
+  resolveComponent,
+  isAssembly,
+  isEmptyComponent,
+  slotCandidates,
+  slotMix,
+  slotIsChoice,
+  pickSlot,
+  newAssembly,
+  dependents,
+} from './library.js';
+import { ALGORITHMS, DEFAULT_ALGORITHM, algorithmOf } from './algorithms.js';
 import { MODIFIERS } from './modifiers.js';
+import { renderThumb } from './thumbs.js';
+import { paramRow } from './paramrow.js';
 import { h, setChildren } from './ui.js';
 
-const STORE_KEY = 'awesome-town:component-edits';
-
-const listEl = document.getElementById('list');
+const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit');
 const viewportEl = document.getElementById('viewport');
 const statusEl = document.getElementById('status');
+const crumbEl = document.getElementById('crumbs');
 
-let library = { components: new Map(), templates: new Map() };
-let edits = load();
-let currentId = null;
+let shipped = { components: new Map() };
+let library = { components: new Map() };
+let edits = readEdits();
 let seed = 1;
+// The drill-in trail. Last entry is what is being edited; everything before
+// it is what to come back out to.
+let trail = [];
+let selectedPart = -1;
 
-function load() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function persist() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(edits));
-}
+const currentId = () => trail[trail.length - 1] || null;
+const docOf = (id) => library.components.get(id) || null;
+const current = () => docOf(currentId());
 
 function setStatus(text) {
   statusEl.textContent = text;
 }
 
-// The component as it currently reads: what shipped, plus whatever is being
-// edited on top. Everything downstream works from this, so the viewport and
-// the panel can never disagree about which version they are showing.
-function current() {
-  const base = library.components.get(currentId) || library.templates.get(currentId);
-  if (!base) return null;
-  return edits[currentId] ? { ...base, ...edits[currentId] } : base;
+function rebuildLibrary() {
+  library = applyEdits(shipped, edits);
 }
 
-const isTemplate = (doc) => Boolean(doc && doc.parts);
-
-function isDirty(id) {
-  return Boolean(edits[id]);
+function persist() {
+  writeEdits(edits);
+  rebuildLibrary();
 }
 
-function mutate(patch) {
-  const base = library.components.get(currentId) || library.templates.get(currentId);
-  edits[currentId] = { ...(edits[currentId] || {}), ...patch };
-  // Anything that matches the shipped file again is not an edit, so the
-  // dirty marker stays honest rather than sticking once touched.
-  const merged = { ...base, ...edits[currentId] };
-  if (JSON.stringify(merged) === JSON.stringify(base)) delete edits[currentId];
+// Every write goes through here, so there is exactly one place that decides
+// what "changed" means and one place that refreshes.
+function mutate(patch, id = currentId()) {
+  if (!id) return;
+  const base = shipped.components.get(id);
+  edits[id] = { ...(edits[id] || {}), ...(docOf(id) || {}), ...patch };
+  if (base && JSON.stringify(edits[id]) === JSON.stringify(base)) delete edits[id];
   persist();
-  renderList();
-  renderEdit();
-  refreshViewport();
+  render();
 }
+
+const isDirty = (id) => Boolean(edits[id]);
 
 // --- viewport ---------------------------------------------------------------
 
@@ -79,7 +93,7 @@ viewportEl.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1b1b1e);
 
-const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 400);
 camera.position.set(2.8, 2.2, 3.4);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -87,44 +101,36 @@ controls.enableDamping = true;
 controls.target.set(0, 0.6, 0);
 
 scene.add(new THREE.HemisphereLight(0xdfe6f2, 0x2a2a2e, 1.5));
-const key = new THREE.DirectionalLight(0xffffff, 1.8);
-key.position.set(3, 5, 2);
-scene.add(key);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+keyLight.position.set(3, 5, 2);
+scene.add(keyLight);
+scene.add(new THREE.GridHelper(8, 16, 0x555560, 0x333338));
 
-const grid = new THREE.GridHelper(8, 16, 0x555560, 0x333338);
-scene.add(grid);
-
-const mat = new THREE.MeshStandardMaterial({
-  color: 0xc9c4b8,
-  roughness: 0.75,
-  metalness: 0.02,
-  side: THREE.DoubleSide,
-  flatShading: true,
+const baseMat = new THREE.MeshStandardMaterial({
+  color: 0xc9c4b8, roughness: 0.75, metalness: 0.02,
+  side: THREE.DoubleSide, flatShading: true,
 });
+// Selection reads on the model itself, so clicking a part in the list and
+// seeing which lump of the thing it is takes no hunting.
+const pickMat = new THREE.MeshStandardMaterial({
+  color: 0x6f9ff0, roughness: 0.5, metalness: 0.05,
+  side: THREE.DoubleSide, flatShading: true, emissive: 0x14305e,
+});
+
 const shown = new THREE.Group();
 scene.add(shown);
 const boundsBox = new THREE.Box3Helper(new THREE.Box3(), 0x6f8fbf);
 boundsBox.visible = false;
 scene.add(boundsBox);
 
+const raycaster = new THREE.Raycaster();
+let statsEl = null;
+
 function clearShown() {
   for (const child of [...shown.children]) {
     shown.remove(child);
     child.geometry.dispose();
   }
-}
-
-// Shapes are built centred on their own origin, so a part sitting at stack
-// offset y needs lifting by half its height to put its base there.
-function addPart(geometry, bounds, offset) {
-  if (!geometry) return;
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(geometry.pos, 3));
-  geo.setAttribute('normal', new THREE.BufferAttribute(geometry.nor, 3));
-  geo.setAttribute('uv', new THREE.BufferAttribute(geometry.uv, 2));
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(offset[0], offset[1] + bounds.h / 2, offset[2]);
-  shown.add(m);
 }
 
 function refreshViewport() {
@@ -135,24 +141,55 @@ function refreshViewport() {
     return;
   }
 
-  const resolved = isTemplate(doc)
-    ? resolveTemplate(doc, library, seed, `editor:${doc.id}`)
-    : resolveComponent(doc, seed, `editor:${doc.id}`);
+  const r = resolveComponent(doc, library, seed, `editor:${doc.id}`);
+  if (!r) return;
 
-  const { w, h: hh, d } = resolved.bounds;
-  boundsBox.box.set(
-    new THREE.Vector3(-w / 2, 0, -d / 2),
-    new THREE.Vector3(w / 2, hh, d / 2)
-  );
-  boundsBox.visible = true;
-
-  if (resolved.parts) {
-    for (const part of resolved.parts) addPart(part.geometry, part.bounds, part.offset);
-  } else {
-    addPart(resolved.geometry, resolved.bounds, [0, 0, 0]);
+  for (const piece of r.pieces) {
+    if (!piece.geometry) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(piece.geometry.pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(piece.geometry.nor, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(piece.geometry.uv, 2));
+    const mesh = new THREE.Mesh(geo, piece.partIndex === selectedPart ? pickMat : baseMat);
+    // Shapes are built centred on their origin, so a piece sitting at offset
+    // y needs lifting by half its height to put its base there.
+    mesh.position.set(piece.offset[0], piece.offset[1] + piece.bounds.h / 2, piece.offset[2]);
+    if (piece.rotY) mesh.rotation.y = piece.rotY;
+    mesh.userData.partIndex = piece.partIndex;
+    shown.add(mesh);
   }
-  renderStats(resolved);
+
+  const { w, h: hh, d } = r.bounds;
+  boundsBox.box.set(new THREE.Vector3(-w / 2, 0, -d / 2), new THREE.Vector3(w / 2, hh, d / 2));
+  boundsBox.visible = true;
+  renderStats(r);
 }
+
+// Clicking the model selects the part it belongs to, and double-clicking
+// opens that part for editing — the same gesture as the list, so the model
+// and the list are two views of one thing rather than two interfaces.
+function pickAt(event, open) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(shown.children, false)[0];
+  if (!hit) {
+    selectedPart = -1;
+    render();
+    return;
+  }
+  const index = hit.object.userData.partIndex;
+  if (open && index >= 0) openPart(index);
+  else {
+    selectedPart = index;
+    render();
+  }
+}
+renderer.domElement.addEventListener('click', (e) => pickAt(e, false));
+renderer.domElement.addEventListener('dblclick', (e) => pickAt(e, true));
 
 function resize() {
   const w = viewportEl.clientWidth;
@@ -163,196 +200,384 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(viewportEl);
-
 renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
 });
 
-// --- parameter editing ------------------------------------------------------
-
-const MODES = ['free', 'range', 'fixed'];
-
-function normalise(param) {
-  if (typeof param === 'number') return { mode: 'fixed', value: param };
-  return param || { mode: 'free', min: 0, max: 1 };
+function renderStats(r) {
+  if (!statsEl) return;
+  const b = r.bounds;
+  const tris = r.pieces.reduce((n, p) => n + (p.geometry ? p.geometry.pos.length / 9 : 0), 0);
+  const parts = r.parts ? `${r.parts.length} parts · ` : '';
+  statsEl.textContent = `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)} · ${parts}${tris} tris`;
 }
 
-function num(value, onInput) {
-  const input = h('input', { type: 'number', step: '0.01', value: String(value) });
-  input.addEventListener('input', () => {
-    const v = parseFloat(input.value);
-    if (!Number.isNaN(v)) onInput(v);
+// --- navigation -------------------------------------------------------------
+
+function open(id, { reset = true } = {}) {
+  if (!docOf(id)) return;
+  trail = reset ? [id] : [...trail, id];
+  selectedPart = -1;
+  render();
+}
+
+// Stepping into a part. The trail keeps where it came from, so coming back
+// out lands on the assembly rather than on wherever the shelf was pointing.
+function openPart(index) {
+  const doc = current();
+  if (!isAssembly(doc)) return;
+  const part = doc.parts[index];
+  const id = pickSlot(part, seed, `editor:${doc.id}.part${index}`);
+  if (!id || !docOf(id)) return;
+  trail = [...trail, id];
+  selectedPart = -1;
+  render();
+}
+
+function popTo(depth) {
+  trail = trail.slice(0, depth + 1);
+  selectedPart = -1;
+  render();
+}
+
+function renderCrumbs() {
+  const kids = [];
+  trail.forEach((id, i) => {
+    const doc = docOf(id);
+    if (i) kids.push(h('span', { class: 'crumb-sep' }, '›'));
+    const b = h('button', { class: `crumb${i === trail.length - 1 ? ' on' : ''}` }, doc?.label || id);
+    b.addEventListener('click', () => popTo(i));
+    kids.push(b);
   });
-  return input;
-}
-
-// One row per parameter, and the row is where the lock model lives: pick
-// free, range or fixed and the fields underneath change to match. This is
-// the whole authoring gesture — progressively pinning down the things you
-// have an opinion about and leaving the rest to the generator.
-function lockRow(name, param, onChange) {
-  const p = normalise(param);
-  const modes = h(
-    'div',
-    { class: 'lock-modes' },
-    ...MODES.map((mode) => {
-      const btn = h('button', { class: p.mode === mode ? 'on' : '' }, mode);
-      btn.addEventListener('click', () => {
-        if (mode === 'fixed') {
-          const mid = p.mode === 'fixed' ? p.value : ((p.min ?? 0) + (p.max ?? 1)) / 2;
-          onChange({ mode: 'fixed', value: round(mid) });
-        } else {
-          const min = p.mode === 'fixed' ? round(p.value * 0.8) : (p.min ?? 0);
-          const max = p.mode === 'fixed' ? round(p.value * 1.2) : (p.max ?? 1);
-          onChange({ mode, min, max });
-        }
-      });
-      return btn;
-    })
-  );
-
-  const fields =
-    p.mode === 'fixed'
-      ? h('div', { class: 'lock-fields' }, num(p.value ?? 0, (v) => onChange({ mode: 'fixed', value: v })))
-      : h(
-          'div',
-          { class: 'lock-fields' },
-          num(p.min ?? 0, (v) => onChange({ ...p, min: v })),
-          h('span', { class: 'sep' }, 'to'),
-          num(p.max ?? 1, (v) => onChange({ ...p, max: v }))
-        );
-
-  return h('div', { class: 'lock-row' }, h('label', {}, name), modes, fields);
-}
-
-const round = (v) => Math.round(v * 1000) / 1000;
-
-function paramsSection(component) {
-  const rows = Object.entries(component.params || {}).map(([name, param]) =>
-    lockRow(name, param, (next) =>
-      mutate({ params: { ...(component.params || {}), [name]: next } })
-    )
-  );
-  return h('div', {}, h('h3', {}, 'Parameters'), ...rows);
-}
-
-// --- template parts ---------------------------------------------------------
-
-// A template's parts are edited as pinned overrides on the component they
-// reference, never by editing the component itself — that is what lets one
-// box be a wide plinth in this template and a narrow post in the next.
-function partsSection(template) {
-  const parts = template.parts || [];
-
-  const blocks = parts.map((entry, i) => {
-    const base = library.components.get(entry.component);
-    const write = (next) => mutate({ parts: next });
-    const replace = (patch) => write(parts.map((e, j) => (j === i ? { ...e, ...patch } : e)));
-    const move = (delta) => {
-      const next = parts.slice();
-      const j = i + delta;
-      if (j < 0 || j >= next.length) return;
-      [next[i], next[j]] = [next[j], next[i]];
-      write(next);
-    };
-
-    const up = h('button', { title: 'Move up' }, '↑');
-    up.addEventListener('click', () => move(-1));
-    const down = h('button', { title: 'Move down' }, '↓');
-    down.addEventListener('click', () => move(1));
-    const del = h('button', { title: 'Remove' }, '✕');
-    del.addEventListener('click', () => write(parts.filter((_, j) => j !== i)));
-
-    const pinned = entry.params || {};
-    const schema = { ...(base?.params || {}), ...pinned };
-    const rows = Object.entries(schema).map(([name, param]) =>
-      lockRow(name, param, (next) => replace({ params: { ...pinned, [name]: next } }))
-    );
-
-    return h(
-      'div',
-      { class: 'mod' },
-      h(
-        'div',
-        { class: 'mod-head' },
-        h('span', { class: 'name' }, base ? base.label : `${entry.component} (missing)`),
-        h('span', { class: 'grow' }),
-        up,
-        down,
-        del
-      ),
-      h('div', { class: 'mod-body' }, ...rows)
-    );
-  });
-
-  const add = h('select', {});
-  add.appendChild(h('option', { value: '' }, 'Add part…'));
-  for (const c of [...library.components.values()].sort((a, b) => a.label.localeCompare(b.label))) {
-    add.appendChild(h('option', { value: c.id }, c.label));
+  if (trail.length > 1) {
+    const up = h('button', { class: 'crumb-up', title: 'Back out one level' }, '↰ out');
+    up.addEventListener('click', () => popTo(trail.length - 2));
+    kids.push(up);
   }
-  add.addEventListener('change', () => {
-    if (!add.value) return;
-    mutate({ parts: [...parts, { component: add.value, params: {} }] });
-    add.value = '';
-  });
-
-  return h('div', {}, h('h3', {}, 'Parts'), ...blocks, add);
+  setChildren(crumbEl, ...kids);
 }
 
-// --- modifier stack ---------------------------------------------------------
+// --- shelf ------------------------------------------------------------------
 
-function modifierBlock(component, entry, i) {
-  const def = MODIFIERS[entry.type];
-  if (!def) return null;
-  const stack = component.modifiers || [];
+function shelfCard(doc) {
+  const img = renderThumb(doc, library, 3);
+  const card = h(
+    'button',
+    {
+      class: `card${doc.id === currentId() ? ' on' : ''}${isDirty(doc.id) ? ' dirty' : ''}`,
+      draggable: 'true',
+      title: `${doc.label} · ${doc.id}`,
+    },
+    img ? h('img', { src: img, alt: doc.label }) : h('div', { class: 'card-blank' }, '∅'),
+    h('span', { class: 'card-name' }, doc.label),
+    isAssembly(doc) ? h('span', { class: 'card-badge' }, String(doc.parts.length)) : null
+  );
+  card.addEventListener('click', () => open(doc.id));
+  card.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/component-id', doc.id);
+    e.dataTransfer.effectAllowed = 'copy';
+  });
+  return card;
+}
 
-  const write = (next) => mutate({ modifiers: next });
-  const replace = (patch) =>
-    write(stack.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+function renderShelf() {
+  const all = [...library.components.values()];
+  const leaves = all.filter((d) => !isAssembly(d)).sort((a, b) => a.label.localeCompare(b.label));
+  const built = all.filter(isAssembly).sort((a, b) => a.label.localeCompare(b.label));
+
+  const make = h('button', { class: 'shelf-new' }, '+ New component');
+  make.addEventListener('click', createComponent);
+
+  setChildren(
+    shelfEl,
+    h('div', { class: 'shelf-head' }, make),
+    built.length ? h('div', { class: 'shelf-group' }, 'Assemblies') : null,
+    built.length ? h('div', { class: 'shelf-grid' }, ...built.map(shelfCard)) : null,
+    h('div', { class: 'shelf-group' }, 'Shapes'),
+    h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard))
+  );
+}
+
+// Dropping a card onto the viewport or the parts list adds it as a part,
+// which is the fastest path from "I want one of those in here" to having it.
+function bindDrop(el) {
+  el.addEventListener('dragover', (e) => {
+    if (!isAssembly(current())) return;
+    e.preventDefault();
+    el.classList.add('drop-on');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drop-on'));
+  el.addEventListener('drop', (e) => {
+    el.classList.remove('drop-on');
+    const id = e.dataTransfer.getData('text/component-id');
+    const doc = current();
+    if (!id || !isAssembly(doc)) return;
+    e.preventDefault();
+    mutate({ parts: [...doc.parts, { component: id, params: {} }] });
+    setStatus(`Added ${docOf(id)?.label || id}.`);
+  });
+}
+bindDrop(viewportEl);
+
+// --- authoring --------------------------------------------------------------
+
+function createComponent() {
+  const label = prompt('Name the new component', 'New Component');
+  if (!label) return;
+  const doc = newAssembly(label.trim(), new Set(library.components.keys()));
+  edits[doc.id] = doc;
+  persist();
+  open(doc.id);
+  setStatus(`Created ${doc.label}. Drag parts in from the shelf.`);
+}
+
+function renameComponent() {
+  const doc = current();
+  if (!doc) return;
+  const label = prompt('Rename', doc.label);
+  if (!label) return;
+  mutate({ label: label.trim() });
+}
+
+function deleteComponent() {
+  const doc = current();
+  if (!doc) return;
+  const used = dependents(doc.id, library);
+  const warn = used.length
+    ? `${doc.label} is used by ${used.length} other component${used.length > 1 ? 's' : ''} (${used.join(', ')}). Delete anyway?`
+    : `Delete ${doc.label}?`;
+  if (!confirm(warn)) return;
+  edits[doc.id] = { deleted: true };
+  persist();
+  trail = trail.filter((id) => id !== doc.id);
+  if (!trail.length) {
+    const first = [...library.components.keys()][0];
+    if (first) trail = [first];
+  }
+  render();
+  setStatus(`Deleted ${doc.label}.`);
+}
+
+function saveComponent() {
+  const doc = current();
+  if (!doc) return;
+  const out = { ...doc, version: (doc.version || 1) + 1 };
+  const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: `${doc.id}.json` });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus(`Downloaded ${doc.id}.json — drop it in library/components and rescan.`);
+}
+
+function revertComponent() {
+  const id = currentId();
+  if (!id || !edits[id]) return;
+  delete edits[id];
+  persist();
+  render();
+  setStatus('Reverted to the shipped version.');
+}
+
+// --- panel: parts -----------------------------------------------------------
+
+function slotBlock(doc, part, i) {
+  const ids = slotCandidates(part);
+  const mix = slotMix(part);
+  const chosen = pickSlot(part, seed, `editor:${doc.id}.part${i}`);
+  const chosenDoc = docOf(chosen);
+  const isChoice = slotIsChoice(part);
+
+  const write = (next) => mutate({ parts: next });
+  const replace = (patch) => write(doc.parts.map((e, j) => (j === i ? { ...e, ...patch } : e)));
   const move = (delta) => {
-    const next = stack.slice();
+    const next = doc.parts.slice();
     const j = i + delta;
     if (j < 0 || j >= next.length) return;
     [next[i], next[j]] = [next[j], next[i]];
     write(next);
   };
 
-  const enabled = entry.enabled !== false;
-  const toggle = h('button', { title: enabled ? 'Disable' : 'Enable' }, enabled ? '◉' : '○');
-  toggle.addEventListener('click', () => replace({ enabled: !enabled }));
-
+  const head = h('div', { class: 'part-head' });
+  const openBtn = h('button', { class: 'part-open', title: 'Open this part' }, '⤢');
+  openBtn.addEventListener('click', () => openPart(i));
   const up = h('button', { title: 'Move up' }, '↑');
   up.addEventListener('click', () => move(-1));
   const down = h('button', { title: 'Move down' }, '↓');
   down.addEventListener('click', () => move(1));
-  const del = h('button', { title: 'Remove' }, '✕');
-  del.addEventListener('click', () => write(stack.filter((_, j) => j !== i)));
+  const del = h('button', { title: 'Remove this part' }, '✕');
+  del.addEventListener('click', () => write(doc.parts.filter((_, j) => j !== i)));
 
-  const params = { ...def.defaults, ...(entry.params || {}) };
-  const rows = Object.entries(params).map(([name, param]) =>
-    lockRow(name, param, (next) => replace({ params: { ...params, [name]: next } }))
+  const name = h(
+    'button',
+    { class: 'part-name' },
+    chosenDoc ? chosenDoc.label : chosen || 'empty slot',
+    isChoice ? h('span', { class: 'part-choice' }, `1 of ${ids.length}`) : null
+  );
+  name.addEventListener('click', () => {
+    selectedPart = selectedPart === i ? -1 : i;
+    render();
+  });
+
+  head.append(name, h('span', { class: 'grow' }), openBtn, up, down, del);
+
+  // Candidates. A slot with more than one is where variety comes from, and
+  // the weights are the same kind of dial the city's mix wheel is, so the
+  // idea only has to be learnt once.
+  const cands = h('div', { class: 'slot-cands' });
+  for (const id of ids) {
+    const c = docOf(id);
+    const chip = h(
+      'span',
+      { class: `chip${id === chosen ? ' on' : ''}`, title: id },
+      h('span', {}, c?.label || id)
+    );
+    if (isChoice) {
+      const weight = h('input', {
+        type: 'number', class: 'chip-w', min: '0', step: '5',
+        value: String(mix[id] ?? 1),
+      });
+      weight.addEventListener('change', () => {
+        replace({ component: { oneOf: ids, mix: { ...mix, [id]: Math.max(0, parseFloat(weight.value) || 0) } } });
+      });
+      chip.appendChild(weight);
+    }
+    const drop = h('button', { class: 'chip-x', title: 'Remove this option' }, '×');
+    drop.addEventListener('click', () => {
+      const next = ids.filter((x) => x !== id);
+      if (!next.length) return;
+      replace({ component: next.length === 1 ? next[0] : { oneOf: next, mix } });
+    });
+    chip.appendChild(drop);
+    cands.appendChild(chip);
+  }
+
+  const add = h('select', { class: 'slot-add' });
+  add.appendChild(h('option', { value: '' }, '+ option'));
+  for (const c of [...library.components.values()].sort((a, b) => a.label.localeCompare(b.label))) {
+    if (c.id === doc.id || ids.includes(c.id)) continue;
+    add.appendChild(h('option', { value: c.id }, c.label));
+  }
+  add.addEventListener('change', () => {
+    if (!add.value) return;
+    const next = [...ids, add.value];
+    replace({ component: { oneOf: next, mix: { ...mix, [add.value]: mix[add.value] ?? 25 } } });
+  });
+  cands.appendChild(add);
+
+  // Pins: parameters this slot fixes on whatever it picked, without editing
+  // the component itself.
+  const pins = part.params || {};
+  const schema = { ...(chosenDoc?.params || {}), ...pins };
+  const rows = Object.entries(schema).map(([key, value]) =>
+    paramRow(key, value, (next) => replace({ params: { ...pins, [key]: next } }))
   );
 
   return h(
     'div',
-    { class: `mod${enabled ? '' : ' off'}` },
-    h(
-      'div',
-      { class: 'mod-head' },
-      toggle,
-      h('span', { class: 'name' }, def.label),
-      h('span', { class: 'grow' }),
-      up,
-      down,
-      del
-    ),
-    h('div', { class: 'mod-body' }, ...rows)
+    { class: `part${selectedPart === i ? ' on' : ''}` },
+    head,
+    cands,
+    rows.length ? h('div', { class: 'part-body' }, ...rows) : null
   );
 }
 
-function modifiersSection(component) {
-  const stack = component.modifiers || [];
+function partsSection(doc) {
+  const add = h('select', { class: 'add-part' });
+  add.appendChild(h('option', { value: '' }, 'Add part…'));
+  for (const c of [...library.components.values()].sort((a, b) => a.label.localeCompare(b.label))) {
+    if (c.id === doc.id) continue;
+    add.appendChild(h('option', { value: c.id }, c.label));
+  }
+  add.addEventListener('change', () => {
+    if (!add.value) return;
+    mutate({ parts: [...doc.parts, { component: add.value, params: {} }] });
+  });
+
+  const list = h('div', { class: 'part-list' }, ...doc.parts.map((p, i) => slotBlock(doc, p, i)));
+  bindDrop(list);
+
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Parts'),
+    doc.parts.length ? list : h('p', { class: 'hint' }, 'No parts yet. Drag one in from the shelf.'),
+    add
+  );
+}
+
+// --- panel: algorithm -------------------------------------------------------
+
+function algorithmSection(doc) {
+  const key = doc.algorithm || DEFAULT_ALGORITHM;
+  const def = algorithmOf(key);
+
+  const pick = h('select', {});
+  for (const [id, a] of Object.entries(ALGORITHMS)) {
+    pick.appendChild(h('option', { value: id, ...(id === key ? { selected: '' } : {}) }, a.label));
+  }
+  pick.addEventListener('change', () => mutate({ algorithm: pick.value, algorithmParams: {} }));
+
+  const params = { ...def.defaults, ...(doc.algorithmParams || {}) };
+  const rows = Object.entries(params).map(([name, value]) =>
+    paramRow(name, value, (next) =>
+      mutate({ algorithmParams: { ...(doc.algorithmParams || {}), [name]: next } })
+    )
+  );
+
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Arrangement'),
+    pick,
+    h('p', { class: 'hint' }, def.help),
+    ...rows
+  );
+}
+
+// --- panel: modifiers -------------------------------------------------------
+
+function modifierSection(doc) {
+  const stack = doc.modifiers || [];
+  const write = (next) => mutate({ modifiers: next });
+
+  const blocks = stack.map((entry, i) => {
+    const def = MODIFIERS[entry.type];
+    if (!def) return null;
+    const replace = (patch) => write(stack.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+    const move = (delta) => {
+      const next = stack.slice();
+      const j = i + delta;
+      if (j < 0 || j >= next.length) return;
+      [next[i], next[j]] = [next[j], next[i]];
+      write(next);
+    };
+    const on = entry.enabled !== false;
+    const toggle = h('button', { title: on ? 'Disable' : 'Enable' }, on ? '◉' : '○');
+    toggle.addEventListener('click', () => replace({ enabled: !on }));
+    const up = h('button', { title: 'Move up' }, '↑');
+    up.addEventListener('click', () => move(-1));
+    const down = h('button', { title: 'Move down' }, '↓');
+    down.addEventListener('click', () => move(1));
+    const del = h('button', { title: 'Remove' }, '✕');
+    del.addEventListener('click', () => write(stack.filter((_, j) => j !== i)));
+
+    const params = { ...def.defaults, ...(entry.params || {}) };
+    const rows = Object.entries(params).map(([name, value]) =>
+      paramRow(name, value, (next) => replace({ params: { ...params, [name]: next } }))
+    );
+
+    return h(
+      'div',
+      { class: `part${on ? '' : ' off'}` },
+      h('div', { class: 'part-head' }, toggle, h('span', { class: 'part-name' }, def.label), h('span', { class: 'grow' }), up, down, del),
+      h('div', { class: 'part-body' }, ...rows)
+    );
+  });
+
   const add = h('select', {});
   add.appendChild(h('option', { value: '' }, 'Add modifier…'));
   for (const [type, def] of Object.entries(MODIFIERS)) {
@@ -360,154 +585,124 @@ function modifiersSection(component) {
   }
   add.addEventListener('change', () => {
     if (!add.value) return;
-    mutate({ modifiers: [...stack, { type: add.value, enabled: true, params: {} }] });
-    add.value = '';
+    write([...stack, { type: add.value, enabled: true, params: {} }]);
   });
 
-  return h(
-    'div',
-    {},
-    h('h3', {}, 'Modifiers'),
-    ...stack.map((entry, i) => modifierBlock(component, entry, i)).filter(Boolean),
-    stack.length ? null : h('p', { class: 'stat-line' }, 'No modifiers. The shape is used as built.'),
-    add
-  );
+  return h('section', {}, h('h3', {}, 'Modifiers'), ...blocks.filter(Boolean), add);
 }
 
-// --- variants ---------------------------------------------------------------
+// --- panel ------------------------------------------------------------------
 
-// Scrubbing the seed is how you check that a component survives variation
-// rather than only looking right at the one value it was tuned at. Same
-// hash-per-parameter resolution the town uses, so what is seen here is
-// exactly what a lot with that seed would get.
 function variantSection() {
   const slider = h('input', { type: 'range', min: '1', max: '400', step: '1', value: String(seed) });
   const label = h('span', { class: 'seed' }, `seed ${seed}`);
-  slider.addEventListener('input', () => {
-    seed = parseInt(slider.value, 10);
+  const apply = (v) => {
+    seed = v;
     label.textContent = `seed ${seed}`;
-    refreshViewport();
-  });
+    render();
+  };
+  slider.addEventListener('input', () => apply(parseInt(slider.value, 10)));
   const roll = h('button', { class: 'btn' }, 'Random');
   roll.addEventListener('click', () => {
-    seed = 1 + Math.floor(Math.random() * 400);
-    slider.value = String(seed);
-    label.textContent = `seed ${seed}`;
-    refreshViewport();
+    const v = 1 + Math.floor(Math.random() * 400);
+    slider.value = String(v);
+    apply(v);
   });
-  return h('div', {}, h('h3', {}, 'Variant'), h('div', { class: 'variant' }, slider, label, roll));
+  return h('section', {}, h('h3', {}, 'Variant'), h('div', { class: 'variant' }, slider, label, roll));
 }
 
-let statsEl = null;
-function renderStats(resolved) {
-  if (!statsEl) return;
-  const b = resolved.bounds;
-  const geos = resolved.parts ? resolved.parts.map((p) => p.geometry) : [resolved.geometry];
-  const tris = geos.reduce((sum, g) => sum + (g ? g.pos.length / 9 : 0), 0);
-  const parts = resolved.parts ? `${resolved.parts.length} parts · ` : '';
-  statsEl.textContent = `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)}  ·  ${parts}${tris} tris`;
-}
-
-// --- panels -----------------------------------------------------------------
-
-function renderList() {
-  const byTag = new Map();
-  for (const c of library.components.values()) {
-    const tag = (c.tags || ['untagged'])[0];
-    if (!byTag.has(tag)) byTag.set(tag, []);
-    byTag.get(tag).push(c);
-  }
-  // Templates group together rather than scattering through the tags, since
-  // "is this one part or several" is the first thing you want to know.
-  const templates = [...library.templates.values()];
-  const groups = [...byTag.entries()].sort();
-  if (templates.length) groups.push(['templates', templates]);
-
-  const kids = [];
-  for (const [tag, items] of groups) {
-    kids.push(h('div', { class: 'lib-group' }, tag));
-    for (const c of items.slice().sort((a, b) => a.label.localeCompare(b.label))) {
-      const btn = h(
-        'button',
-        { class: `lib-item${c.id === currentId ? ' on' : ''}${isDirty(c.id) ? ' dirty' : ''}` },
-        h('span', {}, c.label),
-        h('span', { class: 'tag' }, (c.tags || []).slice(1).join(' '))
-      );
-      btn.addEventListener('click', () => select(c.id));
-      kids.push(btn);
-    }
-  }
-  setChildren(listEl, ...kids);
-}
-
-function renderEdit() {
-  const component = current();
-  if (!component) {
-    setChildren(editEl, h('p', { class: 'stat-line' }, 'Pick a component.'));
-    return;
-  }
-  statsEl = h('p', { class: 'stat-line' });
-  const template = isTemplate(component);
-  const what = template
-    ? `${component.parts.length} parts, stacked ${component.axis || 'y'}`
-    : isEmptyComponent(component)
-      ? 'no geometry'
-      : component.shape;
-
-  setChildren(
-    editEl,
-    h('h2', {}, component.label),
-    h('p', { class: 'stat-line' }, `${component.id} · v${component.version} · ${what}`),
-    statsEl,
-    variantSection(),
-    template ? partsSection(component) : paramsSection(component),
-    template ? null : modifiersSection(component)
+function paramsSection(doc) {
+  const rows = Object.entries(doc.params || {}).map(([name, value]) =>
+    paramRow(name, value, (next) => mutate({ params: { ...(doc.params || {}), [name]: next } }))
+  );
+  const add = h('button', { class: 'btn small' }, '+ size params');
+  add.addEventListener('click', () =>
+    mutate({
+      params: {
+        w: { mode: 'free', min: 0.4, max: 2.4 },
+        h: { mode: 'free', min: 0.4, max: 2.4 },
+        d: { mode: 'free', min: 0.4, max: 2.4 },
+        ...(doc.params || {}),
+      },
+    })
+  );
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Parameters'),
+    rows.length ? h('div', {}, ...rows) : h('p', { class: 'hint' }, 'Size follows the parts.'),
+    rows.length ? null : add
   );
 }
 
-function select(id) {
-  currentId = id;
-  renderList();
-  renderEdit();
+function renderPanel() {
+  const doc = current();
+  if (!doc) {
+    setChildren(editEl, h('p', { class: 'hint' }, 'Pick a component from the shelf.'));
+    return;
+  }
+  statsEl = h('p', { class: 'stat-line' });
+  const what = isAssembly(doc)
+    ? `${doc.parts.length} parts · ${algorithmOf(doc.algorithm).label}`
+    : isEmptyComponent(doc)
+      ? 'no geometry'
+      : doc.shape;
+
+  const rename = h('button', { class: 'btn small' }, 'Rename');
+  rename.addEventListener('click', renameComponent);
+  const remove = h('button', { class: 'btn small danger' }, 'Delete');
+  remove.addEventListener('click', deleteComponent);
+
+  const used = dependents(doc.id, library);
+
+  setChildren(
+    editEl,
+    h('div', { class: 'panel-head' }, h('h2', {}, doc.label), rename, remove),
+    h('p', { class: 'stat-line' }, `${doc.id} · v${doc.version || 1} · ${what}`),
+    statsEl,
+    used.length ? h('p', { class: 'hint' }, `Used by ${used.length}: ${used.join(', ')}`) : null,
+    variantSection(),
+    isAssembly(doc) ? algorithmSection(doc) : null,
+    isAssembly(doc) ? partsSection(doc) : null,
+    paramsSection(doc),
+    isAssembly(doc) ? null : modifierSection(doc)
+  );
+}
+
+function render() {
+  renderCrumbs();
+  renderShelf();
+  renderPanel();
   refreshViewport();
 }
 
-// --- save / revert ----------------------------------------------------------
-
-// Saving downloads the component as json, because a browser cannot write into
-// library/ itself. Drop the file back in the folder, run tools/scan.mjs, and
-// the edit becomes part of the shipped library like any other.
-document.getElementById('btn-save').addEventListener('click', () => {
-  const component = current();
-  if (!component) return;
-  const doc = { ...component, version: (component.version || 1) + 1 };
-  const blob = new Blob([JSON.stringify(doc, null, 2) + '\n'], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = h('a', { href: url, download: `${component.id}.json` });
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  setStatus(`Downloaded ${component.id}.json — drop it in library/components and rescan.`);
-});
-
-document.getElementById('btn-revert').addEventListener('click', () => {
-  if (!currentId || !edits[currentId]) return;
-  delete edits[currentId];
-  persist();
-  renderList();
-  renderEdit();
-  refreshViewport();
-  setStatus('Reverted to the shipped version.');
-});
-
 // --- boot -------------------------------------------------------------------
 
-library = await loadLibrary('library');
-resize();
-renderList();
-const first = [...library.components.keys()][0];
-if (first) select(first);
-setStatus(`${library.components.size} components loaded.`);
+document.getElementById('btn-save').addEventListener('click', saveComponent);
+document.getElementById('btn-revert').addEventListener('click', revertComponent);
 
-window.ed = { get library() { return library; }, get edits() { return edits; }, select, refreshViewport };
+// Another window editing the same library, most likely the town saving a
+// scene. Reload rather than assume ours is current.
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'awesome-town:component-edits') return;
+  edits = readEdits();
+  rebuildLibrary();
+  render();
+});
+
+shipped = await loadLibrary('library');
+rebuildLibrary();
+resize();
+const first = [...library.components.values()].find(isAssembly) || [...library.components.values()][0];
+if (first) trail = [first.id];
+render();
+setStatus(`${library.components.size} components.`);
+
+window.ed = {
+  get library() { return library; },
+  get edits() { return edits; },
+  get trail() { return trail; },
+  open, openPart, popTo, render,
+  get seed() { return seed; },
+  set seed(v) { seed = v; render(); },
+};

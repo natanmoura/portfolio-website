@@ -1,10 +1,10 @@
-/* Component editor. Borrows the app's panel and control styling, adds the
-   bits that only exist here: the component list, the modifier stack, and the
-   lock row that every parameter is edited through. */
+/* Component editor. Borrows the app's panel styling and adds the three
+   things that only exist here: the shelf, the drill-in breadcrumb, and the
+   one-line parameter row. */
 
 body.editor main {
   display: grid;
-  grid-template-columns: 220px 1fr 340px;
+  grid-template-columns: 236px 1fr 340px;
 }
 
 body.editor #viewport {
@@ -12,154 +12,327 @@ body.editor #viewport {
   min-width: 0;
 }
 
-/* --- component list -------------------------------------------------- */
+#viewport.drop-on { outline: 2px dashed #6f9ff0; outline-offset: -8px; }
 
-.lib-group {
-  padding: 10px 12px 4px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.5;
-}
+body.editor .panel { overflow-y: auto; }
 
-.lib-item {
+/* --- breadcrumb ------------------------------------------------------- */
+
+.crumbs {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 12px;
+  gap: 2px;
+  margin-left: 14px;
+  flex-wrap: wrap;
+}
+
+.crumb, .crumb-up {
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 3px;
   cursor: pointer;
+  opacity: 0.6;
 }
 
-.lib-item:hover { background: rgba(255, 255, 255, 0.06); }
-.lib-item.on { background: rgba(255, 255, 255, 0.12); font-weight: 600; }
+.crumb:hover, .crumb-up:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+.crumb.on { opacity: 1; font-weight: 600; }
+.crumb-sep { opacity: 0.3; font-size: 11px; }
+.crumb-up { margin-left: 8px; opacity: 0.8; border: 1px solid rgba(255,255,255,0.18); }
 
-.lib-item .tag {
-  margin-left: auto;
+/* --- shelf ------------------------------------------------------------ */
+
+.shelf-head { padding: 10px 10px 4px; }
+
+.shelf-new {
+  width: 100%;
+  padding: 7px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px dashed rgba(255,255,255,0.28);
+  background: none;
+  color: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.shelf-new:hover { background: rgba(255,255,255,0.07); }
+
+.shelf-group {
+  padding: 12px 10px 4px;
   font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   opacity: 0.45;
 }
 
-.lib-item.dirty::after {
+.shelf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 6px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  background: rgba(255,255,255,0.03);
+  color: inherit;
+  font: inherit;
+  cursor: grab;
+}
+
+.card:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
+.card.on { border-color: #6f9ff0; background: rgba(111,159,240,0.14); }
+.card:active { cursor: grabbing; }
+
+.card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+
+.card-blank {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  opacity: 0.25;
+  font-size: 20px;
+}
+
+.card-name {
+  font-size: 10.5px;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  opacity: 0.85;
+}
+
+.card-badge {
+  position: absolute;
+  top: 3px; right: 3px;
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: rgba(0,0,0,0.5);
+  opacity: 0.75;
+}
+
+.card.dirty::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 6px; height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: #e7a24a;
+}
+
+/* --- panel ------------------------------------------------------------ */
+
+.panel-head { display: flex; align-items: center; gap: 6px; }
+.panel-head h2 { flex: 1; margin: 0; font-size: 15px; }
+
+.btn.small { padding: 3px 7px; font-size: 11px; }
+.btn.danger:hover { background: #7a2b22; border-color: #a33; }
+
+#edit section { margin: 14px 0 0; }
+#edit h3 {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin: 0 0 5px;
+}
+
+.hint { font-size: 11px; opacity: 0.5; line-height: 1.35; margin: 4px 0; }
+.stat-line { font-size: 11px; opacity: 0.55; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.grow { flex: 1; }
+
+.variant { display: flex; align-items: center; gap: 8px; }
+.variant input[type='range'] { flex: 1; }
+.variant .seed { font-size: 11px; opacity: 0.7; min-width: 52px; font-variant-numeric: tabular-nums; }
+
+/* --- parts ------------------------------------------------------------ */
+
+.part-list.drop-on { outline: 2px dashed #6f9ff0; outline-offset: 2px; }
+
+.part {
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.part.on { border-color: #6f9ff0; background: rgba(111,159,240,0.09); }
+.part.off { opacity: 0.45; }
+
+.part-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  background: rgba(255,255,255,0.05);
+}
+
+.part-head button {
+  border: 0; background: none; color: inherit;
+  opacity: 0.55; cursor: pointer; padding: 2px 4px;
+  font-size: 12px; line-height: 1;
+}
+.part-head button:hover { opacity: 1; }
+
+.part-name {
+  border: 0; background: none; color: inherit; font: inherit;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  text-align: left; padding: 2px 2px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.part-choice {
+  font-size: 9px; font-weight: 400; opacity: 0.6;
+  border: 1px solid currentColor; border-radius: 6px; padding: 0 4px;
+}
+
+.part-open { font-size: 13px !important; opacity: 0.75 !important; }
+.part-body { padding: 3px 6px 5px; }
+
+/* --- slot candidates -------------------------------------------------- */
+
+.slot-cands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 5px 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  padding: 1px 3px 1px 6px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 10px;
   opacity: 0.7;
 }
+.chip.on { opacity: 1; border-color: #6f9ff0; background: rgba(111,159,240,0.16); }
 
-/* --- parameter lock rows --------------------------------------------- */
-
-.lock-row {
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 6px 8px;
-  align-items: center;
-  padding: 6px 0;
-}
-
-.lock-row + .lock-row { border-top: 1px solid rgba(255, 255, 255, 0.07); }
-
-.lock-row > label {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.lock-modes {
-  display: flex;
-  gap: 3px;
-}
-
-.lock-modes button {
-  flex: 1;
-  padding: 3px 0;
+.chip-w {
+  width: 34px;
   font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
+  padding: 0 2px;
+  background: rgba(0,0,0,0.25);
+  border: 0;
   color: inherit;
   border-radius: 3px;
-  cursor: pointer;
 }
 
-.lock-modes button.on {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
+.chip-x {
+  border: 0; background: none; color: inherit;
+  cursor: pointer; opacity: 0.5; font-size: 12px; line-height: 1; padding: 0 2px;
 }
+.chip-x:hover { opacity: 1; }
 
-.lock-fields {
-  grid-column: 2;
-  display: flex;
-  gap: 6px;
+.slot-add, .add-part { font-size: 11px; }
+
+/* --- the one-line parameter row --------------------------------------- */
+
+.pm-row {
+  display: grid;
+  grid-template-columns: 52px 54px 1fr 62px;
   align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  min-height: 22px;
 }
 
-.lock-fields input {
-  width: 100%;
-  min-width: 0;
-}
-
-.lock-fields .sep {
+.pm-row > label {
   font-size: 11px;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-modes { display: flex; gap: 1px; }
+
+.pm-modes button {
+  width: 17px;
+  padding: 1px 0;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: transparent;
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
   opacity: 0.5;
 }
+.pm-modes button.on { opacity: 1; background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.4); }
 
-/* --- modifier stack --------------------------------------------------- */
-
-.mod {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.mod-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.mod-head .name { font-size: 12px; font-weight: 600; }
-.mod-head .grow { flex: 1; }
-
-.mod-head button {
-  border: 0;
-  background: none;
-  color: inherit;
-  opacity: 0.6;
-  cursor: pointer;
-  padding: 2px 5px;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.mod-head button:hover { opacity: 1; }
-.mod.off { opacity: 0.45; }
-.mod-body { padding: 4px 8px 8px; }
-
-/* --- variant scrubbing ------------------------------------------------ */
-
-.variant {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-}
-
-.variant input[type='range'] { flex: 1; }
-.variant .seed { font-variant-numeric: tabular-nums; font-size: 11px; opacity: 0.7; min-width: 52px; }
-
-.stat-line {
-  font-size: 11px;
-  opacity: 0.55;
-  padding: 6px 0 0;
+.pm-val {
+  font-size: 10px;
+  opacity: 0.65;
+  text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pm-free { font-size: 10px; opacity: 0.4; font-style: italic; }
+
+.pm-ctl { position: relative; display: flex; align-items: center; min-height: 18px; }
+.pm-ctl input[type='range'] { width: 100%; margin: 0; }
+
+/* Two handles on one track: the inputs are stacked transparently over a
+   drawn track so the span between them can be filled. */
+.pm-ctl.dual { height: 18px; }
+
+.pm-ctl.dual input[type='range'] {
+  position: absolute;
+  inset: 0;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pm-ctl.dual input[type='range']::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #d8d4ca;
+  border: 1px solid #33333a;
+  cursor: pointer;
+}
+
+.pm-ctl.dual input[type='range']::-moz-range-thumb {
+  pointer-events: auto;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #d8d4ca;
+  border: 1px solid #33333a;
+  cursor: pointer;
+}
+
+.pm-track {
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.14);
+}
+
+.pm-fill {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: #6f9ff0;
+  border-radius: 2px;
 }

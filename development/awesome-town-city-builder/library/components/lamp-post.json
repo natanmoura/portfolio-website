@@ -6,8 +6,6 @@
     "street",
     "sign"
   ],
-  "axis": "y",
-  "overlap": 0.05,
   "parts": [
     {
       "component": "box",
@@ -45,7 +43,20 @@
       }
     },
     {
-      "component": "sphere",
+      "component": {
+        "oneOf": [
+          "sphere",
+          "dome",
+          "cone",
+          "octagon"
+        ],
+        "mix": {
+          "sphere": 50,
+          "dome": 25,
+          "cone": 15,
+          "octagon": 10
+        }
+      },
       "params": {
         "w": {
           "mode": "fixed",
@@ -61,5 +72,13 @@
         }
       }
     }
-  ]
+  ],
+  "algorithm": "stack-y",
+  "algorithmParams": {
+    "overlap": {
+      "mode": "fixed",
+      "value": 0.05
+    }
+  },
+  "params": {}
 }

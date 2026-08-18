@@ -7,11 +7,13 @@
     "empty.json",
     "flag.json",
     "gable.json",
+    "lamp-post.json",
     "octagon.json",
     "pillars.json",
     "pillars8.json",
     "post.json",
     "pyramid.json",
+    "signed-tower.json",
     "sphere.json",
     "spin.json"
   ]

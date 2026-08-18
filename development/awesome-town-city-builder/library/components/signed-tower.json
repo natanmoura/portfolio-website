@@ -6,8 +6,6 @@
     "structural",
     "sign"
   ],
-  "axis": "y",
-  "overlap": 0.08,
   "parts": [
     {
       "component": "box",
@@ -85,5 +83,13 @@
         }
       }
     }
-  ]
+  ],
+  "algorithm": "stack-y",
+  "algorithmParams": {
+    "overlap": {
+      "mode": "fixed",
+      "value": 0.08
+    }
+  },
+  "params": {}
 }
