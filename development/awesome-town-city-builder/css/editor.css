@@ -1,0 +1,165 @@
+/* Component editor. Borrows the app's panel and control styling, adds the
+   bits that only exist here: the component list, the modifier stack, and the
+   lock row that every parameter is edited through. */
+
+body.editor main {
+  display: grid;
+  grid-template-columns: 220px 1fr 340px;
+}
+
+body.editor #viewport {
+  position: relative;
+  min-width: 0;
+}
+
+/* --- component list -------------------------------------------------- */
+
+.lib-group {
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.lib-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lib-item:hover { background: rgba(255, 255, 255, 0.06); }
+.lib-item.on { background: rgba(255, 255, 255, 0.12); font-weight: 600; }
+
+.lib-item .tag {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.lib-item.dirty::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* --- parameter lock rows --------------------------------------------- */
+
+.lock-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 6px 8px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.lock-row + .lock-row { border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+.lock-row > label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.lock-modes {
+  display: flex;
+  gap: 3px;
+}
+
+.lock-modes button {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: inherit;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.lock-modes button.on {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.lock-fields {
+  grid-column: 2;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.lock-fields input {
+  width: 100%;
+  min-width: 0;
+}
+
+.lock-fields .sep {
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+/* --- modifier stack --------------------------------------------------- */
+
+.mod {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.mod-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mod-head .name { font-size: 12px; font-weight: 600; }
+.mod-head .grow { flex: 1; }
+
+.mod-head button {
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px 5px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.mod-head button:hover { opacity: 1; }
+.mod.off { opacity: 0.45; }
+.mod-body { padding: 4px 8px 8px; }
+
+/* --- variant scrubbing ------------------------------------------------ */
+
+.variant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.variant input[type='range'] { flex: 1; }
+.variant .seed { font-variant-numeric: tabular-nums; font-size: 11px; opacity: 0.7; min-width: 52px; }
+
+.stat-line {
+  font-size: 11px;
+  opacity: 0.55;
+  padding: 6px 0 0;
+  font-variant-numeric: tabular-nums;
+}
