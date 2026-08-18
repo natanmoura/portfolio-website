@@ -10,7 +10,7 @@ import { CityMaterial } from './material.js';
 import { CityBuilder } from './build.js';
 import { Stage } from './scene.js';
 import { Picker } from './select.js';
-import { Controls, CONTROL_DEFS, h } from './ui.js';
+import { Controls, CONTROL_DEFS, h, setChildren } from './ui.js';
 import { Inspector } from './inspector.js';
 import { initTooltips, withHelp } from './tooltip.js';
 import { MixWheel } from './piechart.js';
@@ -787,7 +787,7 @@ function buildSceneTools() {
     updateStatus();
   };
 
-  mount.replaceChildren(
+  setChildren(mount,
     withHelp(select, 'Presets ship with the site. Saved is your own library on this machine. Picking either loads its sliders and all its hand edits.', 'Scenes'),
     h(
       'div',
@@ -888,12 +888,12 @@ function buildTourTools() {
     button.classList.toggle('on', on);
   };
   tourButton = button;
-  mount.replaceChildren(h('div', { class: 'chips' }, button));
+  setChildren(mount, h('div', { class: 'chips' }, button));
 }
 
 function buildShortcuts() {
   const mount = controls.mounts.get('shortcuts');
-  mount.replaceChildren(
+  setChildren(mount,
     h('p', { class: 'hint' }, 'With a module selected.'),
     h(
       'dl',
@@ -937,7 +937,7 @@ function refreshSceneMenu() {
   const savedOpts = names.map((n) =>
     h('option', { value: n, ...(!state.scenePreset && n === state.sceneName ? { selected: '' } : {}) }, n)
   );
-  select.replaceChildren(
+  setChildren(select,
     h('option', { value: '' }, names.length || presets.length ? 'Scenes' : 'No saved scenes'),
     ...(presetOpts.length ? [h('optgroup', { label: 'Presets' }, ...presetOpts)] : []),
     ...(savedOpts.length ? [h('optgroup', { label: 'Saved' }, ...savedOpts)] : [])

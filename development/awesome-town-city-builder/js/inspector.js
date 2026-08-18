@@ -8,7 +8,7 @@
 // panel, and the element under the pointer is replaced mid-drag, which is why
 // the module sliders used to move one step and stop.
 
-import { h, rangeRow } from './ui.js';
+import { h, rangeRow, setChildren } from './ui.js';
 import { withHelp } from './tooltip.js';
 import { slotCount, slotLabels } from './geometry.js';
 import { MODULE_KINDS, BODY_KINDS, KIND_LABEL, ROOF_SET, MATERIAL_KINDS } from './generate.js';
@@ -103,7 +103,7 @@ export class Inspector {
   hide() {
     this.root.classList.add('empty');
     this.head.textContent = 'Nothing selected';
-    this.body.replaceChildren(
+    setChildren(this.body,
       h('p', { class: 'hint' }, 'Click a module to edit it. Shift-click selects the whole building.'),
       h('p', { class: 'hint' }, 'Hover any control for a note on what it does.')
     );
@@ -346,7 +346,7 @@ export class Inspector {
         'Building material'
       );
 
-    this.body.replaceChildren(
+    setChildren(this.body,
       this.tabs(selection),
       label('Shape'),
       kindRow,
@@ -466,7 +466,7 @@ export class Inspector {
     this.head.textContent = `Building ${building.gx + 1},${building.gz + 1}`;
     const over = actions.buildingOverride(id);
 
-    this.body.replaceChildren(
+    setChildren(this.body,
       this.tabs({ mode: 'building' }),
       label(
         `${building.modules.length} modules · ${building.height.toFixed(1)} tall · ${building.family}`

@@ -6,6 +6,17 @@
 // live:  redraw while dragging rather than on release.
 // cheap: a uniform or a light setting, so it never rebuilds the city.
 
+// replaceChildren stringifies anything that is not a Node, so the common
+// `condition && element` idiom renders the literal text "false" or "null"
+// into the panel whenever the condition fails. h() already filters those
+// out for its own children; this is the same guard for the places that
+// write into an existing node instead of building a new one.
+export function setChildren(node, ...kids) {
+  node.replaceChildren(
+    ...kids.flat().filter((kid) => kid !== null && kid !== undefined && kid !== false && kid !== true)
+  );
+}
+
 export function h(tag, props = {}, ...kids) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
