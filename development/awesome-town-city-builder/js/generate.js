@@ -15,6 +15,7 @@ import { Rng, hashId, hashIdModule } from './rng.js';
 import { getPalette } from './palettes.js';
 import { buildLayout } from './layout.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
+import { resolveParamsWith } from './constraints.js';
 
 // The kind vocabulary and the role definitions live in roles.js; re-exported
 // here so the many existing importers of these names are undisturbed.
@@ -381,9 +382,54 @@ function makeModule(t, params, palette, ctx, index, id) {
   };
 }
 
+// --- components ------------------------------------------------------------
+
+// Where the library meets the town.
+//
+// A module's kind is a component id, so every module already names the
+// component it is an instance of. This pass hands the town's proposed size
+// to that component's constraints and takes back whatever survives, then
+// attaches the modifier stack for the builder to run at geometry time.
+//
+// Deliberately the only place the two systems touch. The town keeps
+// proposing sizes the way it always did, in complete ignorance of whether
+// anything is locked; the component keeps its opinions in one place. Nothing
+// is cached, so unlocking a parameter in the editor and regenerating is the
+// whole update path — there is no baked state to invalidate.
+function applyComponents(modules, params, library, seed, id) {
+  if (!library) return;
+  for (const m of modules) {
+    const component = library.components.get(m.kind);
+    if (!component) continue;
+
+    const path = `lot:${id}/${m.id}`;
+    const dims = resolveParamsWith(
+      component.params,
+      { w: m.w, h: m.h, d: m.d },
+      seed,
+      path
+    );
+    if (Number.isFinite(dims.w)) m.w = dims.w;
+    if (Number.isFinite(dims.h)) m.h = dims.h;
+    if (Number.isFinite(dims.d)) m.d = dims.d;
+
+    // A sphere stays a sphere even after a component has had its say.
+    if (m.kind === 'sphere') m.w = m.d = m.h = Math.min(m.w, m.d);
+
+    // Carried rather than applied: geometry does not exist yet. The seed and
+    // path travel with it so the builder resolves exactly what was intended
+    // here, and the same module deforms the same way on every rebuild.
+    if (component.modifiers && component.modifiers.length) {
+      m.mods = component.modifiers;
+      m.modSeed = seed;
+      m.modPath = path;
+    }
+  }
+}
+
 // --- lot -------------------------------------------------------------------
 
-export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, half) {
+export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, half, library = null) {
   const palette = getPalette(params.palette);
   const id = site.id;
   const bOver = overrides[id] || {};
@@ -532,6 +578,14 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     });
   }
 
+  // The last word on size belongs to the component, not the town. Everything
+  // above proposed w/h/d from lot size, floor height and setbacks; this is
+  // where a component that pinned one of them overrules that, and where a
+  // component that ranged one clamps it. Run after every proposal is in and
+  // before restack, so the stack is built from sizes that will actually be
+  // drawn rather than ones the components are about to reject.
+  applyComponents(modules, params, library, seed, id);
+
   const x = site.x + (bOver.offsetX || 0);
   const z = site.z + (bOver.offsetZ || 0);
   const height = restack(modules);
@@ -675,12 +729,13 @@ export function generateCity(
   imageCount = 0,
   cutoutCount = 0,
   materialCount = 0,
-  groundAt = null
+  groundAt = null,
+  library = null
 ) {
   const layout = buildLayout(params);
   const buildings = [];
   for (const site of layout.sites) {
-    const b = generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, layout.half);
+    const b = generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, layout.half, library);
     if (b) buildings.push(b);
   }
   return {

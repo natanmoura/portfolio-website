@@ -34,6 +34,7 @@ import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
+import { loadEditedLibrary, EDITS_KEY } from './library.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
 import { buildExport, downloadExport } from './exporter.js';
@@ -185,6 +186,10 @@ let flyby;
 let tourButton;
 let wheels = {};
 let presets = [];
+// The component library, shipped files with the editor's uncommitted work
+// layered on top. Null until boot finishes, which the generator treats as
+// "no components", so the town renders as it did before the library existed.
+let library = null;
 let history;
 let historyLabel;
 // Redraw callbacks for the role toggle sets, so a scene load or an undo puts
@@ -198,12 +203,14 @@ async function boot() {
   restore();
   try {
     const presetsLoading = loadPresets();
+    const libraryLoading = loadEditedLibrary('library');
     await pool.loadManifest('collage', (done, total) => {
       loadingEl.querySelector('.bar span').style.width = `${(done / total) * 100}%`;
       loadingEl.querySelector('.count').textContent = `${Math.min(done, total)} / ${total}`;
     });
     await matPool.loadMaterialManifest('collage');
     presets = await presetsLoading;
+    library = await libraryLoading;
   } catch (err) {
     loadingEl.querySelector('.count').textContent = String(err.message || err);
     console.error(err);
@@ -241,9 +248,25 @@ async function boot() {
   bindPointer();
   bindKeys();
   bindDropZone();
+  bindLibrarySync();
 
   loadingEl.classList.add('gone');
   animate();
+}
+
+// The editor writes to localStorage, and the browser fires `storage` in every
+// *other* tab on the same origin. So with the editor open beside the town,
+// locking a parameter or adding a modifier retunes the city as it happens,
+// with no reload and no export step. Recalculating is just regenerating:
+// nothing about a component is baked into the city data, so there is no
+// stale state that could survive the change.
+function bindLibrarySync() {
+  window.addEventListener('storage', async (e) => {
+    if (e.key !== EDITS_KEY) return;
+    library = await loadEditedLibrary('library');
+    markAll();
+    noteStatus('Components updated');
+  });
 }
 
 const groundAt = (x, z) => stage.ground.heightAt(x, z);
@@ -302,7 +325,7 @@ function rebuildAll() {
     extentKey = key;
     stage.setExtent(p);
   }
-  state.city = generateCity(p, state.overrides, pool.imageCount, pool.cutoutCount, matPool.length, groundAt);
+  state.city = generateCity(p, state.overrides, pool.imageCount, pool.cutoutCount, matPool.length, groundAt, library);
   stage.ground.setRoads(state.city.layout.roads, p);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   flyby.build(state.city.layout.roads, p);
@@ -327,7 +350,8 @@ function rebuildLot(id) {
     pool.cutoutCount,
     matPool.length,
     groundAt,
-    layout.half
+    layout.half,
+    library
   );
 
   if (building) {
@@ -406,10 +430,23 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
+// A transient message that survives the next rebuild, since anything worth
+// announcing usually causes one and would otherwise be overwritten by the
+// counts before it could be read.
+let statusNote = '';
+let statusNoteAt = 0;
+function noteStatus(text, ms = 4000) {
+  statusNote = text;
+  statusNoteAt = performance.now() + ms;
+  updateStatus();
+}
+
 function updateStatus() {
   const s = builder.stats;
   const edits = Object.keys(state.overrides).length;
+  const note = statusNote && performance.now() < statusNoteAt ? statusNote : (statusNote = '');
   statusEl.textContent = [
+    note || null,
     `${state.city.buildings.length} buildings`,
     `${s.modules} modules`,
     `${pool.length} images`,
@@ -1245,6 +1282,6 @@ function animate() {
 Object.defineProperty(window, 'cc', {
   get: () => ({
     state, stage, builder, materials, pool, matPool, picker, inspector, controls, wheels, traffic, flyby,
-    actions, flush, markAll, applyEnv, frameCity, history, presets,
+    actions, flush, markAll, applyEnv, frameCity, history, presets, library,
   }),
 });

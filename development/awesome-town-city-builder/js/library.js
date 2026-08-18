@@ -49,6 +49,36 @@ export async function loadLibrary(root = 'library') {
   return { components, templates };
 }
 
+// Where the editor keeps work that has not been committed back to disk yet.
+// The town reads the same key, which is what makes locking a parameter in
+// the editor change the city without a build step in between.
+export const EDITS_KEY = 'awesome-town:component-edits';
+
+export function readEdits() {
+  try {
+    return JSON.parse(localStorage.getItem(EDITS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+// Layered rather than merged into the files, so the shipped library stays
+// recoverable and reverting an edit is a delete rather than an undo.
+export function applyEdits(lib, edits) {
+  const patch = (map) => {
+    const out = new Map(map);
+    for (const [id, over] of Object.entries(edits || {})) {
+      if (out.has(id)) out.set(id, { ...out.get(id), ...over });
+    }
+    return out;
+  };
+  return { components: patch(lib.components), templates: patch(lib.templates) };
+}
+
+export async function loadEditedLibrary(root = 'library') {
+  return applyEdits(await loadLibrary(root), readEdits());
+}
+
 // Bounds and anchors follow directly from resolved w/h/d — a box's top is
 // always at y=h regardless of what shape it is, which is exactly what lets
 // a system stack onto a component without knowing what is inside it.

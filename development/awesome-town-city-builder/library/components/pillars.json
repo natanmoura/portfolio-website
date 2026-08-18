@@ -8,9 +8,9 @@
   ],
   "params": {
     "w": {
-      "mode": "range",
-      "min": 0.7,
-      "max": 1
+      "mode": "free",
+      "min": 0.4,
+      "max": 2.4
     },
     "h": {
       "mode": "free",
@@ -18,9 +18,9 @@
       "max": 2.4
     },
     "d": {
-      "mode": "range",
-      "min": 0.7,
-      "max": 1
+      "mode": "free",
+      "min": 0.4,
+      "max": 2.4
     }
   },
   "modifiers": []

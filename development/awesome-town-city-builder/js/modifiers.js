@@ -15,47 +15,20 @@
 // layer down.
 
 // --- parameters ------------------------------------------------------------
+// The lock model itself lives in constraints.js, since it is the vocabulary
+// every layer shares rather than something modifiers own. Re-exported here so
+// the existing importers are undisturbed.
 
-export const free = (min, max) => ({ mode: 'free', min, max });
-export const range = (min, max) => ({ mode: 'range', min, max });
-export const fixed = (value) => ({ mode: 'fixed', value });
+import {
+  free,
+  range,
+  fixed,
+  unit,
+  resolveParam,
+  resolveParams,
+} from './constraints.js';
 
-// A cheap, well-mixed hash. Same family as rng.js, kept local so modifiers
-// can be evaluated without dragging the city's generator along.
-function hash(str) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  // A final avalanche, or adjacent names come out adjacent.
-  h ^= h >>> 15;
-  h = Math.imul(h, 2246822507) >>> 0;
-  h ^= h >>> 13;
-  return h >>> 0;
-}
-
-const unit = (str) => hash(str) / 4294967296;
-
-export function resolveParam(param, seed, path) {
-  if (param === null || param === undefined) return 0;
-  if (typeof param === 'number') return param;
-  if (param.mode === 'fixed') return param.value;
-  const t = unit(`${seed}|${path}`);
-  const min = param.min ?? 0;
-  const max = param.max ?? 1;
-  return min + t * (max - min);
-}
-
-// Resolves a whole params object one level deep, which is all a modifier ever
-// needs. Returns plain numbers so the modifier body reads as arithmetic.
-export function resolveParams(params, seed, path) {
-  const out = {};
-  for (const [key, value] of Object.entries(params || {})) {
-    out[key] = resolveParam(value, seed, `${path}.${key}`);
-  }
-  return out;
-}
+export { free, range, fixed, resolveParam, resolveParams };
 
 // --- noise -----------------------------------------------------------------
 

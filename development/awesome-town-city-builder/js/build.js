@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { buildShape, slotCount, slotLabels } from './geometry.js';
+import { applyModifiers } from './modifiers.js';
 
 const CHUNK = 4; // lots per side
 
@@ -191,10 +192,15 @@ export class CityBuilder {
     for (let bi = 0; bi < buildings.length; bi++) {
       const b = buildings[bi];
       for (const m of b.modules) {
-        const shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {
+        let shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {
           blades: m.blades,
           tile: !!m.matKind,
         });
+        // A component's modifier stack, run at the one point geometry
+        // actually exists. Free when the stack is empty, which is every
+        // component nobody has authored yet, so the default town costs
+        // nothing for the feature being here.
+        if (m.mods) shape = applyModifiers(shape, m.mods, m.modSeed, m.modPath);
         parts.push({ bi, b, m, shape });
         vertices += shape.pos.length / 3;
       }
