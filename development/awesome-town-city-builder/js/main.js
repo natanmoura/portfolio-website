@@ -35,6 +35,7 @@ import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
 import { History } from './history.js';
+import { buildExport, downloadExport } from './exporter.js';
 
 const APP_NAME = 'Awesome Town';
 
@@ -392,6 +393,12 @@ function applyEnv() {
       for (const m of b.modules) m.glow = m.glowTicket < p.glowChance;
     }
   }
+}
+
+// A one-off message that sits in the status bar until the next rebuild
+// replaces it, for things worth reporting that are not ongoing state.
+function setStatus(text) {
+  statusEl.textContent = text;
 }
 
 function updateStatus() {
@@ -917,7 +924,18 @@ function buildSceneTools() {
       'div',
       { class: 'chips' },
       withHelp(h('label', { class: 'chip' }, 'import', fileInput), 'Loads a scene file from disk. Dragging a .json onto the window does the same.', 'Import'),
-      withHelp(h('button', { class: 'chip', onclick: exportJSON }, 'export'), 'Writes the current scene to a JSON file.', 'Export')
+      withHelp(h('button', { class: 'chip', onclick: exportJSON }, 'export'), 'Writes the current scene to a JSON file, for reloading here or dropping into presets.', 'Export')
+    ),
+    h('h3', { class: 'grp' }, 'Send to Blender'),
+    withHelp(
+      h(
+        'div',
+        { class: 'chips' },
+        h('button', { class: 'chip', onclick: () => exportBlender(false) }, 'full geometry'),
+        h('button', { class: 'chip', onclick: () => exportBlender(true) }, 'blockout')
+      ),
+      'Writes a .json and a .bin beside it. Run tools/blender_import.py in Blender and point it at the json. Full carries every real shape with its collage materials. Blockout swaps each module for its bounding box, which is a fraction of the size and is what a layout or camera pass actually needs.',
+      'Blender export'
     ),
     h('h3', { class: 'grp' }, 'Roll the dice'),
     withHelp(
@@ -1088,6 +1106,29 @@ function exportJSON() {
   const a = h('a', { href: URL.createObjectURL(blob), download: `${name.replace(/\s+/g, '-')}.json` });
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function exportBlender(proxy) {
+  // Any queued chunk meshing is irrelevant here since geometry is rebuilt
+  // from the city data, but the data itself must be current.
+  builder.flushAll();
+  const name = state.sceneName || suggestName();
+  const t0 = performance.now();
+  const payload = buildExport({
+    city: state.city,
+    params: state.params,
+    pool,
+    matPool,
+    stage,
+    name,
+    proxy,
+  });
+  downloadExport(payload, `${name}${proxy ? '-blockout' : ''}`);
+  const c = payload.json.counts;
+  const mb = (payload.bin.byteLength / 1048576).toFixed(1);
+  setStatus(
+    `Exported ${c.buildings} buildings, ${c.triangles.toLocaleString()} triangles, ${mb}MB in ${Math.round(performance.now() - t0)}ms`
+  );
 }
 
 function snapshot() {
