@@ -34,6 +34,7 @@ import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
+import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
 import { buildExport, downloadExport } from './exporter.js';
 
@@ -186,6 +187,10 @@ let wheels = {};
 let presets = [];
 let history;
 let historyLabel;
+// Redraw callbacks for the role toggle sets, so a scene load or an undo puts
+// the checkboxes back in step with the params they describe.
+const roleRedraws = [];
+let rebuildMixWheels = null;
 
 boot();
 
@@ -768,28 +773,60 @@ function buildUI() {
     }
   );
 
-  wheels.moduleMix = new MixWheel(
-    controls.mounts.get('moduleMix'),
-    BODY_KINDS,
-    wheelMeta(BODY_KINDS),
-    state.params.moduleMix,
-    (values) => {
-      state.params.moduleMix = values;
-      markAll();
-      history?.record('wheel:moduleMix');
-    }
-  );
-  wheels.roofMix = new MixWheel(
-    controls.mounts.get('roofMix'),
-    ROOF_KINDS,
-    wheelMeta(ROOF_KINDS),
-    state.params.roofMix,
-    (values) => {
-      state.params.roofMix = values;
-      markAll();
-      history?.record('wheel:roofMix');
-    }
-  );
+  // The wheel only ever shows what the role includes, so it is rebuilt when
+  // the include list changes rather than carrying dead slices at zero. That
+  // is the whole difference between excluding a shape and silencing it.
+  const buildMixWheel = (wheelKey, role) => {
+    const mount = controls.mounts.get(wheelKey);
+    if (!mount) return;
+    mount.replaceChildren();
+    const keys = includedFor(state.params, role);
+    wheels[wheelKey] = new MixWheel(
+      mount,
+      keys,
+      wheelMeta(keys),
+      state.params[wheelKey],
+      (values) => {
+        state.params[wheelKey] = { ...state.params[wheelKey], ...values };
+        markAll();
+        history?.record(`wheel:${wheelKey}`);
+      }
+    );
+  };
+
+  const buildRoleToggles = (mountKey, role, wheelKey) => {
+    const mount = controls.mounts.get(mountKey);
+    if (!mount) return;
+    const draw = () => {
+      const on = includedFor(state.params, role);
+      const boxes = ROLES[role].defaults.map((id) => {
+        const input = h('input', {
+          type: 'checkbox',
+          ...(on.includes(id) ? { checked: '' } : {}),
+        });
+        input.addEventListener('change', () => {
+          state.params.roles = toggleInRole(state.params, role, id);
+          draw();
+          buildMixWheel(wheelKey, role);
+          markAll();
+          history?.record(null);
+        });
+        return h('label', { class: 'role-item' }, input, h('span', {}, roleLabel(id)));
+      });
+      setChildren(mount, h('div', { class: 'role-set' }, ...boxes));
+    };
+    roleRedraws.push(draw);
+    draw();
+  };
+
+  buildRoleToggles('bodyRole', 'body', 'moduleMix');
+  buildMixWheel('moduleMix', 'body');
+  buildRoleToggles('roofRole', 'roof', 'roofMix');
+  buildMixWheel('roofMix', 'roof');
+  rebuildMixWheels = () => {
+    buildMixWheel('moduleMix', 'body');
+    buildMixWheel('roofMix', 'roof');
+  };
   wheels.surfaceMix = new MixWheel(
     controls.mounts.get('surfaceMix'),
     SURFACE_KINDS,
@@ -1024,6 +1061,10 @@ function buildShortcuts() {
 
 function syncPanels() {
   controls.sync(state.params);
+  // Roles first: the mix wheels are rebuilt against the include lists, so
+  // they have to be current before the wheels are asked to show a value.
+  for (const draw of roleRedraws) draw();
+  rebuildMixWheels?.();
   wheels.moduleMix.set(state.params.moduleMix);
   wheels.roofMix.set(state.params.roofMix);
   wheels.surfaceMix.set(state.params.surfaceMix);
@@ -1074,6 +1115,9 @@ function applyScene(scene, name, isPreset = false) {
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(scene.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(scene.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(scene.params?.surfaceMix || {}) };
+  // A scene saved before roles existed has none, and gets the full lists,
+  // so it generates exactly as it did when it was saved.
+  state.params.roles = { ...DEFAULTS.roles, ...(scene.params?.roles || {}) };
   state.overrides = scene.overrides || {};
   state.sceneName = name || scene.name || '';
   state.scenePreset = isPreset;
@@ -1153,6 +1197,7 @@ function restore() {
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(saved.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(saved.params?.surfaceMix || {}) };
+  state.params.roles = { ...DEFAULTS.roles, ...(saved.params?.roles || {}) };
   state.overrides = saved.overrides || {};
   state.sceneName = saved.current || '';
   state.scenePreset = false;

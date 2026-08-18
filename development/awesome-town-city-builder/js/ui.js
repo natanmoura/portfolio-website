@@ -207,10 +207,22 @@ export const CONTROL_DEFS = [
     tab: 'town',
     items: [
       {
+        key: 'bodyRole',
+        label: 'Body shapes in use',
+        type: 'mount',
+        help: 'Which shapes this town builds with at all. Switching one off removes it from the wheel entirely, which is different from turning its share down to nothing.',
+      },
+      {
         key: 'moduleMix',
         label: 'Body modules',
         type: 'wheel',
         help: 'How much of each shape exists across town. Drag any dot to trade weight between two kinds, or drag one onto its neighbour to remove a kind. Click a row to nudge it, shift-click to nudge it down.',
+      },
+      {
+        key: 'roofRole',
+        label: 'Roof shapes in use',
+        type: 'mount',
+        help: 'Which caps this town uses at all. Switch them all off but Flat for a town of flat tops.',
       },
       {
         key: 'roofMix',
@@ -618,8 +630,9 @@ export class Controls {
     const tabLabel = (TABS.find((t) => t.id === group.tab) || {}).label || group.tab;
     const rows = (group.items || []).map((def) => {
       const row = this.renderItem(def);
-      // Mounts are holes other code fills in, and have no label worth finding.
-      if (def.type !== 'mount') {
+      // Unlabelled mounts are holes other code fills in, with no label worth
+      // finding. A labelled one is a real control and belongs in the index.
+      if (def.type !== 'mount' || def.label) {
         this.entries.push({
           key: def.key,
           label: def.label || def.key,
@@ -679,7 +692,15 @@ export class Controls {
     if (def.type === 'mount') {
       const mount = h('div', { class: 'mount' });
       this.mounts.set(def.key, mount);
-      return mount;
+      // A labelled mount gets a heading like a wheel does; the unlabelled
+      // ones (scene tools, shortcuts) stay bare holes as before.
+      if (!def.label) return mount;
+      const block = h('div', { class: 'mount-block' }, h('h3', { class: 'grp' }, def.label), mount);
+      if (def.help) {
+        block.dataset.help = def.help;
+        block.dataset.helpTitle = def.label;
+      }
+      return block;
     }
 
     if (def.type === 'check') {

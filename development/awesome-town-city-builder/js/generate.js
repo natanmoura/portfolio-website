@@ -16,26 +16,11 @@ import { getPalette } from './palettes.js';
 import { buildLayout } from './layout.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 
-export const BODY_KINDS = ['box', 'octagon', 'cylinder', 'pillars', 'pillars8', 'post', 'sphere', 'spin'];
-export const ROOF_KINDS = ['flat', 'pyramid', 'gable', 'cone', 'dome'];
-export const MODULE_KINDS = [...BODY_KINDS, 'pyramid', 'gable', 'cone', 'dome', 'flag'];
+// The kind vocabulary and the role definitions live in roles.js; re-exported
+// here so the many existing importers of these names are undisturbed.
+import { BODY_KINDS, ROOF_KINDS, MODULE_KINDS, KIND_LABEL, includedFor } from './roles.js';
 
-export const KIND_LABEL = {
-  box: 'Cube',
-  octagon: 'Octagon',
-  cylinder: 'Cylinder',
-  pillars: 'Pillars 4',
-  pillars8: 'Pillars 8',
-  post: 'Post',
-  sphere: 'Sphere',
-  spin: 'Spin',
-  flat: 'Flat',
-  pyramid: 'Pyramid',
-  gable: 'Gable',
-  cone: 'Cone',
-  dome: 'Dome',
-  flag: 'Flag',
-};
+export { BODY_KINDS, ROOF_KINDS, MODULE_KINDS, KIND_LABEL };
 
 // Family drives building cohesion: a round building reaches for round parts.
 export const FAMILY = {
@@ -150,6 +135,9 @@ export const DEFAULTS = {
   // How much of each module kind exists across the town.
   moduleMix: { box: 44, octagon: 13, cylinder: 11, pillars: 7, pillars8: 5, post: 5, sphere: 4, spin: 16 },
   roofMix: { flat: 28, pyramid: 18, gable: 20, cone: 16, dome: 18 },
+  // Which library entries each role may use. Undefined means all of them,
+  // which is what every scene saved before roles existed will have.
+  roles: { body: [...BODY_KINDS], roof: [...ROOF_KINDS] },
 };
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -302,18 +290,28 @@ function buildingScheme(rng, palette) {
 function makeModule(t, params, palette, ctx, index, id) {
   const { signature, family, scheme, collage, pickRange, isRoof, material } = ctx;
 
+  // Which entries this role may draw from at all. Family cohesion then
+  // narrows that further, rather than the two competing: excluding a shape
+  // from the town excludes it everywhere, and cohesion picks among whatever
+  // survives.
+  const bodyKeys = includedFor(params, 'body');
+  const roofKeys = includedFor(params, 'roof');
+
   let kind;
   if (isRoof) {
-    const allow = new Set(ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy);
-    kind = pickWeighted(params.roofMix, ROOF_KINDS, t.roofKind, allow);
+    const byFamily = ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy;
+    const allow = new Set(byFamily.filter((k) => roofKeys.includes(k)));
+    // A family with none of its roofs included falls back to the role's own
+    // list, so a round building still gets capped by something.
+    kind = pickWeighted(params.roofMix, roofKeys, t.roofKind, allow.size ? allow : null);
     if (kind === 'flat') kind = 'box';
-  } else if (t.kindRoll < params.cohesion) {
+  } else if (t.kindRoll < params.cohesion && bodyKeys.includes(signature)) {
     kind = signature;
   } else if (t.kindRoll < params.cohesion + (1 - params.cohesion) * 0.7) {
-    const siblings = new Set(BODY_KINDS.filter((k) => FAMILY[k] === family));
-    kind = pickWeighted(params.moduleMix, BODY_KINDS, t.familyPick, siblings);
+    const siblings = new Set(bodyKeys.filter((k) => FAMILY[k] === family));
+    kind = pickWeighted(params.moduleMix, bodyKeys, t.familyPick, siblings.size ? siblings : null);
   } else {
-    kind = pickWeighted(params.moduleMix, BODY_KINDS, t.kindPick);
+    kind = pickWeighted(params.moduleMix, bodyKeys, t.kindPick);
   }
 
   const slabbed = !isRoof && index > 0 && t.slab < params.slabChance && kind !== 'spin';
@@ -396,7 +394,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   const moduleId = (i) => `${id}_m${i}`;
 
   // Building-level identity, rolled before anything the sliders can shift.
-  const signature = pickWeighted(params.moduleMix, BODY_KINDS, brng.float());
+  const signature = pickWeighted(params.moduleMix, includedFor(params, 'body'), brng.float());
   const family = FAMILY[signature] || 'boxy';
   const scheme = buildingScheme(brng, palette);
   // One roll decides the building's whole surface — a texture, a reflective
@@ -466,11 +464,18 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     modules.push(m);
   }
 
+  // Whether this building gets a roof at all is decided against the same
+  // include list the roof module will draw from, or a town with roofs
+  // switched off would still reserve a storey for one.
+  const roofKeys = includedFor(params, 'roof');
+  const roofAllow = new Set(
+    (ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy).filter((k) => roofKeys.includes(k))
+  );
   const roofKind = pickWeighted(
     params.roofMix,
-    ROOF_KINDS,
+    roofKeys,
     roofRoll,
-    new Set(ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy)
+    roofAllow.size ? roofAllow : null
   );
   if (roofKind !== 'flat') {
     const i = modules.length;
