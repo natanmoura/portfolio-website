@@ -1,0 +1,28 @@
+{
+  "id": "cone",
+  "version": 1,
+  "label": "Cone",
+  "shape": "cone",
+  "tags": [
+    "roof",
+    "spire"
+  ],
+  "params": {
+    "w": {
+      "mode": "range",
+      "min": 0.7,
+      "max": 1
+    },
+    "h": {
+      "mode": "free",
+      "min": 0.4,
+      "max": 2.4
+    },
+    "d": {
+      "mode": "range",
+      "min": 0.7,
+      "max": 1
+    }
+  },
+  "modifiers": []
+}

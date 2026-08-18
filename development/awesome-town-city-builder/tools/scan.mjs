@@ -10,6 +10,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
 const collage = path.join(root, 'collage');
 const presets = path.join(root, 'presets');
+const libComponents = path.join(root, 'library', 'components');
+const libTemplates = path.join(root, 'library', 'templates');
 const OK = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
 
 async function scan(dir, ok) {
@@ -71,3 +73,25 @@ for (const file of files) {
 
 await writeFile(path.join(presets, 'manifest.json'), JSON.stringify({ files }, null, 2) + '\n');
 console.log(`presets/manifest.json -> ${files.length} presets${renamed ? `, ${renamed} renamed to match their file` : ''}`);
+
+// Same drop-a-file-in-commit-it pattern as presets/, one manifest per library
+// folder so components and templates can be scanned independently.
+async function scanLibrary(dir, label) {
+  const jsonFiles = (await scan(dir, new Set(['.json']))).filter((f) => f !== 'manifest.json');
+  const ids = [];
+  for (const file of jsonFiles) {
+    const full = path.join(dir, file);
+    try {
+      const data = JSON.parse(await readFile(full, 'utf8'));
+      ids.push(data.id || file.replace(/\.json$/i, ''));
+    } catch {
+      console.warn(`${label}/${file} -> could not parse, left alone`);
+    }
+  }
+  await writeFile(path.join(dir, 'manifest.json'), JSON.stringify({ files: jsonFiles }, null, 2) + '\n');
+  console.log(`${label}/manifest.json -> ${jsonFiles.length} entries`);
+  return ids;
+}
+
+await scanLibrary(libComponents, 'library/components');
+await scanLibrary(libTemplates, 'library/templates');

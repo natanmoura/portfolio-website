@@ -1,0 +1,18 @@
+{
+  "files": [
+    "box.json",
+    "cone.json",
+    "cylinder.json",
+    "dome.json",
+    "empty.json",
+    "flag.json",
+    "gable.json",
+    "octagon.json",
+    "pillars.json",
+    "pillars8.json",
+    "post.json",
+    "pyramid.json",
+    "sphere.json",
+    "spin.json"
+  ]
+}
