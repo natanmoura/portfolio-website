@@ -34,6 +34,7 @@ import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
+import { History } from './history.js';
 
 const APP_NAME = 'Awesome Town';
 
@@ -113,6 +114,8 @@ const SHORTCUTS = [
   ['delete', 'remove it'],
   ['F', 'frame the whole town'],
   ['T', 'start or stop the tour'],
+  ['ctrl + Z', 'undo'],
+  ['ctrl + shift + Z', 'redo'],
   ['esc', 'deselect'],
 ];
 
@@ -180,6 +183,8 @@ let flyby;
 let tourButton;
 let wheels = {};
 let presets = [];
+let history;
+let historyLabel;
 
 boot();
 
@@ -494,6 +499,42 @@ const actions = {
   },
 };
 
+// Every action that writes an override becomes an undo step. Wrapping them
+// here rather than calling record() inside each body keeps the actions
+// themselves about the edit and nothing else, and means a new action cannot
+// quietly ship without history by forgetting a line.
+//
+// The continuous ones return a key so repeated changes of the same kind
+// collapse: dragging a module's height is one step, not eighty. The key
+// includes which fields changed, so moving height then width stays two steps.
+const HISTORY_KEYS = {
+  setModule: (id, patch) => `setModule:${id}:${Object.keys(patch).join(',')}`,
+  setFace: (id, slot, patch) => `setFace:${id}:${slot}:${Object.keys(patch).join(',')}`,
+  setBuilding: (id, patch) => `setBuilding:${id}:${Object.keys(patch).join(',')}`,
+};
+
+// Discrete edits always get their own step, however fast they are repeated.
+const HISTORY_DISCRETE = [
+  'deleteModule',
+  'clearModule',
+  'addFloor',
+  'removeFloor',
+  'rerollBuilding',
+  'glowBuilding',
+  'deleteBuilding',
+  'clearBuilding',
+];
+
+for (const name of [...Object.keys(HISTORY_KEYS), ...HISTORY_DISCRETE]) {
+  const inner = actions[name];
+  actions[name] = (...args) => {
+    const out = inner(...args);
+    const key = HISTORY_KEYS[name] ? HISTORY_KEYS[name](...args) : null;
+    history?.record(key);
+    return out;
+  };
+}
+
 function clearModuleOverrides(buildingId) {
   for (const key of Object.keys(state.overrides)) {
     if (key.startsWith(`${buildingId}_m`)) delete state.overrides[key];
@@ -594,6 +635,19 @@ function bindPointer() {
 
 function bindKeys() {
   addEventListener('keydown', (e) => {
+    // Undo is checked before the input guard, so it still works while a
+    // number box happens to hold focus.
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      if (e.shiftKey) history?.redo();
+      else history?.undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      history?.redo();
+      return;
+    }
     if (e.target.matches('input, select, textarea')) return;
     const sel = state.selection;
     const entry = sel && byModule.get(sel.moduleId);
@@ -699,9 +753,11 @@ function buildUI() {
       if (def.cheap) {
         applyEnv();
         autosave();
+        history?.record(`param:${key}`);
         return;
       }
       markAll();
+      history?.record(`param:${key}`);
     }
   );
 
@@ -713,6 +769,7 @@ function buildUI() {
     (values) => {
       state.params.moduleMix = values;
       markAll();
+      history?.record('wheel:moduleMix');
     }
   );
   wheels.roofMix = new MixWheel(
@@ -723,6 +780,7 @@ function buildUI() {
     (values) => {
       state.params.roofMix = values;
       markAll();
+      history?.record('wheel:roofMix');
     }
   );
   wheels.surfaceMix = new MixWheel(
@@ -733,6 +791,7 @@ function buildUI() {
     (values) => {
       state.params.surfaceMix = values;
       markAll();
+      history?.record('wheel:surfaceMix');
     }
   );
 
@@ -747,11 +806,35 @@ function buildUI() {
   document.getElementById('btn-frame').onclick = () => frameCity();
   document.getElementById('btn-shot').onclick = snapshot;
 
+  // Built after the panels exist, because restoring a step has to push the
+  // recovered values back into every slider and wheel on screen.
+  history = new History(
+    () => ({ params: state.params, overrides: state.overrides }),
+    (snap) => {
+      state.params = snap.params;
+      state.overrides = snap.overrides;
+      syncPanels();
+      // The town's extent may have moved, so let the next rebuild reconsider
+      // it rather than trusting the cached key.
+      extentKey = '';
+      markAll();
+    }
+  );
+  history.reset();
+  history.onChange(updateHistoryLabel);
+
   buildSceneTools();
   buildTourTools();
   buildShortcuts();
   refreshSceneMenu();
   updateStatus();
+}
+
+function updateHistoryLabel() {
+  if (!historyLabel || !history) return;
+  const { back, forward } = history.depth();
+  historyLabel.textContent = `${back} back · ${forward} forward`;
+  historyLabel.classList.toggle('dim', back === 0 && forward === 0);
 }
 
 // Everything to do with saving, loading and starting over, gathered in one
@@ -787,7 +870,22 @@ function buildSceneTools() {
     updateStatus();
   };
 
+  historyLabel = h('span', { class: 'history-count dim' }, '0 back · 0 forward');
+
   setChildren(mount,
+    h('h3', { class: 'grp' }, 'History'),
+    withHelp(
+      h(
+        'div',
+        { class: 'chips' },
+        h('button', { class: 'chip', onclick: () => history?.undo() }, 'undo'),
+        h('button', { class: 'chip', onclick: () => history?.redo() }, 'redo'),
+        historyLabel
+      ),
+      'Steps back and forward through your edits. Ctrl+Z and Ctrl+Shift+Z do the same. Dragging one slider counts as a single step rather than one per pixel.',
+      'History'
+    ),
+    h('h3', { class: 'grp' }, 'Scenes'),
     withHelp(select, 'Presets ship with the site. Saved is your own library on this machine. Picking either loads its sliders and all its hand edits.', 'Scenes'),
     h(
       'div',
@@ -833,6 +931,7 @@ function buildSceneTools() {
           syncPanels();
           extentKey = '';
           markAll();
+          history?.record(null);
         },
       }, 'randomise everything'),
       'Rolls every setting at once, within ranges that actually produce a town rather than noise. One look effect gets to lead instead of all of them stacking. Asks first, and your hand edits survive.',
@@ -849,6 +948,7 @@ function buildSceneTools() {
             state.overrides = {};
             deselect();
             markAll();
+            history?.record(null);
           },
         }, 'clear edits'),
         'Drops every hand edit and leaves the sliders alone.',
@@ -867,6 +967,7 @@ function buildSceneTools() {
           syncPanels();
           extentKey = '';
           markAll();
+          history?.record(null);
         },
       }, 'reset to defaults'),
       'Puts every slider back where it started and drops all hand edits. Asks first.',
@@ -962,6 +1063,7 @@ function applyScene(scene, name, isPreset = false) {
   syncPanels();
   extentKey = '';
   markAll();
+  history?.record(null);
 }
 
 async function loadFile(file) {
@@ -1056,7 +1158,7 @@ function animate() {
 // Console handle, for poking at the city by hand.
 Object.defineProperty(window, 'cc', {
   get: () => ({
-    state, stage, builder, materials, pool, picker, inspector, controls, wheels, traffic, flyby,
-    actions, flush, markAll, applyEnv, frameCity,
+    state, stage, builder, materials, pool, matPool, picker, inspector, controls, wheels, traffic, flyby,
+    actions, flush, markAll, applyEnv, frameCity, history, presets,
   }),
 });

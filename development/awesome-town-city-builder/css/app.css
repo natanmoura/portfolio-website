@@ -601,3 +601,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
   background: var(--accent);
   transition: width 0.15s linear;
 }
+
+/* --- history ------------------------------------------------------------ */
+
+.history-count {
+  font-size: 9px;
+  color: var(--dim);
+  align-self: center;
+  margin-left: 4px;
+  letter-spacing: 0.04em;
+}
+.history-count.dim { opacity: 0.45; }
+
