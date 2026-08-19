@@ -292,12 +292,18 @@ input.chip-w {
 
 .pm-row {
   display: grid;
-  grid-template-columns: 52px 54px 1fr 62px;
+  grid-template-columns: 46px 52px 1fr 76px;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 3px 0;
   min-height: 22px;
 }
+
+/* A value pushed past where the knob normally travels. Marked, because a row
+   sitting far outside its usual range is often the reason something looks
+   wrong three edits later. */
+.pm-row.extended .pm-num { color: var(--accent-2); }
+.pm-row.extended > label { color: var(--accent-2); opacity: 1; }
 
 .pm-row > label {
   font-size: 11px;
@@ -324,12 +330,33 @@ input.chip-w {
 .pm-modes button.on { opacity: 1; background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.4); }
 
 .pm-val {
-  font-size: 10px;
-  opacity: 0.65;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+}
+
+/* Typed entry, not a readout. The slider covers the useful range and this is
+   how you get past it. Element in the selector so it outranks the app's
+   `input[type="number"] { width: 100% }`. */
+input.pm-num {
+  width: 100%;
+  min-width: 0;
+  font-size: 9.5px;
+  padding: 1px 2px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: 2px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  appearance: textfield;
+  -moz-appearance: textfield;
 }
+input.pm-num:hover { border-color: var(--line); }
+input.pm-num:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+input.pm-num::-webkit-inner-spin-button,
+input.pm-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 .pm-free { font-size: 10px; opacity: 0.4; font-style: italic; }
 
