@@ -292,9 +292,11 @@ input.chip-w {
 
 .pm-row {
   display: grid;
-  grid-template-columns: 46px 52px 1fr 76px;
+  /* Wider label column than the keys needed, because the names are words
+     now rather than single letters. */
+  grid-template-columns: 84px 50px 1fr 64px;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   padding: 3px 0;
   min-height: 22px;
 }
@@ -315,19 +317,32 @@ input.chip-w {
 
 .pm-modes { display: flex; gap: 1px; }
 
+/* Glyphs rather than initials: "free" and "fixed" both start with F, so a row
+   of letters had to be read twice. Each mark says what the control is about
+   to become. */
 .pm-modes button {
-  width: 17px;
-  padding: 1px 0;
-  font-size: 9px;
-  font-weight: 700;
-  border: 1px solid rgba(255,255,255,0.16);
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   background: transparent;
   color: inherit;
   border-radius: 2px;
   cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.45;
 }
-.pm-modes button.on { opacity: 1; background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.4); }
+.pm-modes button:hover { opacity: 0.85; }
+.pm-modes button.on { opacity: 1; background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.4); }
+
+/* The wave sits high in its em box and the equals sits low, so both get
+   nudged back onto the same optical centre as the arrows. */
+.pm-modes .m-free { font-size: 12px; padding-bottom: 3px; }
+.pm-modes .m-fixed { font-size: 11px; }
+.pm-modes .m-range { font-size: 11px; }
 
 .pm-val {
   display: flex;

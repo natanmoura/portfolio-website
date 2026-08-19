@@ -21,6 +21,62 @@ import { h, setChildren } from './ui.js';
 const MODES = ['free', 'range', 'fixed'];
 const round = (v) => Math.round(v * 1000) / 1000;
 
+// The modes keep their data names, which are used throughout, but not their
+// labels. "Free" and "Fixed" both start with F, so a row of initials made you
+// read the tooltip every time to tell the two apart.
+//
+// The glyphs say what the control below is about to become, which is the
+// thing you are actually choosing: nothing to set, a span between two knobs,
+// or one exact value.
+const MODE_META = {
+  free: { icon: '~', label: 'Any', help: 'Any value. Whatever places this decides.' },
+  range: { icon: '↔', label: 'Range', help: 'Anywhere between two bounds.' },
+  fixed: { icon: '=', label: 'Exact', help: 'This value, every time.' },
+};
+
+// Parameters are stored under short keys because they are written by hand in
+// json and read in tight loops. That is no reason to show them that way: w, h
+// and d are only obvious once somebody has told you.
+export const PARAM_LABELS = {
+  w: 'Width',
+  h: 'Height',
+  d: 'Depth',
+  x: 'X drift',
+  y: 'Y drift',
+  z: 'Z drift',
+  scale: 'Scale',
+  skewX: 'Skew X',
+  skewZ: 'Skew Z',
+  taper: 'Taper',
+  twist: 'Twist',
+  jitter: 'Jitter',
+  overlap: 'Overlap',
+  gap: 'Gap',
+  shrink: 'Shrink',
+  count: 'Count',
+  cols: 'Columns',
+  rows: 'Rows',
+  spacing: 'Spacing',
+  spacingX: 'Spacing X',
+  spacingZ: 'Spacing Z',
+  radius: 'Radius',
+  radiusX: 'Radius X',
+  radiusZ: 'Radius Z',
+  spread: 'Spread',
+  start: 'Start',
+  turns: 'Turns',
+  rise: 'Rise',
+  faceOut: 'Face outward',
+  flip: 'Flip copy',
+  spin: 'Random spin',
+  axis: 'Axis',
+};
+
+// Anything unnamed falls back to its key with the first letter raised, so a
+// parameter added tomorrow reads acceptably without being listed here first.
+export const labelFor = (name) =>
+  PARAM_LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1);
+
 function normalise(param) {
   if (param === null || param === undefined) return { mode: 'free', min: 0, max: 1 };
   if (typeof param === 'number') return { mode: 'fixed', value: param };
@@ -141,7 +197,12 @@ export function paramRow(name, param, onChange, opts = {}) {
     'div',
     { class: 'pm-modes' },
     ...MODES.map((mode) => {
-      const b = h('button', { class: p.mode === mode ? 'on' : '', title: mode }, mode[0].toUpperCase());
+      const meta = MODE_META[mode];
+      const b = h(
+        'button',
+        { class: `${p.mode === mode ? 'on' : ''} m-${mode}`.trim(), title: `${meta.label}. ${meta.help}` },
+        meta.icon
+      );
       b.addEventListener('click', () => onChange(switchMode(p, mode), { live: false }));
       return b;
     })
@@ -151,10 +212,13 @@ export function paramRow(name, param, onChange, opts = {}) {
   const slot = h('div', { class: 'pm-ctl' });
   // The row exists before the controls do, so they can mark it extended as
   // they are built rather than needing a second pass afterwards.
+  const shownName = opts.label || labelFor(name);
   const row = h(
     'div',
     { class: `pm-row mode-${p.mode}` },
-    h('label', { title: opts.label || name }, opts.label || name),
+    // The key stays in the tooltip, since that is what you need when reading
+    // the json or the code, and the readable name is what you need here.
+    h('label', { title: `${shownName} (${name})` }, shownName),
     modes,
     slot,
     value
