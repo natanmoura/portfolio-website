@@ -9,6 +9,7 @@
 // of shapes each produces, not that it survives a planner's inspection.
 
 import { Rng, hashString, hashCoords } from './rng.js';
+import { SpatialGrid } from './grid.js';
 
 export const ROAD_PATTERNS = ['grid', 'boulevard', 'radial', 'organic'];
 
@@ -183,92 +184,24 @@ function organicPattern(roads, rng, p, half) {
 
 // --- placement -------------------------------------------------------------
 
-// Circles are a good enough stand-in for footprints here, and they let a whole
-// town be packed without a real collision pass.
-class Packing {
-  constructor(cell) {
-    this.cell = cell;
-    this.map = new Map();
-  }
-  key(x, z) {
-    return `${Math.floor(x / this.cell)}|${Math.floor(z / this.cell)}`;
-  }
-  fits(x, z, r) {
-    const cx = Math.floor(x / this.cell);
-    const cz = Math.floor(z / this.cell);
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        const list = this.map.get(`${cx + i}|${cz + j}`);
-        if (!list) continue;
-        for (const o of list) {
-          const dx = o.x - x;
-          const dz = o.z - z;
-          if (dx * dx + dz * dz < (o.r + r) * (o.r + r)) return false;
-        }
-      }
+// Both of the things this file needs to know about proximity are now one
+// structure, in grid.js, because terrain, curves, volumes and scatter all want
+// the same one and four private copies is the default outcome otherwise.
+//
+// Circles are a good enough stand-in for footprints, and they let a whole town
+// be packed without a real collision pass. Roads go in as capsules, so a
+// candidate plot only tests the tarmac near it — without that a building
+// placed against one street happily lands in the middle of the street
+// crossing it.
+const roadGrid = (roads, cell) => {
+  const grid = new SpatialGrid(cell);
+  for (const road of roads) {
+    for (let i = 0; i < road.pts.length - 1; i++) {
+      grid.addCapsule(road.pts[i], road.pts[i + 1], road.width / 2, road.id);
     }
-    return true;
   }
-  add(x, z, r) {
-    const k = this.key(x, z);
-    if (!this.map.has(k)) this.map.set(k, []);
-    this.map.get(k).push({ x, z, r });
-  }
-}
-
-// Every road segment, bucketed so a candidate site only tests the tarmac near
-// it. Without this a building placed against one street happily lands in the
-// middle of the street crossing it.
-class RoadIndex {
-  constructor(roads, cell) {
-    this.cell = cell;
-    this.map = new Map();
-    roads.forEach((road, ri) => {
-      for (let i = 0; i < road.pts.length - 1; i++) {
-        const seg = { ri, a: road.pts[i], b: road.pts[i + 1], half: road.width / 2 };
-        const x0 = Math.floor(Math.min(seg.a[0], seg.b[0]) / cell) - 1;
-        const x1 = Math.floor(Math.max(seg.a[0], seg.b[0]) / cell) + 1;
-        const z0 = Math.floor(Math.min(seg.a[1], seg.b[1]) / cell) - 1;
-        const z1 = Math.floor(Math.max(seg.a[1], seg.b[1]) / cell) + 1;
-        for (let x = x0; x <= x1; x++) {
-          for (let z = z0; z <= z1; z++) {
-            const k = `${x}|${z}`;
-            if (!this.map.has(k)) this.map.set(k, []);
-            this.map.get(k).push(seg);
-          }
-        }
-      }
-    });
-  }
-
-  // Distance from a point to a segment, squared comparison avoided for clarity
-  // since this runs a few hundred thousand times at most.
-  static distance(px, pz, a, b) {
-    const dx = b[0] - a[0];
-    const dz = b[1] - a[1];
-    const len2 = dx * dx + dz * dz;
-    let t = len2 > 0 ? ((px - a[0]) * dx + (pz - a[1]) * dz) / len2 : 0;
-    t = Math.max(0, Math.min(1, t));
-    return Math.hypot(px - (a[0] + dx * t), pz - (a[1] + dz * t));
-  }
-
-  // True when the footprint would sit on tarmac other than its own street.
-  blocked(px, pz, radius, ownRoad) {
-    const cx = Math.floor(px / this.cell);
-    const cz = Math.floor(pz / this.cell);
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        const list = this.map.get(`${cx + i}|${cz + j}`);
-        if (!list) continue;
-        for (const seg of list) {
-          if (seg.ri === ownRoad) continue;
-          if (RoadIndex.distance(px, pz, seg.a, seg.b) < seg.half + radius) return true;
-        }
-      }
-    }
-    return false;
-  }
-}
+  return grid;
+};
 
 // Walk both kerbs of every road, dropping buildings that face it.
 //
@@ -292,8 +225,8 @@ function placeSites(roads, params, half) {
   const seed = params.seed >>> 0;
   const frontage = params.cell * params.lotFill;
   const depth = frontage * params.blockDepthRatio;
-  const packing = new Packing(Math.max(frontage, depth) * 1.2);
-  const kerbs = new RoadIndex(roads, Math.max(frontage, depth) * 2 + params.highwayWidth);
+  const packing = new SpatialGrid(Math.max(frontage, depth) * 1.2);
+  const kerbs = roadGrid(roads, Math.max(frontage, depth) * 2 + params.highwayWidth);
 
   roads.forEach((road, ri) => {
     for (let s = 0; s < road.pts.length - 1; s++) {
@@ -325,11 +258,11 @@ function placeSites(roads, params, half) {
           const w = frontage * (1 + (t4.w * 2 - 1) * params.lotJitter);
           const d = depth * (1 + (t4.d * 2 - 1) * params.lotJitter);
           const radius = Math.max(w, d) * 0.44;
-          if (!packing.fits(px, pz, radius)) continue;
+          if (packing.overlaps(px, pz, radius)) continue;
           // Its own street already has clearance built into the offset. Every
           // other road has to be cleared by the footprint's own reach.
-          if (kerbs.blocked(px, pz, Math.max(w, d) * 0.42, ri)) continue;
-          packing.add(px, pz, radius);
+          if (kerbs.overlaps(px, pz, Math.max(w, d) * 0.42, (id) => id === road.id)) continue;
+          packing.addDisc(px, pz, radius);
           sites.push({
             id: `${road.id}_${slot}`,
             x: px,
