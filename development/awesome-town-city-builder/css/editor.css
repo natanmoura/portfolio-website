@@ -163,15 +163,6 @@ body.editor .panel { overflow-y: auto; }
 .btn.small { padding: 3px 7px; font-size: 11px; }
 .btn.danger:hover { background: #7a2b22; border-color: #a33; }
 
-#edit section { margin: 14px 0 0; }
-#edit h3 {
-  font-size: 10px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  opacity: 0.5;
-  margin: 0 0 5px;
-}
-
 .hint { font-size: 11px; opacity: 0.5; line-height: 1.35; margin: 4px 0; }
 .stat-line { font-size: 11px; opacity: 0.55; margin: 2px 0; font-variant-numeric: tabular-nums; }
 .grow { flex: 1; }
@@ -534,10 +525,11 @@ input.shelf-find::-webkit-search-cancel-button { filter: invert(0.6); }
 
 /* Sections in the editor use the town's pattern, so the two panels read as
    one tool rather than two. */
-#edit .sec { margin: 10px 0 0; }
-#edit .sec-head { padding: 8px 0 6px; }
-#edit .sec-body { padding: 0 0 6px; }
-#edit .sec-body.closed { display: none; }
+/* Sections are defined once, in app.css, and this panel uses them as they
+   are. It used to add a top margin and strip the horizontal padding, which
+   pushed every divider away from the header below it so the line read as
+   belonging to nothing. Anything a section should look like belongs in the
+   shared rule, so changing it there changes it everywhere. */
 
 /* Reserved for the placement tool strip that arrives with regions and
    volumes: select, move, pin, paint, draw. Nothing goes here in the
@@ -569,7 +561,22 @@ input.shelf-find::-webkit-search-cancel-button { filter: invert(0.6); }
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 10px 20px;
+  /* No horizontal padding: the sections carry their own, exactly as they do
+     in the other panel, so a divider spans the full width rather than
+     stopping short of both edges. */
+  padding: 0 0 20px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
+
+/* The panel's opening lines sit outside any section, so they carry the same
+   horizontal inset the sections do. Matching one number in two places is
+   worth avoiding, but this is the boundary between "chrome above the
+   sections" and the sections themselves, and it only exists once. */
+#edit-body > .panel-head,
+#edit-body > .stat-line,
+#edit-body > .hint {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+#edit-body > .panel-head { padding-top: 10px; }
