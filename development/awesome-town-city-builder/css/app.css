@@ -139,7 +139,7 @@ main {
   flex: none;
   background: var(--panel-2);
   border-bottom: 1px solid var(--line);
-  padding: 8px 8px 0;
+  padding: 6px 8px 7px;
   /* Content passes underneath rather than stopping at an edge, which is the
      cue that there is more of it than fits. */
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.6);
@@ -167,7 +167,7 @@ main {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 3px;
-  padding: 6px 0 0;
+  margin-bottom: 6px;
 }
 
 .tabbtn {
@@ -180,7 +180,7 @@ main {
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 5px 2px;
+  padding: 4px 2px;
   border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
@@ -193,25 +193,6 @@ main {
   border-color: var(--accent);
   color: #fff;
 }
-
-/* A notch under the current tab, pointing into the pages below it. Small,
-   and it is the one mark that ties the choice to what the choice produced. */
-.tabbtn.on::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -7px;
-  width: 0;
-  height: 0;
-  transform: translateX(-50%);
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 5px solid var(--accent);
-}
-/* Only the bottom row can point at the pages; a notch on the top row would
-   aim at the row beneath it and mean nothing. */
-.tabbar .tabbtn.on:nth-child(-n + 4)::after { display: none; }
-.tabbar.one-row .tabbtn.on::after { display: block; }
 
 .page { display: none; }
 .page.on { display: block; }
@@ -408,14 +389,17 @@ input[type="checkbox"] { accent-color: var(--accent); }
   z-index: 2;
 }
 
-.insp-tabs:not(:empty) { margin-top: 8px; }
+.insp-tabs:not(:empty) { margin-bottom: 6px; }
+/* A caption under the toggle rather than a heading over it, so it takes
+   caption weight. It says which thing the toggle landed on, which is
+   supporting information, not the title of the panel. */
 .insp-head h2 {
   margin: 0;
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 9px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--dim);
+  font-weight: 400;
 }
 #inspector.empty .insp-head h2 { color: var(--dim); }
 .insp-body {
@@ -719,8 +703,8 @@ input[type="checkbox"] { accent-color: var(--accent); }
   border-radius: 3px;
   color: var(--text);
   font: inherit;
-  font-size: 11px;
-  padding: 6px 8px;
+  font-size: 10.5px;
+  padding: 3px 7px;
   outline: none;
 }
 .search-input:focus { border-color: var(--accent); }

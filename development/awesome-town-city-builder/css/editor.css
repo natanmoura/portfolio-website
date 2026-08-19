@@ -84,9 +84,13 @@ body.editor .panel { overflow-y: auto; }
   opacity: 0.45;
 }
 
+/* Widening the shelf should show more components, not bigger ones. Two fixed
+   columns meant dragging it open just inflated the thumbnails, which is the
+   opposite of why anyone widens a library. auto-fill packs in as many columns
+   as fit and the cards keep a readable, constant size. */
 .shelf-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
   gap: 6px;
   padding: 0 10px 6px;
 }

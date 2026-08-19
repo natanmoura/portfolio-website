@@ -483,7 +483,11 @@ export class Controls {
     // rather than as the thing steering it. Content sliding under a fixed
     // header is what says "this controls that", and no amount of styling
     // says it as plainly as the behaviour does.
-    this.header = h('div', { class: 'panel-top' }, this.buildSearch(), this.tabBar);
+    // Tabs first, then the search under them. The tabs are the top level of
+    // the panel and searching is a way of getting around inside it, so the
+    // order on screen matches the order in the hierarchy.
+    const search = this.buildSearch();
+    this.header = h('div', { class: 'panel-top' }, this.tabBar, search);
     root.append(this.header, this.pageWrap);
 
     for (const tab of TABS) {

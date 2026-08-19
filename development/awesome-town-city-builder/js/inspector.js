@@ -70,8 +70,11 @@ export class Inspector {
     // control that scrolls away with the thing it chose reads as part of that
     // thing rather than as the switch for it.
     this.tabsMount = h('div', { class: 'insp-tabs' });
+    // Toggle first, title under it. The toggle is the top level of this panel
+    // and the title only says which thing the toggle landed on, so it reads
+    // as a caption rather than as a heading over the switch.
     this.root.append(
-      h('header', { class: 'insp-head' }, h('h2', {}, 'Nothing selected'), this.tabsMount),
+      h('header', { class: 'insp-head' }, this.tabsMount, h('h2', {}, 'Nothing selected')),
       this.body
     );
     this.head = this.root.querySelector('h2');
