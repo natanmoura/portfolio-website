@@ -2,45 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Components</title>
-<link rel="stylesheet" href="css/tokens.css">
-<link rel="stylesheet" href="css/app.css">
-<link rel="stylesheet" href="css/editor.css">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
-  }
-}
-</script>
+<!--
+  The editor used to be its own document. It is a view inside index.html now,
+  so this only forwards anything that still points here.
+-->
+<meta http-equiv="refresh" content="0; url=index.html?view=components">
+<script>location.replace("index.html?view=components");</script>
 </head>
-<body class="editor">
-
-<header id="bar">
-  <nav class="apptabs">
-    <a class="apptab" href="index.html">City Builder</a>
-    <a class="apptab on" href="editor.html">Components</a>
-  </nav>
-  <span id="status" class="status"></span>
-  <span class="grow"></span>
-  <button class="btn" id="btn-revert">Revert</button>
-  <button class="btn primary" id="btn-save">Save</button>
-</header>
-
-<main>
-  <aside id="shelf" class="panel"></aside>
-  <div id="viewport">
-    <div id="stats" class="on"></div>
-  </div>
-  <aside id="edit" class="panel">
-    <div id="crumbs" class="crumbs"></div>
-    <div id="edit-body"></div>
-  </aside>
-</main>
-
-<script type="module" src="js/editor.js"></script>
-</body>
+<body></body>
 </html>

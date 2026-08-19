@@ -46,9 +46,10 @@ import { History } from './history.js';
 import { initPanelResize } from './resizer.js';
 import { writeStats } from './stats.js';
 
+const viewEl = document.getElementById('view-components');
 const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit-body');
-const viewportEl = document.getElementById('viewport');
+const viewportEl = document.getElementById('ed-viewport');
 const statusEl = document.getElementById('status');
 const crumbEl = document.getElementById('crumbs');
 
@@ -162,7 +163,7 @@ boundsBox.visible = false;
 scene.add(boundsBox);
 
 const raycaster = new THREE.Raycaster();
-const statsEl = document.getElementById('stats');
+const statsEl = document.getElementById('ed-stats');
 
 function clearShown() {
   for (const child of [...shown.children]) {
@@ -251,10 +252,12 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(viewportEl);
-renderer.setAnimationLoop(() => {
+// Named, because the shell stops it while this view is off screen. A
+// renderer drawing behind the town is pure heat.
+function tick() {
   controls.update();
   renderer.render(scene, camera);
-});
+}
 
 function renderStats(r) {
   if (!statsEl) return;
@@ -954,9 +957,6 @@ function render() {
 
 // --- boot -------------------------------------------------------------------
 
-document.getElementById('btn-save').addEventListener('click', saveComponent);
-document.getElementById('btn-revert').addEventListener('click', () => revertComponent());
-
 // Undo lives on the keyboard now rather than as a pair of buttons in the
 // title bar. The status line reports depth when it changes, which is the
 // only time it is worth knowing.
@@ -986,17 +986,25 @@ window.addEventListener('storage', (e) => {
   render();
 });
 
-initPanelResize({
-  main: document.querySelector("main"),
-  left: { key: "shelf", side: "left", var: "--pw-l", min: 170, max: 520, def: 236 },
-  right: { key: "edit", side: "right", var: "--pw-r", min: 260, max: 620, def: 340 },
-  storeKey: "awesome-town:editor-panels",
-});
+// Mounted by shell.js the first time somebody opens this view, and never torn
+// down after. Everything above is module state that outlives the switch, which
+// is what makes coming back instant: the scene, the camera and the open
+// component are all still where you left them.
+export async function mount() {
+  document.getElementById('btn-save').addEventListener('click', saveComponent);
+  document.getElementById('btn-revert').addEventListener('click', () => revertComponent());
 
-shipped = await loadLibrary('library');
-rebuildLibrary();
+  initPanelResize({
+    main: viewEl,
+    left: { key: 'shelf', side: 'left', var: '--pw-l', min: 170, max: 520, def: 236 },
+    right: { key: 'edit', side: 'right', var: '--pw-r', min: 260, max: 620, def: 340 },
+    storeKey: 'awesome-town:editor-panels',
+  });
 
-history = new History(
+  shipped = await loadLibrary('library');
+  rebuildLibrary();
+
+  history = new History(
   () => ({ edits }),
   (snap) => {
     edits = snap.edits || {};
@@ -1008,27 +1016,38 @@ history = new History(
       const first = [...library.components.keys()][0];
       if (first) trail = [first];
     }
-    selectedPart = -1;
-    render();
-  }
-);
-history.reset();
-history.onChange(updateHistoryButtons);
-updateHistoryButtons();
+      selectedPart = -1;
+      render();
+    }
+  );
+  history.reset();
+  history.onChange(updateHistoryButtons);
+  updateHistoryButtons();
 
-resize();
-const first = [...library.components.values()].find(isAssembly) || [...library.components.values()][0];
-if (first) trail = [first.id];
-render();
-setStatus(`${library.components.size} components.`);
+  resize();
+  const first = [...library.components.values()].find(isAssembly) || [...library.components.values()][0];
+  if (first) trail = [first.id];
+  render();
+  setStatus(`${library.components.size} components.`);
 
-window.ed = {
-  get library() { return library; },
-  get edits() { return edits; },
-  get trail() { return trail; },
-  open, openPart, popTo, render,
-  scene, shown, baseMat, pickMat,
-  get selectedPart() { return selectedPart; },
-  get seed() { return seed; },
-  set seed(v) { seed = v; render(); },
-};
+  window.ed = {
+    get library() { return library; },
+    get edits() { return edits; },
+    get trail() { return trail; },
+    open, openPart, popTo, render,
+    scene, shown, baseMat, pickMat,
+    get selectedPart() { return selectedPart; },
+    get seed() { return seed; },
+    set seed(v) { seed = v; render(); },
+  };
+
+  return {
+    // A hidden canvas has no size to measure and nothing to show, so the loop
+    // stops rather than spinning behind the town. Orbit damping needs the
+    // frames while you are here and nothing at all while you are not.
+    setActive(on) {
+      renderer.setAnimationLoop(on ? tick : null);
+    },
+    resize,
+  };
+}

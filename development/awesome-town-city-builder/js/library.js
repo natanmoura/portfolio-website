@@ -69,8 +69,18 @@ export function readEdits() {
   }
 }
 
+// Fired whenever the edit layer is written.
+//
+// `storage` only fires in *other* documents on the origin, which was fine
+// while the editor and the town were two tabs and stopped being fine the
+// moment they became two views of one document. Both are listened for now:
+// this event for the view next door, `storage` for a second window someone
+// still has open on the same library.
+export const EDITS_EVENT = 'awesome-town:edits';
+
 export function writeEdits(edits) {
   localStorage.setItem(EDITS_KEY, JSON.stringify(edits));
+  window.dispatchEvent(new CustomEvent(EDITS_EVENT));
 }
 
 // Which shipped version an edit was made against, carried on the edit and

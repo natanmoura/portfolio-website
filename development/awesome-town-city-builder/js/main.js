@@ -35,7 +35,7 @@ import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
-import { loadEditedLibrary, EDITS_KEY } from './library.js';
+import { loadEditedLibrary, EDITS_KEY, EDITS_EVENT } from './library.js';
 import { openShelfPicker } from './shelfpicker.js';
 import { infoDialog, confirmDialog } from './dialog.js';
 import { renderThumb } from './thumbs.js';
@@ -220,7 +220,27 @@ let rebuildMixWheels = null;
 // Layer visibility. Purely a view concern, kept out of params on purpose.
 let layers = null;
 
-boot();
+// Mounted by shell.js, which owns the two views and decides which is on
+// screen. This one loads first because it is what you came for.
+export async function mount() {
+  await boot();
+  return {
+    // Stops drawing while you are in the components view. The scene, the
+    // camera and the selection all stay exactly as they were, so coming back
+    // is one frame rather than a rebuild.
+    setActive(on) {
+      onScreen = on;
+      if (on) frameSize();
+    },
+    resize: frameSize,
+  };
+}
+
+// Both views mount into a hidden container, so the first size they see is
+// zero. Re-measured on the way in rather than trusted from mount time.
+function frameSize() {
+  stage?.resize?.();
+}
 
 async function boot() {
   restore();
@@ -272,7 +292,7 @@ async function boot() {
   // Panel widths are view state, like layer visibility: dragging one wider
   // changes what you can see and nothing about the town.
   initPanelResize({
-    main: document.querySelector('main'),
+    main: document.getElementById('view-city'),
     left: { key: 'controls', side: 'left', var: '--pw-l', min: 220, max: 620, def: 300 },
     storeKey: 'awesome-town:panels',
   });
@@ -284,7 +304,6 @@ async function boot() {
   bindDropZone();
   bindLibrarySync();
 
-  loadingEl.classList.add('gone');
   animate();
 }
 
@@ -295,12 +314,18 @@ async function boot() {
 // nothing about a component is baked into the city data, so there is no
 // stale state that could survive the change.
 function bindLibrarySync() {
-  window.addEventListener('storage', async (e) => {
-    if (e.key !== EDITS_KEY) return;
+  const reload = async () => {
     library = await loadEditedLibrary('library');
     builder.library = library;
+    inspector.library = library;
     markAll();
     noteStatus('Components updated');
+  };
+  // The components view, one tab switch away.
+  window.addEventListener(EDITS_EVENT, reload);
+  // A second window someone still has open on the same library.
+  window.addEventListener('storage', (e) => {
+    if (e.key === EDITS_KEY) reload();
   });
 }
 
@@ -1508,9 +1533,16 @@ let frameAccum = 0;
 let frameCount = 0;
 let statsAt = 0;
 
+// Off while the components view is on screen. A hidden canvas draws to
+// nobody, and the frames cost the same as the visible ones.
+let onScreen = true;
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
+  // getDelta is still called above, so time does not jump when you come back
+  // and the traffic picks up where it was rather than teleporting.
+  if (!onScreen) return;
   // Drain queued chunk meshing inside a frame budget, so a global slider drag
   // updates the city in waves instead of stalling the whole frame.
   if (builder.pending.length) {

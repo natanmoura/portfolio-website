@@ -7,6 +7,7 @@
 <title>City Builder</title>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/editor.css">
 <script type="importmap">
 {
   "imports": {
@@ -18,25 +19,56 @@
 </head>
 <body>
 
+<!--
+  One document, two views.
+
+  They were two pages, and crossing between them threw away the image pool,
+  the component library and every rendered thumbnail, then spent a second and
+  a half building them again. It is one editing session: you lock a parameter
+  on a component to see what it does to the town, and look back. Nothing about
+  that is two documents.
+
+  The tabs switch which view is mounted, and everything expensive lives in the
+  shell above both of them.
+-->
 <header id="bar">
   <nav class="apptabs">
-    <a class="apptab on" href="index.html">City Builder</a>
-    <a class="apptab" href="editor.html">Components</a>
+    <button class="apptab on" data-view="city" type="button">City Builder</button>
+    <button class="apptab" data-view="components" type="button">Components</button>
   </nav>
   <span id="status" class="status"></span>
   <span class="grow"></span>
-  <button class="btn icon" id="btn-help" title="Keyboard shortcuts">?</button>
+  <!-- Each view's own controls. Only the mounted one is shown, because a
+       Save button belonging to a panel you cannot see is worse than absent. -->
+  <span class="bar-tools" data-view="city">
+    <button class="btn icon" id="btn-help" title="Keyboard shortcuts">?</button>
+  </span>
+  <span class="bar-tools" data-view="components" hidden>
+    <button class="btn" id="btn-revert">Revert</button>
+    <button class="btn primary" id="btn-save">Save</button>
+  </span>
 </header>
 
-<main>
+<main id="view-city">
   <aside id="controls" class="panel">
     <div id="controls-body"></div>
   </aside>
-  <div id="viewport">
+  <div id="viewport" class="view">
     <div id="layers"></div>
-    <div id="stats" class="on"></div>
+    <div id="stats" class="stats on"></div>
   </div>
   <aside id="inspector" class="panel empty"></aside>
+</main>
+
+<main id="view-components" class="editor" hidden>
+  <aside id="shelf" class="panel"></aside>
+  <div id="ed-viewport" class="view">
+    <div id="ed-stats" class="stats on"></div>
+  </div>
+  <aside id="edit" class="panel">
+    <div id="crumbs" class="crumbs"></div>
+    <div id="edit-body"></div>
+  </aside>
 </main>
 
 <div id="loading">
@@ -47,6 +79,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/shell.js"></script>
 </body>
 </html>

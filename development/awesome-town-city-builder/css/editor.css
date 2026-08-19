@@ -2,19 +2,22 @@
    things that only exist here: the shelf, the drill-in breadcrumb, and the
    one-line parameter row. */
 
-body.editor main {
+/* Scoped to the view rather than to the body, since both views now live in
+   one document and the body belongs to neither. */
+main.editor {
   display: grid;
   grid-template-columns: 236px 1fr 340px;
 }
 
-body.editor #viewport {
+#ed-viewport {
   position: relative;
   min-width: 0;
+  overflow: hidden;
 }
 
-#viewport.drop-on { outline: 2px dashed var(--select); outline-offset: -8px; }
+#ed-viewport.drop-on { outline: 2px dashed var(--select); outline-offset: -8px; }
 
-body.editor .panel { overflow-y: auto; }
+main.editor .panel { overflow-y: auto; }
 
 /* --- breadcrumb ------------------------------------------------------- */
 

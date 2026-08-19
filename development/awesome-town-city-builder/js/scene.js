@@ -195,8 +195,11 @@ export class Stage {
   }
 
   resize() {
-    const w = this.container.clientWidth || 1;
-    const h = this.container.clientHeight || 1;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    // Hidden. Nothing to measure and nothing to draw, and resizing every
+    // render target down to nothing only to put it back is work for no one.
+    if (!w || !h) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);

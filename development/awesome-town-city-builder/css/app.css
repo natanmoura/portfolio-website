@@ -97,8 +97,11 @@ main {
   grid-template-rows: minmax(0, 1fr);
 }
 
-#viewport { position: relative; overflow: hidden; }
-#viewport canvas { display: block; }
+/* Both views have one. The id says which, the class says what it is, and
+   everything that describes a viewport hangs off the class so there is one
+   definition rather than two that drift. */
+.view { position: relative; overflow: hidden; }
+.view canvas { display: block; }
 
 #scene-list { max-width: 170px; }
 
@@ -622,7 +625,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 
 /* --- stats readout ------------------------------------------------------ */
 
-#stats {
+.stats {
   position: absolute;
   left: 10px;
   bottom: 10px;
@@ -641,13 +644,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
    a glance down an aligned edge is faster than reading a sentence of numbers
    separated by dots. Values are their own column so digits line up as they
    change rather than shuffling the words beside them. */
-#stats.on { display: grid; }
-#stats {
+.stats.on { display: grid; }
+.stats {
   grid-template-columns: auto auto;
   gap: 1px 12px;
   align-items: baseline;
 }
-#stats b {
+.stats b {
   font-weight: 400;
   color: var(--text);
   text-align: right;
@@ -949,7 +952,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 }
 .status.on { opacity: 0.85; color: var(--accent-2); }
 
-#stats { line-height: 1.35; }
+.stats { line-height: 1.35; }
 
 .btn.icon {
   padding: 3px 8px;
