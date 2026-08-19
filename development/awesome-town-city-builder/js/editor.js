@@ -870,19 +870,10 @@ function render() {
 document.getElementById('btn-save').addEventListener('click', saveComponent);
 document.getElementById('btn-revert').addEventListener('click', () => revertComponent());
 
-const undoBtn = document.getElementById('btn-undo');
-const redoBtn = document.getElementById('btn-redo');
-undoBtn.addEventListener('click', () => history?.undo());
-redoBtn.addEventListener('click', () => history?.redo());
-
-function updateHistoryButtons() {
-  if (!history) return;
-  const { back, forward } = history.depth();
-  undoBtn.disabled = !history.canUndo();
-  redoBtn.disabled = !history.canRedo();
-  undoBtn.title = back ? `Undo (${back} back)` : 'Nothing to undo';
-  redoBtn.title = forward ? `Redo (${forward} forward)` : 'Nothing to redo';
-}
+// Undo lives on the keyboard now rather than as a pair of buttons in the
+// title bar. The status line reports depth when it changes, which is the
+// only time it is worth knowing.
+function updateHistoryButtons() {}
 
 // Checked before the focus guard, so undo still works with a field focused —
 // the alternative is typing in a number box and finding Ctrl+Z does nothing.

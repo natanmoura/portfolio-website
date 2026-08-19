@@ -119,7 +119,6 @@ export const TABS = [
   { id: 'camera', label: 'Camera' },
   { id: 'render', label: 'Render' },
   { id: 'scene', label: 'Scene' },
-  { id: 'keys', label: 'Keys' },
 ];
 
 export const CONTROL_DEFS = [
@@ -446,11 +445,6 @@ export const CONTROL_DEFS = [
     section: 'Scenes',
     tab: 'scene',
     items: [{ key: 'sceneTools', type: 'mount' }],
-  },
-  {
-    section: 'Shortcuts',
-    tab: 'keys',
-    items: [{ key: 'shortcuts', type: 'mount' }],
   },
 ];
 

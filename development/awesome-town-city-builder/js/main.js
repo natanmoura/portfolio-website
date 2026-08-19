@@ -36,6 +36,7 @@ import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
 import { loadEditedLibrary, EDITS_KEY } from './library.js';
 import { openShelfPicker } from './shelfpicker.js';
+import { infoDialog } from './dialog.js';
 import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
@@ -270,7 +271,6 @@ async function boot() {
   initPanelResize({
     main: document.querySelector('main'),
     left: { key: 'controls', side: 'left', var: '--pw-l', min: 220, max: 620, def: 300 },
-    right: { key: 'inspector', side: 'right', var: '--pw-r', min: 220, max: 620, def: 300 },
     storeKey: 'awesome-town:panels',
   });
 
@@ -1000,8 +1000,7 @@ function buildUI() {
     () => stage.clockTime || 0
   );
 
-  document.getElementById('btn-frame').onclick = () => frameCity();
-  document.getElementById('btn-shot').onclick = snapshot;
+  document.getElementById('btn-help').onclick = showShortcuts;
 
   // Built after the panels exist, because restoring a step has to push the
   // recovered values back into every slider and wheel on screen.
@@ -1027,12 +1026,8 @@ function buildUI() {
     stage.render();
   });
 
-  undoBtn?.addEventListener('click', () => history?.undo());
-  redoBtn?.addEventListener('click', () => history?.redo());
-
   buildSceneTools();
   buildTourTools();
-  buildShortcuts();
   refreshSceneMenu();
   updateStatus();
 }
@@ -1132,6 +1127,20 @@ function buildSceneTools() {
       withHelp(h('label', { class: 'chip' }, 'import', fileInput), 'Loads a scene file from disk. Dragging a .json onto the window does the same.', 'Import'),
       withHelp(h('button', { class: 'chip', onclick: exportJSON }, 'export'), 'Writes the current scene to a JSON file, for reloading here or dropping into presets.', 'Export')
     ),
+    // Snapshot sits with the other ways of getting something out of the tool
+    // rather than in the title bar. It produces a file, which is what every
+    // other control in this group does.
+    h('h3', { class: 'grp' }, 'Get a picture'),
+    withHelp(
+      h(
+        'div',
+        { class: 'chips' },
+        h('button', { class: 'chip', onclick: snapshot }, 'snapshot'),
+        h('button', { class: 'chip', onclick: () => frameCity() }, 'frame all')
+      ),
+      'Snapshot saves the current view as a PNG at the size of the viewport. Frame all pulls the camera back to fit the whole town, the same as pressing F.',
+      'Picture'
+    ),
     h('h3', { class: 'grp' }, 'Send to Blender'),
     withHelp(
       h(
@@ -1216,16 +1225,24 @@ function buildTourTools() {
   setChildren(mount, h('div', { class: 'chips' }, button));
 }
 
-function buildShortcuts() {
-  const mount = controls.mounts.get('shortcuts');
-  setChildren(mount,
-    h('p', { class: 'hint' }, 'With a module selected.'),
-    h(
-      'dl',
-      { class: 'keys' },
-      SHORTCUTS.flatMap(([key, what]) => [h('dt', {}, h('kbd', {}, key)), h('dd', {}, what)])
-    )
-  );
+// Shortcuts are reference, not settings. They were a tab among the editing
+// panels, which put a page you read once beside pages you adjust constantly.
+// Behind the question mark they are one keystroke away and never in the way.
+function showShortcuts() {
+  infoDialog({
+    title: 'Keyboard shortcuts',
+    wide: true,
+    body: h(
+      'div',
+      {},
+      h('p', { class: 'hint' }, 'Most of these act on whatever is selected.'),
+      h(
+        'dl',
+        { class: 'keys' },
+        SHORTCUTS.flatMap(([key, what]) => [h('dt', {}, h('kbd', {}, key)), h('dd', {}, what)])
+      )
+    ),
+  });
 }
 
 function syncPanels() {

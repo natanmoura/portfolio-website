@@ -57,6 +57,35 @@ export function close() {
   open = null;
 }
 
+// Something to read rather than something to answer. Reference material like
+// a shortcut list is not a setting and does not belong among the controls, so
+// it gets a panel you open, read and dismiss.
+export function infoDialog({ title, body, wide = false }) {
+  close();
+  const done = h('button', { class: 'btn primary' }, 'Close');
+  done.addEventListener('click', close);
+
+  const panel = h(
+    'div',
+    { class: `dlg-panel${wide ? ' wide' : ''}` },
+    h('h2', {}, title),
+    body,
+    h('div', { class: 'dlg-actions' }, h('span', { class: 'grow' }), done)
+  );
+
+  open = h('div', { class: 'dlg-overlay' }, panel);
+  open.addEventListener('click', (e) => {
+    if (e.target === open) close();
+  });
+  open._onKey = (e) => {
+    if (e.key === 'Escape' || e.key === 'Enter') close();
+  };
+  document.addEventListener('keydown', open._onKey);
+  document.body.appendChild(open);
+  done.focus();
+  return open;
+}
+
 // A small prompt for a name, in the same clothes as the confirm, so creating
 // and renaming do not drop out of the app into a browser chrome dialog.
 export function promptDialog({ title, message, value = '', confirmLabel = 'Save' }) {
