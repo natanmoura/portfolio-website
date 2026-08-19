@@ -54,9 +54,28 @@ http
           res.writeHead(404);
           return res.end('Not found');
         }
+        // Code stays uncached so an edit shows up on reload. The collage does
+        // not: it is content rather than source, it is the bulk of the bytes,
+        // and re-fetching forty-odd images every time you cross between the
+        // two windows is the single most obvious waste in a session.
+        const ext = path.extname(filePath).toLowerCase();
+        const isAsset = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.woff2'].includes(ext);
+
+        // Sending Last-Modified without answering the question it invites just
+        // adds a header. The browser asks whether its copy is still good, and
+        // this is where it gets told yes.
+        const since = req.headers['if-modified-since'];
+        if (since && Date.parse(since) >= Math.floor(stat.mtimeMs / 1000) * 1000) {
+          res.writeHead(304);
+          return res.end();
+        }
+
         res.writeHead(200, {
-          'Content-Type': mime[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
-          'Cache-Control': 'no-cache',
+          'Content-Type': mime[ext] || 'application/octet-stream',
+          'Cache-Control': isAsset ? 'public, max-age=3600' : 'no-cache',
+          // Even the uncached things can answer with a 304 rather than the
+          // whole file, once the browser has something to compare against.
+          'Last-Modified': stat.mtime.toUTCString(),
         });
         res.end(data);
       });

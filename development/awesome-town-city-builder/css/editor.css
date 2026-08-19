@@ -184,12 +184,21 @@ body.editor .panel { overflow-y: auto; }
 
 .part-list.drop-on { outline: 2px dashed #6f9ff0; outline-offset: 2px; }
 
+/* A part is one component, so it reads as one solid object rather than a
+   header with loose rows under it. The whole box takes a single surface
+   colour, lifted off the panel behind it, and nothing inside gets its own
+   tint to compete. */
 .part {
-  border: 1px solid rgba(255,255,255,0.11);
+  border: 1px solid var(--line);
   border-radius: 4px;
   margin-bottom: 6px;
+  background: var(--panel-2);
+  overflow: hidden;
 }
-.part.on { border-color: #6f9ff0; background: rgba(111,159,240,0.09); }
+.part.on {
+  border-color: var(--accent);
+  background: rgba(255, 46, 106, 0.1);
+}
 .part.off { opacity: 0.45; }
 
 .part-head {
@@ -197,7 +206,9 @@ body.editor .panel { overflow-y: auto; }
   align-items: center;
   gap: 3px;
   padding: 4px 6px;
-  background: rgba(255,255,255,0.05);
+  /* A hairline rather than a second surface: the divider says where the name
+     ends without splitting the box into two boxes. */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .part-head button {
