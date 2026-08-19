@@ -45,6 +45,7 @@ import { Layers } from './layers.js';
 import { initPanelResize } from './resizer.js';
 import { buildExport, downloadExport } from './exporter.js';
 import { writeStats } from './stats.js';
+import { resetNotes, readNotes, describe } from './provenance.js';
 
 const APP_NAME = 'City Builder';
 
@@ -359,6 +360,10 @@ function rebuildAll() {
     extentKey = key;
     stage.setExtent(p);
   }
+  // Cleared at the top of the rebuild, read once the geometry is up. Anything
+  // still true reports itself again on the way through, so this is a fresh
+  // answer rather than an accumulating one.
+  resetNotes();
   state.city = generateCity(p, state.overrides, pool.imageCount, pool.cutoutCount, matPool.length, groundAt, library);
   stage.ground.setRoads(state.city.layout.roads, p);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
@@ -376,12 +381,39 @@ function rebuildAll() {
 // edit would turn a moment of hesitation into lost work. The count sits in
 // the scene line, and the list is one click away.
 let unplaced = [];
+// Places the generator had to choose for you, grouped by cause. See
+// provenance.js: the forgiving fallbacks stay forgiving and stop being silent.
 function checkOverrides() {
   const before = unplaced.length;
   unplaced = reconcileOverrides(state.overrides, state.city).unplaced;
   if (unplaced.length && unplaced.length !== before) {
     noteStatus(`${unplaced.length} edit${unplaced.length === 1 ? '' : 's'} could not be placed`, 6000);
   }
+}
+
+// Both things the scene line can be warning about live behind the same click,
+// because from where you are standing they are one question: what is not the
+// way I left it. Substitutions first — they explain what you are looking at,
+// where an unplaced edit explains what you are not.
+function showNotices() {
+  if (readNotes().length) return showSubstitutions();
+  showUnplaced();
+}
+
+// Nothing to decide here, so it is something to read rather than something to
+// answer. Each line is a cause and how many times it fired, in the words of
+// the person who caused it.
+function showSubstitutions() {
+  const subs = readNotes();
+  const rows = subs.map((n) => `${describe(n)}${n.count > 1 ? `  ×${n.count}` : ''}`);
+  const extra = unplaced.length
+    ? `\n\nAlso ${unplaced.length} edit${unplaced.length === 1 ? '' : 's'} with nowhere to go. Clear these first to see them.`
+    : '';
+  infoDialog({
+    title: `${subs.length} thing${subs.length === 1 ? '' : 's'} decided for you`,
+    body: h('p', { class: 'dlg-detail' }, `${rows.join('\n')}${extra}`),
+    wide: true,
+  });
 }
 
 function showUnplaced() {
@@ -554,6 +586,10 @@ function updateStatus() {
   statusEl.classList.toggle('on', Boolean(note));
 
   const edits = Object.keys(state.overrides).length;
+  // Read here rather than cached at rebuild time. Geometry is built in chunks
+  // across several frames, so a note raised while drawing lands well after the
+  // rebuild that caused it has returned.
+  const subs = readNotes();
   if (sceneNameEl) {
     sceneNameEl.textContent = [
       state.sceneName || 'Unsaved',
@@ -561,10 +597,13 @@ function updateStatus() {
       // Worth its own word rather than folding into the count, because an
       // edit that is not on screen is the one you want to be told about.
       unplaced.length ? `${unplaced.length} unplaced` : null,
+      // Places the town had to decide something for you. Counted by cause,
+      // not by module, or one empty role would read as four hundred problems.
+      subs.length ? `${subs.length} substituted` : null,
     ]
       .filter(Boolean)
       .join(' · ');
-    sceneNameEl.classList.toggle('warn', unplaced.length > 0);
+    sceneNameEl.classList.toggle('warn', unplaced.length > 0 || subs.length > 0);
     // Hand edits are the thing you most want to notice you have, so the name
     // carries the count and marks itself when there are any.
     sceneNameEl.classList.toggle('edited', edits > 0);
@@ -1148,7 +1187,7 @@ function buildSceneTools() {
   // title bar, which is not the wrong idea, but it was floating text beside
   // the app tabs with nothing tying it to anything. Here it is the first line
   // of the tab that saves and loads it, which is where you look when you care.
-  sceneNameEl = h('div', { class: 'scene-name', onclick: () => showUnplaced() });
+  sceneNameEl = h('div', { class: 'scene-name', onclick: () => showNotices() });
 
   setChildren(mount,
     h('h3', { class: 'grp' }, 'Scenes'),

@@ -21,6 +21,8 @@
 // deterministic draw from (seed, path), so an unlocked parameter is still a
 // number rather than a hole.
 
+import { note } from './provenance.js';
+
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 export const free = (min, max) => ({ mode: 'free', min, max });
@@ -112,7 +114,7 @@ export function resolveParamsWith(params, proposals, seed, path) {
 // component, so constraints can only ever get tighter going down the stack.
 // An empty intersection keeps the inner opinion rather than inverting into
 // nonsense — the closer author is the one who meant it.
-export function narrow(outer, inner) {
+export function narrow(outer, inner, label) {
   if (!inner) return normalise(outer);
   if (!outer) return normalise(inner);
   const a = normalise(outer);
@@ -123,7 +125,13 @@ export function narrow(outer, inner) {
 
   const min = Math.max(a.min ?? 0, b.min ?? 0);
   const max = Math.min(a.max ?? 1, b.max ?? 1);
-  if (min > max) return b;
+  if (min > max) {
+    // Two authors asked for ranges that cannot both hold. Keeping the inner
+    // one is right, and being quiet about it is not: from outside this looks
+    // like the outer range simply being ignored.
+    note('range-empty', { param: label || 'A parameter' });
+    return b;
+  }
 
   // Range beats free: an opinion about bounds outranks no opinion at all.
   const mode = a.mode === 'range' || b.mode === 'range' ? 'range' : 'free';

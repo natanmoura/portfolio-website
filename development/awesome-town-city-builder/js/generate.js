@@ -16,6 +16,7 @@ import { getPalette } from './palettes.js';
 import { buildLayout } from './layout.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 import { resolveParamsWith } from './constraints.js';
+import { note } from './provenance.js';
 
 // The kind vocabulary and the role definitions live in roles.js; what a given
 // component is *like* lives in traits.js. Both re-exported here so the many
@@ -142,13 +143,19 @@ export function moduleIdFor(buildingId, i) {
 
 // --- weighted picks --------------------------------------------------------
 
-function pickWeighted(weights, keys, ticket, allow) {
+function pickWeighted(weights, keys, ticket, allow, wheel) {
   let total = 0;
   for (const k of keys) {
     if (allow && !allow.has(k)) continue;
     total += Math.max(0, weights[k] || 0);
   }
-  if (total <= 0) return allow ? [...allow][0] || keys[0] : keys[0];
+  if (total <= 0) {
+    // Every share zero, or none of the allowed ones carrying any. Right to
+    // answer with something rather than nothing, and worth recording: a wheel
+    // that appears to be ignored is otherwise unexplainable.
+    if (wheel) note(allow ? 'mix-blocked' : 'mix-zero', { wheel });
+    return allow ? [...allow][0] || keys[0] : keys[0];
+  }
   let acc = ticket * total;
   for (const k of keys) {
     if (allow && !allow.has(k)) continue;
@@ -294,15 +301,15 @@ function makeModule(t, params, palette, ctx, index, id) {
     const allow = new Set(byFamily.filter((k) => roofKeys.includes(k)));
     // A family with none of its roofs included falls back to the role's own
     // list, so a round building still gets capped by something.
-    kind = pickWeighted(params.roofMix, roofKeys, t.roofKind, allow.size ? allow : null);
+    kind = pickWeighted(params.roofMix, roofKeys, t.roofKind, allow.size ? allow : null, 'the roof mix');
     if (kind === 'flat') kind = 'box';
   } else if (t.kindRoll < params.cohesion && bodyKeys.includes(signature)) {
     kind = signature;
   } else if (t.kindRoll < params.cohesion + (1 - params.cohesion) * 0.7) {
     const siblings = new Set(bodyKeys.filter((k) => familyOf(k, docOf(k)) === family));
-    kind = pickWeighted(params.moduleMix, bodyKeys, t.familyPick, siblings.size ? siblings : null);
+    kind = pickWeighted(params.moduleMix, bodyKeys, t.familyPick, siblings.size ? siblings : null, 'the shape mix');
   } else {
-    kind = pickWeighted(params.moduleMix, bodyKeys, t.kindPick);
+    kind = pickWeighted(params.moduleMix, bodyKeys, t.kindPick, null, 'the shape mix');
   }
 
   const slabbed = !isRoof && index > 0 && t.slab < params.slabChance && kind !== 'spin';
@@ -500,7 +507,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   const moduleId = (i) => `${id}_m${i}`;
 
   // Building-level identity, rolled before anything the sliders can shift.
-  const signature = pickWeighted(params.moduleMix, includedFor(params, 'body'), brng.float());
+  const signature = pickWeighted(params.moduleMix, includedFor(params, 'body'), brng.float(), null, 'the shape mix');
   const family = familyOf(signature, library?.components?.get(signature));
   const scheme = buildingScheme(brng, palette);
   // One roll decides the building's whole surface — a texture, a reflective
@@ -509,7 +516,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   // strip it back to whatever the roll gave the rest of the building.
   const surfaceRoll = brng.float();
   const matPickRoll = brng.float();
-  const surfaceMode = pickWeighted(params.surfaceMix, SURFACE_KINDS, surfaceRoll);
+  const surfaceMode = pickWeighted(params.surfaceMix, SURFACE_KINDS, surfaceRoll, null, 'the surface mix');
   let material = null;
   if (surfaceMode === 'glass') material = { kind: 'glass' };
   else if (surfaceMode === 'mirror') material = { kind: 'mirror' };
@@ -587,7 +594,8 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     params.roofMix,
     roofKeys,
     roofRoll,
-    roofAllow.size ? roofAllow : null
+    roofAllow.size ? roofAllow : null,
+    'the roof mix'
   );
   if (roofKind !== 'flat') {
     const i = modules.length;

@@ -23,6 +23,7 @@ import { buildShape } from './geometry.js';
 import { applyModifiers } from './modifiers.js';
 import { resolveParams, resolveParamsWith, unit } from './constraints.js';
 import { algorithmOf, DEFAULT_ALGORITHM, instanceCountFor } from './algorithms.js';
+import { note } from './provenance.js';
 
 export const EMPTY_SHAPE = 'empty';
 export const MAX_DEPTH = 8;
@@ -263,6 +264,7 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
     // A component that reaches itself would recurse forever. Stopping with
     // empty bounds keeps the rest of the town rendering rather than taking
     // the page down over one bad edit.
+    note('too-deep', { id: doc.id });
     console.warn(`library: ${doc.id} nests too deeply or references itself`);
     return { id: doc.id, bounds: { w: 0, h: 0, d: 0 }, anchors: anchorsFor(0, 0, 0), tags: [], pieces: [] };
   }
@@ -335,7 +337,10 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     const chosenId = pickSlot(part, seed, partPath);
     const child = chosenId ? lib.components.get(chosenId) : null;
     if (!child) {
-      if (chosenId) console.warn(`${doc.id}: no component "${chosenId}"`);
+      if (chosenId) {
+        note('slot-missing', { parent: doc.id, id: chosenId });
+        console.warn(`${doc.id}: no component "${chosenId}"`);
+      }
       continue;
     }
     // A slot pins parameters on whatever it picked without touching the

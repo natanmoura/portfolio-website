@@ -8,6 +8,8 @@
 // carries a real include list, so the wheel only ever shows what was chosen
 // and only controls proportion among those.
 //
+import { note } from './provenance.js';
+
 // An absent list means "everything the role allows", so a scene saved before
 // roles existed generates exactly as it did.
 
@@ -57,7 +59,12 @@ export function includedFor(params, role) {
   // library gained later — including every assembly. A role can hold any
   // component now, so the library is the authority on what exists and this
   // is only the authority on what was picked.
-  if (!Array.isArray(chosen) || !chosen.length) return def.defaults;
+  if (!Array.isArray(chosen) || !chosen.length) {
+    // Right, and worth saying out loud. Switching a role empty and getting a
+    // full town back is indistinguishable from the toggles not working.
+    if (Array.isArray(chosen)) note('role-empty', { role });
+    return def.defaults;
+  }
   return chosen;
 }
 
