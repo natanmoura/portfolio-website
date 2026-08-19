@@ -42,7 +42,7 @@ import { History } from './history.js';
 import { Layers } from './layers.js';
 import { buildExport, downloadExport } from './exporter.js';
 
-const APP_NAME = 'Awesome Town';
+const APP_NAME = 'City Builder';
 
 const ENV_DEFAULTS = {
   hour: 15.5,
@@ -1243,7 +1243,7 @@ function suggestName() {
   return `${palette} ${state.params.seed}`;
 }
 
-document.title = `${APP_NAME} City Builder`;
+document.title = APP_NAME;
 
 const PRESET_PREFIX = '__preset__';
 const isPresetValue = (v) => v.startsWith(PRESET_PREFIX);

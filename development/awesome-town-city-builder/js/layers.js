@@ -149,6 +149,12 @@ export class Layers {
       return btn;
     });
 
-    setChildren(this.mount, h('div', { class: 'lyr-strip' }, ...rows));
+    // Titled, because sitting on the viewport it needs to say what it is,
+    // and "view" is the word that tells you it changes nothing else.
+    setChildren(
+      this.mount,
+      h('div', { class: 'lyr-head' }, 'View'),
+      h('div', { class: 'lyr-strip' }, ...rows)
+    );
   }
 }

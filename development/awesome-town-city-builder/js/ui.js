@@ -192,29 +192,22 @@ export const CONTROL_DEFS = [
     section: 'Module mix',
     tab: 'town',
     items: [
-      {
-        key: 'bodyRole',
-        label: 'Body shapes in use',
-        type: 'mount',
-        help: 'Which shapes this town builds with at all. Switching one off removes it from the wheel entirely, which is different from turning its share down to nothing.',
-      },
+      // Which components, then how much of each, under one heading. They are
+      // two halves of one decision and reading as two sections made the panel
+      // twice as long while saying less.
       {
         key: 'moduleMix',
-        label: 'Body modules',
+        label: 'Body',
         type: 'wheel',
-        help: 'How much of each shape exists across town. Drag any dot to trade weight between two kinds, or drag one onto its neighbour to remove a kind. Click a row to nudge it, shift-click to nudge it down.',
-      },
-      {
-        key: 'roofRole',
-        label: 'Roof shapes in use',
-        type: 'mount',
-        help: 'Which caps this town uses at all. Switch them all off but Flat for a town of flat tops.',
+        roleMount: 'bodyRole',
+        help: 'Which shapes this town builds with, and how much of each. The strip chooses what is in play at all, which is different from turning a share down to nothing. Drag any dot to trade weight between two kinds.',
       },
       {
         key: 'roofMix',
-        label: 'Roof modules',
+        label: 'Roof',
         type: 'wheel',
-        help: 'How buildings are capped. A round tower takes cones and domes, a boxy one gables.',
+        roleMount: 'roofRole',
+        help: 'Which caps this town uses, and how much of each. Leave only Flat for a town of flat tops. A round tower takes cones and domes, a boxy one gables.',
       },
       R('cohesion', 'Cohesion', 0, 1, 0.01, 'How strongly a building sticks to one shape family. At zero it turns to confetti.', { hard: [0, 1] }),
     ],
@@ -779,7 +772,15 @@ export class Controls {
     if (def.type === 'wheel') {
       const mount = h('div', { class: 'wheel-mount' });
       this.mounts.set(def.key, mount);
-      return h('div', { class: 'wheel-block' }, h('h3', { class: 'grp' }, def.label), mount);
+      // A wheel may carry the picker for what is in it. One heading over
+      // both, because choosing the components and dividing them up are two
+      // halves of the same decision.
+      let picker = null;
+      if (def.roleMount) {
+        picker = h('div', { class: 'mount' });
+        this.mounts.set(def.roleMount, picker);
+      }
+      return h('div', { class: 'wheel-block' }, h('h3', { class: 'grp' }, def.label), picker, mount);
     }
 
     // A hole for main.js to fill: scene management, the shortcut list.
