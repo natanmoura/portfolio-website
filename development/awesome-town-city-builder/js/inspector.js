@@ -161,6 +161,34 @@ export class Inspector {
 
   // --- module --------------------------------------------------------------
 
+  // Why this is here, in the order the decisions were made.
+  //
+  // Nothing new is recorded for this. The plot's name already says which road
+  // it is on and where along it, the override already says which facets are
+  // held, and the fingerprint already says which plot the edit was authored
+  // against. It was all there and none of it was sayable, which is the whole
+  // difference between a tool you can reason about and one you poke at.
+  //
+  // Ends on the lock row, so the model teaches itself: here is what was
+  // decided for you, and here is the button that takes one of those decisions
+  // away from the generator.
+  provenance(module, building, held) {
+    const lines = [];
+    const plot = building.site;
+    if (plot?.road) lines.push(`On road ${plot.road}, at ${plot.x}, ${plot.z}.`);
+    lines.push(
+      `Module ${module.index + 1} of ${building.modules.length} in a ${building.family} building` +
+        `${building.signature ? ` signed ${building.signature}` : ''}.`
+    );
+    if (building.material?.kind) lines.push(`The building wears ${building.material.kind}.`);
+    const over = this.actions.buildingOverride ? this.actions.buildingOverride(module.id) : null;
+    const edited = Object.keys(over || {}).filter((k) => k !== 'at' && k !== 'lock');
+    if (edited.length) lines.push(`Edited by hand: ${edited.join(', ')}.`);
+    else lines.push('Everything about it is generated.');
+    if (held.length) lines.push(`Held through a reroll: ${held.map((f) => FACETS[f].label.toLowerCase()).join(', ')}.`);
+    return lines.join('\n');
+  }
+
   renderModule(selection, module, building, palette, params) {
     const { actions } = this;
     const id = module.id;
@@ -396,6 +424,8 @@ export class Inspector {
 
     setChildren(this.tabsMount, this.tabs(selection));
     setChildren(this.body,
+      label('Why this is here'),
+      h('p', { class: 'why' }, this.provenance(module, building, held)),
       label('Keep through a reroll'),
       lockRow,
       label('Shape'),

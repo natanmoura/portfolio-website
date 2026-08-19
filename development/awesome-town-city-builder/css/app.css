@@ -1241,3 +1241,14 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
 }
 .chip.lock.on::before { content: '\2022'; margin-right: 4px; }
 .chips.locks { margin-bottom: 2px; }
+
+/* The provenance readout. Reads as prose because it is prose: a chain of
+   reasons, one per line, in the order the decisions were made. Dim, because
+   it explains the controls under it rather than competing with them. */
+.why {
+  margin: 2px 0 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--dim);
+  white-space: pre-line;
+}
