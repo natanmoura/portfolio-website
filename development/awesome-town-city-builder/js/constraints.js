@@ -29,8 +29,16 @@ export const fixed = (value) => ({ mode: 'fixed', value });
 
 export const MODES = ['free', 'range', 'fixed'];
 
-// A cheap, well-mixed hash. Same family as rng.js, kept local so a component
-// can be resolved without dragging the city's generator along.
+// A cheap, well-mixed hash. Same family as `hashString` in rng.js, kept local
+// so a component can be resolved without dragging the city's generator along
+// — which is what lets the component editor open a lamp post with no town
+// around it.
+//
+// The two are separate streams and must stay that way. They are not
+// interchangeable: reaching for rng.js here would shift every seed this file
+// produces, so every component in every saved scene would resolve to a
+// different variant, and nothing would warn you because both answers look
+// equally random. Same warning sits on rng.js, pointing back here.
 function hash(str) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < str.length; i++) {

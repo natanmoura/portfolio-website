@@ -1,6 +1,14 @@
 // Seeded randomness. Everything in the city derives from one integer seed plus
 // stable per-lot hashes, so the same seed always rebuilds the same city and
 // resizing the grid does not reshuffle the lots that were already there.
+//
+// There is a second hash in constraints.js, and the two are separate streams
+// by design, not a duplication anybody forgot to clean up. A component has to
+// resolve without dragging the city's generator in with it, which is what
+// lets the component editor open a lamp post on its own. They are not
+// interchangeable: swapping one for the other shifts every seed in the file
+// that calls it, and every saved scene regenerates differently, with nothing
+// to warn you because both answers look equally random.
 
 export function hashString(str) {
   let h = 2166136261 >>> 0;
