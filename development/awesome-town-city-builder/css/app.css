@@ -91,6 +91,11 @@ main {
   inset: var(--bar-h) 0 0 0;
   display: grid;
   grid-template-columns: var(--pw) 1fr var(--pw);
+  /* The implicit row is auto, which means a panel taller than the window
+     grows the row rather than scrolling inside it. minmax(0, 1fr) pins the
+     row to the window and lets the panels be smaller than their content,
+     which is what makes their own scrollbars appear instead. */
+  grid-template-rows: minmax(0, 1fr);
 }
 
 #viewport { position: relative; overflow: hidden; }
@@ -108,7 +113,53 @@ main {
 }
 #inspector { border-right: 0; border-left: 1px solid var(--line); }
 
-/* --- tabs ---------------------------------------------------------------- */
+/* --- panel header and tabs ----------------------------------------------- */
+/* The header does not scroll and the pages scroll under it. That behaviour is
+   what says "these choose what is below"; styling alone never quite does,
+   because a bar that travels with the list reads as part of the list however
+   it is painted. */
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The panel holds a wrapper the controls are built into, so the wrapper has
+   to pass the height constraint through rather than absorbing it and growing
+   to fit its contents. */
+#controls-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-top {
+  flex: none;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 8px 0;
+  /* Content passes underneath rather than stopping at an edge, which is the
+     cue that there is more of it than fits. */
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+}
+
+.pages {
+  flex: 1;
+  /* A flex item grows to fit its content unless told it may be smaller, so
+     without this the panel is as tall as its longest tab and the scrolling
+     goes back to the page. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Recessed against the raised header, so the two surfaces are read as
+     different things rather than one continuous column. */
+  background: var(--panel);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
 
 /* Two rows of four rather than seven slivers, so every tab keeps a readable
    word rather than being abbreviated into a guess. */
@@ -116,21 +167,14 @@ main {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 3px;
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  padding: 5px;
+  padding: 6px 0 0;
 }
 
-/* The same filled treatment the inspector's Module and Building toggle uses.
-   Both answer "which of these am I looking at", so they should not answer it
-   in two different visual languages. */
 .tabbtn {
+  position: relative;
   appearance: none;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--dim);
   font: inherit;
   font-size: 9px;
@@ -149,6 +193,25 @@ main {
   border-color: var(--accent);
   color: #fff;
 }
+
+/* A notch under the current tab, pointing into the pages below it. Small,
+   and it is the one mark that ties the choice to what the choice produced. */
+.tabbtn.on::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--accent);
+}
+/* Only the bottom row can point at the pages; a notch on the top row would
+   aim at the row beneath it and mean nothing. */
+.tabbar .tabbtn.on:nth-child(-n + 4)::after { display: none; }
+.tabbar.one-row .tabbtn.on::after { display: block; }
 
 .page { display: none; }
 .page.on { display: block; }

@@ -477,7 +477,14 @@ export class Controls {
 
     this.tabBar = h('nav', { class: 'tabbar' });
     this.pageWrap = h('div', { class: 'pages' });
-    root.append(this.buildSearch(), this.tabBar, this.pageWrap);
+    // Search and tabs go in a header that does not scroll, and the pages
+    // scroll underneath it. Sticky positioning inside the same scroller made
+    // the bar hold its place but still read as the first item in a long list
+    // rather than as the thing steering it. Content sliding under a fixed
+    // header is what says "this controls that", and no amount of styling
+    // says it as plainly as the behaviour does.
+    this.header = h('div', { class: 'panel-top' }, this.buildSearch(), this.tabBar);
+    root.append(this.header, this.pageWrap);
 
     for (const tab of TABS) {
       const page = h('div', { class: 'page' });
