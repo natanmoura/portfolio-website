@@ -613,21 +613,34 @@ function modifierSection(doc) {
 
 // --- panel ------------------------------------------------------------------
 
+// Scrubbing the seed is the fastest way to see whether a component survives
+// variation rather than only looking right at the value it was tuned at, so
+// it has to run at the speed of the drag. Same rule as every other slider
+// here: while the knob moves only the model and its label change, and the
+// panel — which contains this very slider — is left alone until release.
 function variantSection() {
   const slider = h('input', { type: 'range', min: '1', max: '400', step: '1', value: String(seed) });
   const label = h('span', { class: 'seed' }, `seed ${seed}`);
-  const apply = (v) => {
+
+  const scrub = (v) => {
     seed = v;
     label.textContent = `seed ${seed}`;
-    render();
+    refreshViewport();
   };
-  slider.addEventListener('input', () => apply(parseInt(slider.value, 10)));
+
+  slider.addEventListener('input', () => scrub(parseInt(slider.value, 10)));
+  // On release the shelf catches up too, since a new seed can change which
+  // candidate a slot picked and every preview along with it.
+  slider.addEventListener('change', () => render());
+
   const roll = h('button', { class: 'btn' }, 'Random');
   roll.addEventListener('click', () => {
     const v = 1 + Math.floor(Math.random() * 400);
     slider.value = String(v);
-    apply(v);
+    scrub(v);
+    render();
   });
+
   return h('section', {}, h('h3', {}, 'Variant'), h('div', { class: 'variant' }, slider, label, roll));
 }
 
