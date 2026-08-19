@@ -517,6 +517,7 @@ function updateStatus() {
   }
   updateHistoryButtons();
   updateLayerCounts();
+  controls?.refreshModified();
 }
 
 // The heaviness readout, which lives with the frame rate because they answer
@@ -1009,6 +1010,8 @@ function buildUI() {
   history.reset();
   history.onChange(updateHistoryLabel);
 
+  controls.setBaseline(state.params);
+
   layers = new Layers(document.getElementById('layers'), () => {
     applyLayerVisibility();
     stage.render();
@@ -1221,6 +1224,9 @@ function syncPanels() {
   // re-pointed at the new one rather than left holding the old.
   controls.locks = state.paramLocks;
   controls.syncLocks();
+  // A freshly loaded scene is the new zero: "changed" should mean changed by
+  // you since opening it, not different from a preset you never used.
+  controls.setBaseline(state.params);
   // Roles first: the mix wheels are rebuilt against the include lists, so
   // they have to be current before the wheels are asked to show a value.
   for (const draw of roleRedraws) draw();

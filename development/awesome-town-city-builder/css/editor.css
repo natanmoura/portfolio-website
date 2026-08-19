@@ -530,3 +530,37 @@ input.pm-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   cursor: default;
 }
 .btn.icon:disabled:hover { background: none; border-color: var(--line); }
+
+/* --- shelf search ------------------------------------------------------- */
+
+.shelf-head { display: grid; gap: 5px; }
+
+input.shelf-find {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+input.shelf-find:focus { border-color: var(--accent); outline: none; }
+input.shelf-find::-webkit-search-cancel-button { filter: invert(0.6); }
+
+/* Sections in the editor use the town's pattern, so the two panels read as
+   one tool rather than two. */
+#edit .sec { margin: 10px 0 0; }
+#edit .sec-head { padding: 8px 0 6px; }
+#edit .sec-body { padding: 0 0 6px; }
+#edit .sec-body.closed { display: none; }
+
+/* Reserved for the placement tool strip that arrives with regions and
+   volumes: select, move, pin, paint, draw. Nothing goes here in the
+   meantime, so it will not have to move later. */
+#viewport .toolstrip-slot {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+}

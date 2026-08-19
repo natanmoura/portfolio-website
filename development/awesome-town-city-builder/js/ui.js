@@ -515,7 +515,19 @@ export class Controls {
       spellcheck: 'false',
     });
     const results = h('div', { class: 'search-results' });
-    const wrap = h('div', { class: 'search' }, input, results);
+
+    // Sits beside the search because both answer "show me less of this". It
+    // reports how many, so an empty count tells you nothing has drifted from
+    // where the scene loaded.
+    const only = h('button', { class: 'changed-only', type: 'button', title: 'Show only what you changed' }, 'changed');
+    only.addEventListener('click', () => {
+      const on = !only.classList.contains('on');
+      only.classList.toggle('on', on);
+      this.setModifiedOnly(on);
+    });
+    this.changedButton = only;
+
+    const wrap = h('div', { class: 'search' }, input, only, results);
     this.searchInput = input;
 
     let active = -1;
@@ -705,6 +717,60 @@ export class Controls {
   // Called when locks arrive from elsewhere, such as loading a scene.
   syncLocks() {
     this.lockPainters.forEach((paint) => paint());
+  }
+
+  // Which parameters differ from where they started.
+  //
+  // A hundred controls and no way to see what you touched makes returning to
+  // a scene after a week an exercise in hunting. The baseline is whatever the
+  // scene loaded with, not the factory defaults, so "changed" means "changed
+  // by me, since I opened this" rather than "differs from a preset I never
+  // used".
+  setBaseline(values) {
+    this.baseline = structuredClone(values);
+    this.refreshModified();
+  }
+
+  refreshModified() {
+    if (!this.baseline) return 0;
+    let count = 0;
+    for (const entry of this.entries) {
+      if (!entry.row || !entry.key) continue;
+      const before = this.baseline[entry.key];
+      const now = this.values[entry.key];
+      const changed = before !== undefined && JSON.stringify(before) !== JSON.stringify(now);
+      entry.row.classList.toggle('changed', changed);
+      if (changed) count++;
+    }
+    this.modifiedCount = count;
+    if (this.changedButton) {
+      this.changedButton.textContent = count ? `changed ${count}` : 'changed';
+      this.changedButton.classList.toggle('none', count === 0);
+    }
+    if (this.modifiedOnly) this.applyModifiedFilter();
+    return count;
+  }
+
+  // Folds the panel down to only what you changed. A filter rather than a
+  // separate view, so everything stays where you learned it was.
+  setModifiedOnly(on) {
+    this.modifiedOnly = on;
+    this.applyModifiedFilter();
+  }
+
+  applyModifiedFilter() {
+    for (const entry of this.entries) {
+      if (!entry.row) continue;
+      const hide = this.modifiedOnly && !entry.row.classList.contains('changed');
+      entry.row.classList.toggle('filtered-out', hide);
+    }
+    // A section whose every row is filtered away is noise, so it goes too.
+    for (const entry of this.entries) {
+      if (!entry.body) continue;
+      const rows = [...entry.body.querySelectorAll('.row, .wheel-block, .mount-block')];
+      const anyLeft = rows.some((r) => !r.classList.contains('filtered-out'));
+      entry.body.parentElement?.classList.toggle('filtered-out', this.modifiedOnly && !anyLeft);
+    }
   }
 
   buildItem(def) {

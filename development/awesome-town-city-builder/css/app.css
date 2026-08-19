@@ -916,3 +916,31 @@ input[type="checkbox"] { accent-color: var(--accent); }
   background: var(--accent-2);
   opacity: 0.7;
 }
+
+/* --- changed filter ------------------------------------------------------ */
+
+.changed-only {
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+.changed-only:hover { opacity: 0.9; }
+.changed-only.on { opacity: 1; border-color: var(--accent); background: rgba(255, 46, 106, 0.16); }
+.changed-only.none { opacity: 0.3; }
+
+.search { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.search .search-input { flex: 1; min-width: 0; }
+.search .search-results { flex-basis: 100%; }
+
+/* A row that has drifted from where the scene loaded. Quiet, because most
+   rows will be marked after a real session. */
+.row.changed > .lbl { color: var(--accent-2); }
+
+.filtered-out { display: none !important; }

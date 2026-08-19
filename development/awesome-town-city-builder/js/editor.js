@@ -59,6 +59,8 @@ let selectedPart = -1;
 // open and which part is selected are view state, and stepping back a change
 // should not also move you somewhere else.
 let history = null;
+// Shelf filter. View state, so it is not saved and not undoable.
+let shelfQuery = '';
 
 const currentId = () => trail[trail.length - 1] || null;
 const docOf = (id) => library.components.get(id) || null;
@@ -344,22 +346,50 @@ function deletedSection() {
   return h('div', {}, h('div', { class: 'shelf-group' }, `Deleted (${gone.length})`), ...rows);
 }
 
+// Name, id and tags all match, because by the time a library is large enough
+// to need searching you remember a component by whichever of those stuck.
+function matchesQuery(doc, q) {
+  if (!q) return true;
+  const hay = `${doc.label} ${doc.id} ${(doc.tags || []).join(' ')}`.toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every((t) => hay.includes(t));
+}
+
 function renderShelf() {
-  const all = [...library.components.values()];
+  const all = [...library.components.values()].filter((d) => matchesQuery(d, shelfQuery));
   const leaves = all.filter((d) => !isAssembly(d)).sort((a, b) => a.label.localeCompare(b.label));
   const built = all.filter(isAssembly).sort((a, b) => a.label.localeCompare(b.label));
 
   const make = h('button', { class: 'shelf-new' }, '+ New component');
   make.addEventListener('click', createComponent);
 
+  const find = h('input', {
+    type: 'search',
+    class: 'shelf-find',
+    placeholder: 'Find…',
+    value: shelfQuery,
+  });
+  // Filtering as you type, with focus and caret restored across the redraw so
+  // the field is not interrupted by its own results.
+  find.addEventListener('input', () => {
+    shelfQuery = find.value.trim().toLowerCase();
+    renderShelf();
+    const again = shelfEl.querySelector('.shelf-find');
+    if (again) {
+      again.focus();
+      again.setSelectionRange(again.value.length, again.value.length);
+    }
+  });
+
   setChildren(
     shelfEl,
-    h('div', { class: 'shelf-head' }, make),
+    h('div', { class: 'shelf-head' }, make, find),
+    shelfQuery ? h('div', { class: 'shelf-group' }, `${all.length} of ${library.components.size}`) : null,
     built.length ? h('div', { class: 'shelf-group' }, 'Assemblies') : null,
     built.length ? h('div', { class: 'shelf-grid' }, ...built.map(shelfCard)) : null,
-    h('div', { class: 'shelf-group' }, 'Shapes'),
-    h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard)),
-    deletedSection()
+    leaves.length ? h('div', { class: 'shelf-group' }, 'Shapes') : null,
+    leaves.length ? h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard)) : null,
+    all.length ? null : h('p', { class: 'hint' }, 'Nothing matches.'),
+    shelfQuery ? null : deletedSection()
   );
 }
 
@@ -488,6 +518,46 @@ function revertComponent() {
   setStatus('Reverted to the shipped version.');
 }
 
+// --- sections ---------------------------------------------------------------
+
+// Collapsible, in the same clothes the town's control panel uses, because two
+// idioms for "a group of settings" is one too many. Which are folded is
+// remembered by name rather than by position, so it survives moving between a
+// leaf and an assembly, whose panels hold different sections.
+const SECTIONS_KEY = 'awesome-town:editor-sections';
+
+let closedSections = (() => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SECTIONS_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+})();
+
+function section(title, ...kids) {
+  const closed = closedSections.has(title);
+  const body = h('div', { class: `sec-body${closed ? ' closed' : ''}` }, ...kids.filter(Boolean));
+  const head = h(
+    'button',
+    { class: `sec-head${closed ? ' closed' : ''}`, type: 'button' },
+    h('span', { class: 'sec-name' }, title),
+    h('span', { class: 'sec-mark' })
+  );
+  head.addEventListener('click', () => {
+    const nowClosed = !body.classList.contains('closed');
+    body.classList.toggle('closed', nowClosed);
+    head.classList.toggle('closed', nowClosed);
+    if (nowClosed) closedSections.add(title);
+    else closedSections.delete(title);
+    try {
+      localStorage.setItem(SECTIONS_KEY, JSON.stringify([...closedSections]));
+    } catch {
+      // Losing which panels were folded is not worth failing an edit over.
+    }
+  });
+  return h('section', { class: 'sec' }, head, body);
+}
+
 // --- panel: parts -----------------------------------------------------------
 
 function slotBlock(doc, part, i) {
@@ -606,10 +676,8 @@ function partsSection(doc) {
   const list = h('div', { class: 'part-list' }, ...doc.parts.map((p, i) => slotBlock(doc, p, i)));
   bindDrop(list);
 
-  return h(
-    'section',
-    {},
-    h('h3', {}, 'Parts'),
+  return section(
+    'Parts',
     doc.parts.length ? list : h('p', { class: 'hint' }, 'No parts yet. Drag one in from the shelf.'),
     add
   );
@@ -634,10 +702,8 @@ function algorithmSection(doc) {
     )
   );
 
-  return h(
-    'section',
-    {},
-    h('h3', {}, 'Arrangement'),
+  return section(
+    'Arrangement',
     pick,
     h('p', { class: 'hint' }, def.help),
     ...rows
@@ -694,7 +760,7 @@ function modifierSection(doc) {
     write([...stack, { type: add.value, enabled: true, params: {} }]);
   });
 
-  return h('section', {}, h('h3', {}, 'Modifiers'), ...blocks.filter(Boolean), add);
+  return section('Modifiers', ...blocks.filter(Boolean), add);
 }
 
 // --- panel ------------------------------------------------------------------
@@ -727,7 +793,7 @@ function variantSection() {
     render();
   });
 
-  return h('section', {}, h('h3', {}, 'Variant'), h('div', { class: 'variant' }, slider, label, roll));
+  return section('Variant', h('div', { class: 'variant' }, slider, label, roll));
 }
 
 function paramsSection(doc) {
@@ -745,10 +811,8 @@ function paramsSection(doc) {
       },
     })
   );
-  return h(
-    'section',
-    {},
-    h('h3', {}, 'Parameters'),
+  return section(
+    'Parameters',
     rows.length ? h('div', {}, ...rows) : h('p', { class: 'hint' }, 'Size follows the parts.'),
     rows.length ? null : add
   );
