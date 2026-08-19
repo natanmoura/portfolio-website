@@ -418,12 +418,13 @@ function applyComponents(modules, params, library, seed, id) {
 
     // Carried rather than applied: geometry does not exist yet. The seed and
     // path travel with it so the builder resolves exactly what was intended
-    // here, and the same module deforms the same way on every rebuild.
-    if (component.modifiers && component.modifiers.length) {
-      m.mods = component.modifiers;
-      m.modSeed = seed;
-      m.modPath = path;
-    }
+    // here, and the same module deforms the same way on every rebuild. Set
+    // for every module, not only modified ones, because an assembly is
+    // resolved from them too and has to land on the same variant each time
+    // the scene is reopened.
+    m.modSeed = seed;
+    m.modPath = path;
+    if (component.modifiers && component.modifiers.length) m.mods = component.modifiers;
   }
 }
 
@@ -514,9 +515,12 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   // include list the roof module will draw from, or a town with roofs
   // switched off would still reserve a storey for one.
   const roofKeys = includedFor(params, 'roof');
-  const roofAllow = new Set(
-    (ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy).filter((k) => roofKeys.includes(k))
-  );
+  // The family rule only governs the classic roof shapes, which are the only
+  // ones it was written about. A library component chosen for the roof role
+  // was chosen deliberately and is allowed on any building.
+  const classic = new Set(ROOF_KINDS);
+  const byFamily = ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy;
+  const roofAllow = new Set(roofKeys.filter((k) => !classic.has(k) || byFamily.includes(k)));
   const roofKind = pickWeighted(
     params.roofMix,
     roofKeys,

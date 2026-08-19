@@ -129,6 +129,71 @@ export function pickSlot(part, seed, path) {
 
 // --- resolve ----------------------------------------------------------------
 
+// --- measuring --------------------------------------------------------------
+
+// The true extent of a piece of geometry, rather than the size it was asked
+// for. A cone fills a fraction of the box it was built in, and a modifier
+// can push a shape well outside one, so anything that stacks or frames needs
+// the real thing. Everything downstream reads these, which is why a stack of
+// mixed shapes now sits flush instead of leaving the gaps a nominal box left.
+export function measure(pos) {
+  if (!pos || !pos.length) return { min: [0, 0, 0], max: [0, 0, 0] };
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < pos.length; i += 3) {
+    for (let a = 0; a < 3; a++) {
+      const v = pos[i + a];
+      if (v < min[a]) min[a] = v;
+      if (v > max[a]) max[a] = v;
+    }
+  }
+  return { min, max };
+}
+
+export const boxSize = (box) => ({
+  w: box.max[0] - box.min[0],
+  h: box.max[1] - box.min[1],
+  d: box.max[2] - box.min[2],
+});
+
+const emptyBox = (w, h, d) => ({ min: [-w / 2, -h / 2, -d / 2], max: [w / 2, h / 2, d / 2] });
+
+// A box carried through the same placement its geometry gets: scaled, turned
+// about Y, then moved so its base sits at the offset. Rotating an axis-
+// aligned box means rotating its four horizontal corners and re-bounding,
+// since the result is no longer aligned to the axes it was measured on.
+function placeBox(box, offset, rotY = 0, scale = 1) {
+  const lift = offset[1] - box.min[1] * scale;
+  const ys = [box.min[1] * scale + lift, box.max[1] * scale + lift];
+  const ca = Math.cos(rotY);
+  const sa = Math.sin(rotY);
+  const xs = [];
+  const zs = [];
+  for (const x of [box.min[0] * scale, box.max[0] * scale]) {
+    for (const z of [box.min[2] * scale, box.max[2] * scale]) {
+      xs.push(ca * x + sa * z + offset[0]);
+      zs.push(-sa * x + ca * z + offset[2]);
+    }
+  }
+  return {
+    min: [Math.min(...xs), Math.min(...ys), Math.min(...zs)],
+    max: [Math.max(...xs), Math.max(...ys), Math.max(...zs)],
+  };
+}
+
+function unionBoxes(boxes) {
+  if (!boxes.length) return { min: [0, 0, 0], max: [0, 0, 0] };
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const b of boxes) {
+    for (let a = 0; a < 3; a++) {
+      if (b.min[a] < min[a]) min[a] = b.min[a];
+      if (b.max[a] > max[a]) max[a] = b.max[a];
+    }
+  }
+  return { min, max };
+}
+
 // Bounds and anchors follow from resolved size, which is what lets a system
 // stack onto a component without knowing anything inside it.
 function anchorsFor(w, h, d) {
@@ -176,20 +241,38 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
   const bounds = { w, h, d };
 
   if (isEmptyComponent(doc)) {
-    return { id: doc.id, doc, bounds, anchors: anchorsFor(w, h, d), tags, params: dims, pieces: [] };
+    // Nothing to measure, so an empty is exactly the size it claims. That is
+    // the point of it: a hole of a stated size.
+    const box = emptyBox(w, h, d);
+    return { id: doc.id, doc, bounds, box, anchors: anchorsFor(w, h, d), tags, params: dims, pieces: [] };
   }
 
   const base = buildShape(doc.shape, w, h, d, doc.faces ?? 1, doc.shapeOpts || {});
   const geometry = applyModifiers(base, doc.modifiers, seed, `${p}.mod`);
+  // Measured, not assumed. A cone asked for a 1×1×1 box occupies rather less
+  // of it, and a noise modifier can push a shape outside one entirely.
+  const raw = measure(geometry.pos);
+  const tight = boxSize(raw);
+  // One invariant holds the whole system together: a resolved component is
+  // positioned so its box stands on y = 0. Shapes are modelled about their
+  // own centre, so the piece carries the lift that puts its measured base on
+  // the floor — measured, so a shape that does not fill its box still lands
+  // flush rather than hovering by the difference.
+  const lift = -raw.min[1];
+  const box = { min: [raw.min[0], 0, raw.min[2]], max: [raw.max[0], tight.h, raw.max[2]] };
   return {
     id: doc.id,
     doc,
-    bounds,
-    anchors: anchorsFor(w, h, d),
+    bounds: tight,
+    box,
+    requested: bounds,
+    anchors: anchorsFor(tight.w, tight.h, tight.d),
     tags,
     params: dims,
     geometry,
-    pieces: [{ id: doc.id, geometry, bounds, offset: [0, 0, 0], rotY: 0, scale: 1, path: p, partIndex: -1 }],
+    pieces: [
+      { id: doc.id, geometry, bounds: tight, box, offset: [0, lift, 0], rotY: 0, scale: 1, path: p, partIndex: -1 },
+    ],
   };
 }
 
@@ -229,7 +312,9 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     if (r) resolvedParts.push({ ...r, partIndex, instanceIndex: i, slotId: chosenId, path: partPath });
   }
 
-  const { placed, bounds } = algo.place(resolvedParts, opts);
+  // The arrangement's own idea of its size is discarded: it can only
+  // estimate, and the union of the measured parts below is exact.
+  const { placed } = algo.place(resolvedParts, opts);
 
   // Flatten one level: a child's own pieces are already relative to the
   // child, so they only need this placement added. Recursion means depth is
@@ -240,6 +325,9 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     const spin = part.rotY || 0;
     const cos = Math.cos(spin);
     const sin = Math.sin(spin);
+    // Every resolved part already stands on its own zero, so placing it is
+    // just adding where the arrangement put it. No half-heights guessed at
+    // anywhere: the lift was measured when the part was resolved.
     for (const piece of part.pieces) {
       // A child's pieces are positioned in the child's own frame, so turning
       // the child has to turn where its pieces sit, not only which way they
@@ -262,19 +350,29 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     }
   }
 
-  // A component's own size params override what the parts added up to, so an
-  // assembly can still be told how big it is from outside.
-  const box = {
-    w: Number.isFinite(dims.w) ? dims.w : bounds.w,
-    h: Number.isFinite(dims.h) ? dims.h : bounds.h,
-    d: Number.isFinite(dims.d) ? dims.d : bounds.d,
+  // The assembly's real extent: every part's own measured box, carried
+  // through the placement it was given, unioned. Tight by construction, so
+  // an assembly stacks against its neighbours the way a single shape does
+  // rather than reserving whatever its arrangement guessed at.
+  const box = unionBoxes(
+    placed.map((part) => placeBox(part.box || emptyBox(part.bounds.w, part.bounds.h, part.bounds.d), part.offset, part.rotY || 0, part.scale ?? 1))
+  );
+  const tight = boxSize(box);
+
+  // A component's own size params still override what the parts added up to,
+  // so an assembly can be told how big it is from outside.
+  const bounds = {
+    w: Number.isFinite(dims.w) ? dims.w : tight.w,
+    h: Number.isFinite(dims.h) ? dims.h : tight.h,
+    d: Number.isFinite(dims.d) ? dims.d : tight.d,
   };
 
   return {
     id: doc.id,
     doc,
-    bounds: box,
-    anchors: anchorsFor(box.w, box.h, box.d),
+    bounds,
+    box,
+    anchors: anchorsFor(bounds.w, bounds.h, bounds.d),
     tags,
     params: dims,
     parts: placed,
@@ -286,6 +384,64 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
 export function resolveEntry(id, lib, seed, path, proposals) {
   const doc = lib.components.get(id);
   return doc ? resolveComponent(doc, lib, seed, path, proposals) : null;
+}
+
+// --- merging ----------------------------------------------------------------
+
+// Flatten a resolved component into one geometry, in the same shape
+// buildShape returns, so an assembly can stand wherever a single shape could.
+// The city's merge loop then treats a lamp post exactly like a cube: one
+// vertex buffer, one set of slots, no knowledge of what is inside.
+//
+// UVs are left in each sub-shape's own 0..1 space, untouched, because
+// cropping to an image is the caller's business and happens after this.
+export function mergeResolved(r) {
+  const out = { pos: [], nor: [], uv: [], wind: [], slots: [] };
+  if (!r) return finishMerge(out);
+
+  for (const piece of r.pieces) {
+    const g = piece.geometry;
+    if (!g) continue;
+    const s = piece.scale ?? 1;
+    const a = piece.rotY || 0;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const [ox, oy, oz] = piece.offset;
+    const base = out.pos.length / 3;
+
+    for (let i = 0; i < g.pos.length; i += 3) {
+      const x = g.pos[i] * s;
+      const y = g.pos[i + 1] * s;
+      const z = g.pos[i + 2] * s;
+      // Shapes are modelled about their own centre, so a piece is lifted by
+      // half its height to stand its base at the offset it was placed at.
+      out.pos.push(ca * x + sa * z + ox, y + oy, -sa * x + ca * z + oz);
+      const nx = g.nor[i];
+      const ny = g.nor[i + 1];
+      const nz = g.nor[i + 2];
+      out.nor.push(ca * nx + sa * nz, ny, -sa * nx + ca * nz);
+    }
+    for (let i = 0; i < g.uv.length; i++) out.uv.push(g.uv[i]);
+    for (let i = 0; i < (g.wind?.length || 0); i++) out.wind.push(g.wind[i]);
+    while (out.wind.length < out.pos.length / 3) out.wind.push(0);
+
+    // Slot starts shift by however many vertices came before, so every
+    // sub-shape keeps its own faces and the caller can still address them.
+    for (const slot of g.slots || []) {
+      out.slots.push({ ...slot, start: slot.start + base });
+    }
+  }
+  return finishMerge(out);
+}
+
+function finishMerge(out) {
+  return {
+    pos: new Float32Array(out.pos),
+    nor: new Float32Array(out.nor),
+    uv: new Float32Array(out.uv),
+    wind: new Float32Array(out.wind),
+    slots: out.slots,
+  };
 }
 
 // --- authoring --------------------------------------------------------------

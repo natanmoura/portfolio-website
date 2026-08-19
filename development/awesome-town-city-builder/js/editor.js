@@ -161,14 +161,20 @@ function refreshViewport() {
     // y needs lifting by half its height to put its base there.
     const sc = piece.scale ?? 1;
     mesh.scale.setScalar(sc);
-    mesh.position.set(piece.offset[0], piece.offset[1] + (piece.bounds.h * sc) / 2, piece.offset[2]);
+    mesh.position.set(piece.offset[0], piece.offset[1], piece.offset[2]);
     if (piece.rotY) mesh.rotation.y = piece.rotY;
     mesh.userData.partIndex = piece.partIndex;
     shown.add(mesh);
   }
 
-  const { w, h: hh, d } = r.bounds;
-  boundsBox.box.set(new THREE.Vector3(-w / 2, 0, -d / 2), new THREE.Vector3(w / 2, hh, d / 2));
+  // The measured box, not a guess centred on the origin. For anything that
+  // sits off-centre — a mirrored run, a spiral, a scatter — those are not the
+  // same rectangle, and the helper is only useful if it is the real one.
+  const box = r.box || { min: [-r.bounds.w / 2, 0, -r.bounds.d / 2], max: [r.bounds.w / 2, r.bounds.h, r.bounds.d / 2] };
+  boundsBox.box.set(
+    new THREE.Vector3(box.min[0], box.min[1], box.min[2]),
+    new THREE.Vector3(box.max[0], box.max[1], box.max[2])
+  );
   boundsBox.visible = true;
   renderStats(r);
 }

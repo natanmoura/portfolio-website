@@ -230,6 +230,9 @@ async function boot() {
   materials.setAtlas(pool);
   materials.setMatAtlas(matPool);
   builder = new CityBuilder(pool, materials);
+  // The builder resolves assemblies itself at geometry time, so it needs the
+  // same library the generator got.
+  builder.library = library;
   stage.scene.add(builder.root);
   picker = new Picker(stage, builder);
   // Rewriting the shadow chunk changes GLSL that every material already
@@ -273,6 +276,7 @@ function bindLibrarySync() {
   window.addEventListener('storage', async (e) => {
     if (e.key !== EDITS_KEY) return;
     library = await loadEditedLibrary('library');
+    builder.library = library;
     markAll();
     noteStatus('Components updated');
   });
@@ -863,9 +867,15 @@ function buildUI() {
       );
 
       strip.addEventListener('click', () => {
-        const candidates = ROLES[role].defaults
-          .map((id) => library?.components.get(id))
-          .filter(Boolean);
+        // Every component in the library, not a per-role shortlist. Which
+        // things belong on a roof is a judgement the person making the town
+        // is better placed to make than a tag written months ago, and an
+        // assembly is exactly as placeable as a plain shape.
+        const candidates = [...(library?.components.values() || [])].sort((a, b) => {
+          const ai = ROLES[role].defaults.includes(a.id) ? 0 : 1;
+          const bi = ROLES[role].defaults.includes(b.id) ? 0 : 1;
+          return ai - bi || a.label.localeCompare(b.label);
+        });
         openShelfPicker({
           title: `${ROLES[role].label} components`,
           help: ROLES[role].help,

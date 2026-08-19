@@ -10,8 +10,9 @@
 // sixteen.
 
 import * as THREE from 'three';
-import { buildShape, slotCount, slotLabels } from './geometry.js';
+import { buildShape, slotCount, slotLabels, cropFaces } from './geometry.js';
 import { applyModifiers } from './modifiers.js';
+import { isAssembly, resolveComponent, mergeResolved } from './library.js';
 
 const CHUNK = 4; // lots per side
 
@@ -27,6 +28,9 @@ export class CityBuilder {
     this.solo = null;
     this.isolatedId = null;
     this.city = null;
+    // The component library, so a module whose kind is an assembly can be
+    // resolved and merged at geometry time. Null until the app sets it.
+    this.library = null;
     this.stats = { chunks: 0, modules: 0, triangles: 0 };
     this._color = new THREE.Color();
   }
@@ -174,8 +178,7 @@ export class CityBuilder {
 
   // --- merging ------------------------------------------------------------
 
-  prepFaces(module) {
-    const n = slotCount(module.kind, module.blades);
+  prepFaces(module, n = slotCount(module.kind, module.blades)) {
     const out = [];
     for (let i = 0; i < n; i++) {
       const f = module.faces[i] || module.faces[0];
@@ -185,6 +188,40 @@ export class CityBuilder {
     return out;
   }
 
+  // One module's geometry, whether the component behind it is a single shape
+  // or an assembly of dozens. Merging happens here rather than in the
+  // generator because geometry is this file's business, and because an
+  // assembly resolved per module is what keeps every instance of a lamp post
+  // different from the next.
+  shapeFor(m) {
+    const doc = this.library?.components.get(m.kind);
+
+    if (doc && isAssembly(doc)) {
+      const resolved = resolveComponent(
+        doc,
+        this.library,
+        m.modSeed ?? 0,
+        m.modPath || `mod:${m.id}`,
+        { w: m.w, h: m.h, d: m.d }
+      );
+      const shape = mergeResolved(resolved);
+      // An assembly has more slots than the module has faces, so the faces
+      // repeat across it. A cheap rule, and it keeps a stack of parts reading
+      // as one object rather than one painted part and the rest blank.
+      const faces = this.prepFaces(m, shape.slots.length);
+      return cropFaces(shape, faces, { tile: !!m.matKind });
+    }
+
+    const shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {
+      blades: m.blades,
+      tile: !!m.matKind,
+    });
+    // A component's modifier stack, run at the one point geometry actually
+    // exists. Free when the stack is empty, which is every component nobody
+    // has authored yet, so the default town costs nothing for it being here.
+    return m.mods ? applyModifiers(shape, m.mods, m.modSeed, m.modPath) : shape;
+  }
+
   makeMesh(buildings) {
     const parts = [];
     let vertices = 0;
@@ -192,15 +229,7 @@ export class CityBuilder {
     for (let bi = 0; bi < buildings.length; bi++) {
       const b = buildings[bi];
       for (const m of b.modules) {
-        let shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {
-          blades: m.blades,
-          tile: !!m.matKind,
-        });
-        // A component's modifier stack, run at the one point geometry
-        // actually exists. Free when the stack is empty, which is every
-        // component nobody has authored yet, so the default town costs
-        // nothing for the feature being here.
-        if (m.mods) shape = applyModifiers(shape, m.mods, m.modSeed, m.modPath);
+        const shape = this.shapeFor(m);
         parts.push({ bi, b, m, shape });
         vertices += shape.pos.length / 3;
       }

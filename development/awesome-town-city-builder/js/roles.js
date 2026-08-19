@@ -64,9 +64,13 @@ export function includedFor(params, role) {
   const def = ROLES[role];
   if (!def) return [];
   const chosen = params?.roles?.[role];
+  // Whatever the scene recorded, kept verbatim. It used to be filtered
+  // against this file's own list, which quietly threw away any component the
+  // library gained later — including every assembly. A role can hold any
+  // component now, so the library is the authority on what exists and this
+  // is only the authority on what was picked.
   if (!Array.isArray(chosen) || !chosen.length) return def.defaults;
-  const valid = chosen.filter((id) => def.defaults.includes(id));
-  return valid.length ? valid : def.defaults;
+  return chosen;
 }
 
 // Whether a role is at its default, which is what the UI needs to show

@@ -173,6 +173,15 @@ function tileFace(uv, slot) {
   }
 }
 
+// The same cropping `finish` does, applied to a shape that was assembled
+// somewhere else. An assembly is merged from parts that were each built
+// already, so its UVs arrive untouched and are cropped here instead.
+export function cropFaces(shape, faces, opts = {}) {
+  if (opts.tile) shape.slots.forEach((slot) => tileFace(shape.uv, slot));
+  else shape.slots.forEach((slot, i) => applyFace(shape.uv, slot, faces && faces[i]));
+  return shape;
+}
+
 function norm(v) {
   const len = Math.hypot(v[0], v[1], v[2]) || 1;
   return [v[0] / len, v[1] / len, v[2] / len];
