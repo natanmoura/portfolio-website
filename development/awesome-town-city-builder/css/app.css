@@ -794,3 +794,33 @@ input[type="checkbox"] { accent-color: var(--accent); }
   font-size: 11px;
   color: var(--accent);
 }
+
+/* --- header readouts ---------------------------------------------------- */
+/* Three slots rather than one line doing four jobs: what just happened, what
+   scene this is, and how heavy it is (the last lives with the frame rate). */
+
+.scene-name {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-left: 14px;
+  white-space: nowrap;
+}
+.scene-name.edited { opacity: 0.9; color: var(--accent-2); }
+
+.status {
+  font-size: 11px;
+  margin-left: 10px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+.status.on { opacity: 0.85; color: var(--accent-2); }
+
+#stats { white-space: pre-line; line-height: 1.35; }
+
+.btn.icon {
+  padding: 3px 8px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.btn.icon:disabled { opacity: 0.3; cursor: default; }

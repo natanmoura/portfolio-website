@@ -181,6 +181,9 @@ const viewport = document.getElementById('viewport');
 const loadingEl = document.getElementById('loading');
 const statusEl = document.getElementById('status');
 const statsEl = document.getElementById('stats');
+const sceneNameEl = document.getElementById('scene-name');
+const undoBtn = document.getElementById('btn-undo');
+const redoBtn = document.getElementById('btn-redo');
 
 const pool = new ImagePool();
 const matPool = new ImagePool();
@@ -454,20 +457,37 @@ function noteStatus(text, ms = 4000) {
   updateStatus();
 }
 
+// Three readouts rather than one line doing four jobs.
+//
+// The status slot carries only what just happened, so a message is not buried
+// among counts that were already on screen. The scene name sits beside the
+// control that sets it. The counts go with the frame rate, since they answer
+// the same question, which is how heavy this is.
 function updateStatus() {
-  const s = builder.stats;
-  const edits = Object.keys(state.overrides).length;
   const note = statusNote && performance.now() < statusNoteAt ? statusNote : (statusNote = '');
-  statusEl.textContent = [
-    note || null,
-    `${state.city.buildings.length} buildings`,
-    `${s.modules} modules`,
-    `${pool.length} images`,
-    state.sceneName || null,
-    edits ? `${edits} edits` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  statusEl.textContent = note;
+  statusEl.classList.toggle('on', Boolean(note));
+
+  const edits = Object.keys(state.overrides).length;
+  if (sceneNameEl) {
+    sceneNameEl.textContent = [
+      state.sceneName || 'Unsaved',
+      edits ? `${edits} edit${edits === 1 ? '' : 's'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    // Hand edits are the thing you most want to notice you have, so the name
+    // carries the count and marks itself when there are any.
+    sceneNameEl.classList.toggle('edited', edits > 0);
+  }
+  updateHistoryButtons();
+}
+
+// The heaviness readout, which lives with the frame rate because they answer
+// the same question. Grows a per-layer breakdown once layers exist.
+function countsLine() {
+  const s = builder.stats;
+  return `${state.city.buildings.length} buildings · ${s.modules} modules · ${s.triangles.toLocaleString()} tris`;
 }
 
 // --- editor actions --------------------------------------------------------
@@ -948,6 +968,9 @@ function buildUI() {
   history.reset();
   history.onChange(updateHistoryLabel);
 
+  undoBtn?.addEventListener('click', () => history?.undo());
+  redoBtn?.addEventListener('click', () => history?.redo());
+
   buildSceneTools();
   buildTourTools();
   buildShortcuts();
@@ -955,7 +978,24 @@ function buildUI() {
   updateStatus();
 }
 
+// Undo and redo are primary actions and now live in the header rather than
+// three clicks into a tab. The depth rides along in the tooltip, which is
+// where it is useful and nowhere it is in the way.
+function updateHistoryButtons() {
+  if (!history) return;
+  const { back, forward } = history.depth();
+  if (undoBtn) {
+    undoBtn.disabled = !history.canUndo();
+    undoBtn.title = back ? `Undo (${back} back)` : 'Nothing to undo';
+  }
+  if (redoBtn) {
+    redoBtn.disabled = !history.canRedo();
+    redoBtn.title = forward ? `Redo (${forward} forward)` : 'Nothing to redo';
+  }
+}
+
 function updateHistoryLabel() {
+  updateHistoryButtons();
   if (!historyLabel || !history) return;
   const { back, forward } = history.depth();
   historyLabel.textContent = `${back} back · ${forward} forward`;
@@ -995,21 +1035,10 @@ function buildSceneTools() {
     updateStatus();
   };
 
-  historyLabel = h('span', { class: 'history-count dim' }, '0 back · 0 forward');
+  // Undo and redo moved to the header, where a primary action belongs.
+  historyLabel = null;
 
   setChildren(mount,
-    h('h3', { class: 'grp' }, 'History'),
-    withHelp(
-      h(
-        'div',
-        { class: 'chips' },
-        h('button', { class: 'chip', onclick: () => history?.undo() }, 'undo'),
-        h('button', { class: 'chip', onclick: () => history?.redo() }, 'redo'),
-        historyLabel
-      ),
-      'Steps back and forward through your edits. Ctrl+Z and Ctrl+Shift+Z do the same. Dragging one slider counts as a single step rather than one per pixel.',
-      'History'
-    ),
     h('h3', { class: 'grp' }, 'Scenes'),
     withHelp(select, 'Presets ship with the site. Saved is your own library on this machine. Picking either loads its sliders and all its hand edits.', 'Scenes'),
     h(
@@ -1316,7 +1345,7 @@ function animate() {
   if (state.params.showStats && frameAccum - statsAt > 0.5) {
     const info = stage.renderer.info.render;
     const fps = frameCount / (frameAccum - statsAt);
-    statsEl.textContent = `${fps.toFixed(0)} fps · ${info.calls} draws · ${(info.triangles / 1000).toFixed(0)}k tris · ${builder.stats.chunks} chunks`;
+    statsEl.textContent = `${fps.toFixed(0)} fps · ${info.calls} draws · ${builder.stats.chunks} chunks\n${countsLine()}`;
     statsAt = frameAccum;
     frameCount = 0;
   }
