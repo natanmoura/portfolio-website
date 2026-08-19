@@ -1,21 +1,8 @@
+/* Colours, spacing, type and timing all live in css/tokens.css, which both
+   windows load ahead of this file. Nothing below may redefine them: a value
+   that is worth two rules is worth a token. */
 :root {
-  --bg: #14130f;
-  --panel: #1c1b16;
-  --panel-2: #23221c;
-  --line: #322f26;
-  --text: #e9e3d4;
-  --dim: #918a76;
-  --accent: #ff2e6a;
-  --accent-2: #ffd166;
-  /* Selection is its own colour, and deliberately not the accent. Pink marks
-     the choice you have made in a control; blue marks the thing you have
-     picked in the world. Keeping them apart means a highlighted part in the
-     panel and the highlighted geometry in the viewport read as the same
-     statement, which is exactly what they are. */
-  --select: #6f9ff0;
-  --bar-h: 44px;
   --keys-h: 26px;
-  --pw: 300px;
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
@@ -966,6 +953,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
   border-radius: 4px;
   backdrop-filter: blur(6px);
   max-width: 190px;
+  transition: right 0.16s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* The inspector floats over the right edge of the viewport, so it would land
+   on top of these. They stay useful while you are editing a module, so they
+   step aside for it rather than hiding underneath, travelling on the same
+   curve and duration so the two read as one movement. */
+main:has(#inspector:not(.empty)) #layers {
+  right: calc(var(--pw-r, 300px) + 10px);
 }
 
 .lyr-head {
@@ -1135,18 +1131,16 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* The shortcut list needs more width than a confirmation does. */
 /* Nothing here scrolls. A shortcut list you have to scroll is a list you
-   cannot scan, which is the only thing it is for. Two pairs per row keeps
-   eighteen shortcuts to nine rows, so the whole thing fits at once and the
-   window stays a sensible shape rather than a tall ribbon.
+   cannot scan, which is the only thing it is for.
 
-   The four column track works because dt and dd already alternate in the
-   markup: two of each fill a row in document order, with no wrapper per
-   pair. */
-.dlg-panel.wide { width: min(680px, 92vw); }
+   One shortcut per row, keys in a single column down the left. Two pairs per
+   row halves the height but costs you the column: your eye has to find the
+   key twice per line instead of running straight down one edge. The list
+   fits either way, so the one that scans wins. */
+.dlg-panel.wide { width: min(420px, 92vw); }
 .dlg-panel.wide dl.keys {
-  grid-template-columns: auto 1fr auto 1fr;
+  grid-template-columns: auto 1fr;
   column-gap: 16px;
 }
 

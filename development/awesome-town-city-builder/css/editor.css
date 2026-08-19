@@ -580,3 +580,8 @@ input.shelf-find::-webkit-search-cancel-button { filter: invert(0.6); }
   padding-right: 10px;
 }
 #edit-body > .panel-head { padding-top: 10px; }
+
+/* The box is the target, so it says so. The name keeps its own cursor since
+   it is still the thing you click to toggle back off. */
+.part { cursor: pointer; }
+.part-body, .slot-cands { cursor: default; }

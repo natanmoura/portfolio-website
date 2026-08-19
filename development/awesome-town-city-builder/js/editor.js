@@ -146,7 +146,7 @@ boundsBox.visible = false;
 scene.add(boundsBox);
 
 const raycaster = new THREE.Raycaster();
-let statsEl = null;
+const statsEl = document.getElementById('stats');
 
 function clearShown() {
   for (const child of [...shown.children]) {
@@ -301,6 +301,17 @@ function renderCrumbs() {
     b.addEventListener('click', () => popTo(i));
     kids.push(b);
   });
+
+  // Rename and delete act on the component this bar names, so they belong to
+  // the bar. Repeating the name below just to have somewhere to hang them
+  // meant reading it twice to learn it once.
+  if (current()) {
+    const rename = h('button', { class: 'btn small' }, 'Rename');
+    rename.addEventListener('click', () => renameComponent());
+    const remove = h('button', { class: 'btn small danger' }, 'Delete');
+    remove.addEventListener('click', () => deleteComponent());
+    kids.push(h('span', { class: 'grow' }), rename, remove);
+  }
 
   setChildren(crumbEl, ...kids);
 }
@@ -658,13 +669,26 @@ function slotBlock(doc, part, i) {
     paramRow(key, value, (next, o) => replace({ params: { ...pins, [key]: next } }, { ...o, key: `${doc.id}:pin${i}:${key}` }))
   );
 
-  return h(
+  const box = h(
     'div',
     { class: `part${selectedPart === i ? ' on' : ''}` },
     head,
     cands,
     rows.length ? h('div', { class: 'part-body' }, ...rows) : null
   );
+
+  // The whole box selects, not just the name. It is drawn as one object and
+  // reads as one object, so clicking anywhere in it that is not already a
+  // control should pick it. Anything interactive keeps its own job: dragging
+  // a slider inside a part is not a request to select the part.
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button, input, select, .chip')) return;
+    if (selectedPart === i) return;
+    selectedPart = i;
+    render();
+  });
+
+  return box;
 }
 
 function partsSection(doc) {
@@ -830,25 +854,20 @@ function renderPanel() {
     setChildren(editEl, h('p', { class: 'hint' }, 'Pick a component from the shelf.'));
     return;
   }
-  statsEl = h('p', { class: 'stat-line' });
   const what = isAssembly(doc)
     ? `${doc.parts.length} parts · ${algorithmOf(doc.algorithm).label}`
     : isEmptyComponent(doc)
       ? 'no geometry'
       : doc.shape;
 
-  const rename = h('button', { class: 'btn small' }, 'Rename');
-  rename.addEventListener('click', () => renameComponent());
-  const remove = h('button', { class: 'btn small danger' }, 'Delete');
-  remove.addEventListener('click', () => deleteComponent());
-
   const used = dependents(doc.id, library);
 
+  // The name and its two actions live in the bar above, and the measurements
+  // live on the thing being measured. What is left here is only the panel's
+  // sections, plus the one fact that has consequences: what else breaks if
+  // you change this.
   setChildren(
     editEl,
-    h('div', { class: 'panel-head' }, h('h2', {}, doc.label), rename, remove),
-    h('p', { class: 'stat-line' }, `${doc.id} · v${doc.version || 1} · ${what}`),
-    statsEl,
     used.length ? h('p', { class: 'hint' }, `Used by ${used.length}: ${used.join(', ')}`) : null,
     variantSection(),
     isAssembly(doc) ? algorithmSection(doc) : null,
@@ -940,6 +959,8 @@ window.ed = {
   get edits() { return edits; },
   get trail() { return trail; },
   open, openPart, popTo, render,
+  scene, shown, baseMat, pickMat,
+  get selectedPart() { return selectedPart; },
   get seed() { return seed; },
   set seed(v) { seed = v; render(); },
 };

@@ -1,0 +1,99 @@
+/* The design language, in one place.
+ *
+ * Everything visual that more than one thing uses is defined here, so a change
+ * here is a change everywhere. Both windows load this first, and neither is
+ * allowed to redefine what these mean.
+ *
+ * The rule that keeps it honest: if two things should look the same, they use
+ * the same token and no local override. A panel that redefines a shared idea
+ * looks shared, so nobody thinks to check it, and it drifts the moment the
+ * real definition moves. That has already happened twice here, once with
+ * section dividers and once with dialogs, which is why this file exists.
+ */
+
+:root {
+  /* --- surfaces --------------------------------------------------------
+   * Three levels, and they mean something. The page sits furthest back, a
+   * panel sits on it, and raised holds the chrome that does not scroll:
+   * headers, toolbars, the boxes that represent one object.
+   */
+  --bg: #14130f;
+  --panel: #1c1b16;
+  --panel-2: #23221c;
+  --raised: var(--panel-2);
+  --line: #322f26;
+
+  /* --- ink -------------------------------------------------------------
+   * Text has two weights. Dim is for labels and anything supporting; full
+   * is for values and anything you are meant to read first.
+   */
+  --text: #e9e3d4;
+  --dim: #918a76;
+
+  /* --- meaning ---------------------------------------------------------
+   * Three colours, three jobs, never swapped:
+   *   accent    the choice you have made in a control (active tab, on state)
+   *   accent-2  a value that has been touched (typed past a range, locked)
+   *   select    the thing you have picked in the world
+   *
+   * Selection is deliberately not the accent. A highlighted part in a panel
+   * and the highlighted geometry in the viewport are the same statement, and
+   * they must not read as the same thing as an active tab.
+   */
+  --accent: #ff2e6a;
+  --accent-2: #ffd166;
+  --select: #6f9ff0;
+  --danger: #b3243f;
+
+  /* --- washes ----------------------------------------------------------
+   * Tints over a surface rather than new surfaces. Used for hover, for a
+   * selected box, for anything that should read as the same object in a
+   * different state rather than as a different object.
+   */
+  --wash-hover: rgba(255, 255, 255, 0.07);
+  --wash-active: rgba(255, 255, 255, 0.14);
+  --wash-select: rgba(111, 159, 240, 0.12);
+  --wash-accent: rgba(255, 46, 106, 0.14);
+  --hairline: rgba(255, 255, 255, 0.05);
+
+  /* --- depth -----------------------------------------------------------
+   * Only two. Chrome casts onto content passing beneath it, and things that
+   * float above everything cast further.
+   */
+  --shadow-chrome: 0 4px 10px -4px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  /* --- space -----------------------------------------------------------
+   * A panel's inset is one number, used by every section, every header and
+   * anything that has to line up with them.
+   */
+  --pad: 10px;
+  --gap: 6px;
+  --gap-tight: 3px;
+  --radius: 3px;
+  --radius-box: 4px;
+  --radius-panel: 6px;
+
+  /* --- type ------------------------------------------------------------
+   * Four sizes. Anything that wants a fifth is usually a sign that two
+   * things are competing that should not be.
+   */
+  --fs-title: 13px;   /* app tabs */
+  --fs-body: 11px;    /* labels, buttons, most text */
+  --fs-small: 10px;   /* values, captions */
+  --fs-micro: 9px;    /* tabs, chips, marks */
+  --track-wide: 0.16em;
+  --track: 0.08em;
+
+  /* --- motion ----------------------------------------------------------
+   * Fast enough not to be waited on. Panels arriving get the slower one.
+   */
+  --t-quick: 0.12s ease;
+  --t-panel: 0.16s cubic-bezier(0.3, 0, 0.2, 1);
+
+  /* --- layout ----------------------------------------------------------- */
+  --bar-h: 44px;
+  --pw: 300px;
+  /* The viewport never goes below this, whatever the panels want. */
+  --min-view: 260px;
+}
