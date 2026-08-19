@@ -23,6 +23,9 @@ import {
   applyEdits,
   readEdits,
   writeEdits,
+  staleEdits,
+  sameDoc,
+  EDIT_BASE,
   resolveComponent,
   isAssembly,
   isEmptyComponent,
@@ -72,8 +75,14 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
+// Edits whose shipped component has moved on since they forked from it.
+// Recomputed with the library rather than on a timer, since it can only
+// change when one of the two sides does.
+let stale = [];
+
 function rebuildLibrary() {
   library = applyEdits(shipped, edits);
+  stale = staleEdits(shipped, edits);
 }
 
 function persist() {
@@ -91,8 +100,14 @@ function persist() {
 function mutate(patch, opts = {}, id = currentId()) {
   if (!id) return;
   const base = shipped.components.get(id);
-  edits[id] = { ...(edits[id] || {}), ...(docOf(id) || {}), ...patch };
-  if (base && JSON.stringify(edits[id]) === JSON.stringify(base)) delete edits[id];
+  const prior = edits[id];
+  // Stamped when the edit is born and never touched again, so it keeps
+  // pointing at the version this fork actually came from however many times
+  // it is edited afterwards.
+  const from = prior?.[EDIT_BASE] ?? (base ? base.version ?? 1 : undefined);
+  edits[id] = { ...(prior || {}), ...(docOf(id) || {}), ...patch };
+  if (from !== undefined) edits[id][EDIT_BASE] = from;
+  if (base && sameDoc(edits[id], base)) delete edits[id];
   persist();
   if (opts.live) {
     refreshViewport();
@@ -333,12 +348,19 @@ function shelfCard(doc) {
     deleteComponent(doc.id);
   });
 
+  // A fork of a version that has since moved on. Marked on the card rather
+  // than announced, because it is worth knowing and never urgent: your copy
+  // is still the one you meant, there is just a newer one you have not seen.
+  const behind = stale.find((s) => s.id === doc.id);
+
   const card = h(
     'div',
     {
-      class: `card${doc.id === currentId() ? ' on' : ''}${isDirty(doc.id) ? ' dirty' : ''}`,
+      class: `card${doc.id === currentId() ? ' on' : ''}${isDirty(doc.id) ? ' dirty' : ''}${behind ? ' behind' : ''}`,
       draggable: 'true',
-      title: `${doc.label} · ${doc.id}`,
+      title: behind
+        ? `${doc.label} · ${doc.id}\nYour copy is based on v${behind.from}. The shipped one is now v${behind.to}.`
+        : `${doc.label} · ${doc.id}`,
     },
     img ? h('img', { src: img, alt: doc.label }) : h('div', { class: 'card-blank' }, '∅'),
     h('span', { class: 'card-name' }, doc.label),
@@ -364,6 +386,48 @@ function deletedSection() {
     return b;
   });
   return h('div', {}, h('div', { class: 'shelf-group' }, `Deleted (${gone.length})`), ...rows);
+}
+
+// One line, not a dialog. Nothing here is broken and nothing needs deciding
+// today, so it says what happened and offers the one thing worth offering:
+// throwing your version away to take the new one, per component, from the
+// list that names them.
+function staleSection() {
+  if (!stale.length) return null;
+  const rows = stale.map((s) => {
+    const doc = shipped.components.get(s.id);
+    const b = h(
+      'button',
+      { class: 'restore', title: `Discard your edits to ${doc?.label || s.id} and take v${s.to}` },
+      h('span', {}, `${doc?.label || s.id}  v${s.from} → v${s.to}`),
+      h('span', { class: 'restore-go' }, 'take new')
+    );
+    b.addEventListener('click', () => takeShipped(s.id));
+    return b;
+  });
+  return h(
+    'div',
+    {},
+    h('div', { class: 'shelf-group' }, `Newer on disk (${stale.length})`),
+    ...rows
+  );
+}
+
+async function takeShipped(id) {
+  const doc = shipped.components.get(id);
+  if (!doc) return;
+  const ok = await confirmDialog({
+    title: `Take the shipped ${doc.label}?`,
+    message: 'Your edits to this component are discarded and the version that ships with the tool takes over. Everything that uses it picks up the change.',
+    detail: 'Undo steps this back if it turns out you wanted your own.',
+    confirmLabel: 'Take it',
+  });
+  if (!ok) return;
+  delete edits[id];
+  persist();
+  history?.record(`take-shipped:${id}`);
+  setStatus(`${doc.label} is back to the shipped version`);
+  render();
 }
 
 // Name, id and tags all match, because by the time a library is large enough
@@ -409,6 +473,7 @@ function renderShelf() {
     leaves.length ? h('div', { class: 'shelf-group' }, 'Shapes') : null,
     leaves.length ? h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard)) : null,
     all.length ? null : h('p', { class: 'hint' }, 'Nothing matches.'),
+    shelfQuery ? null : staleSection(),
     shelfQuery ? null : deletedSection()
   );
 }

@@ -72,6 +72,22 @@ export function writeEdits(edits) {
   localStorage.setItem(EDITS_KEY, JSON.stringify(edits));
 }
 
+// Which shipped version an edit was made against, carried on the edit and
+// never on the document.
+//
+// Edits shadow disk permanently: touch `box` once and your copy wins forever,
+// so an improved box.json shipped later reaches everyone except the people
+// who cared enough to open it. Recording the version an edit forked from is
+// what makes that noticeable, and it has to be recorded from the start —
+// there is no way to work out afterwards which version somebody forked.
+export const EDIT_BASE = '__base';
+
+const withoutBase = (doc) => {
+  if (!doc || !(EDIT_BASE in doc)) return doc;
+  const { [EDIT_BASE]: _drop, ...rest } = doc;
+  return rest;
+};
+
 // Layered over the shipped files rather than merged into them, so the
 // library on disk stays recoverable and reverting is a delete. An edit whose
 // id is not on disk is a component the author invented here, and is kept.
@@ -82,10 +98,31 @@ export function applyEdits(lib, edits) {
       out.delete(id);
       continue;
     }
-    out.set(id, out.has(id) ? { ...out.get(id), ...over } : over);
+    const clean = withoutBase(over);
+    out.set(id, out.has(id) ? { ...out.get(id), ...clean } : clean);
   }
   return { components: out };
 }
+
+// Edits whose shipped component has moved on underneath them. Reported, never
+// resolved automatically: the whole point of an edit is that the author meant
+// it, and quietly rebasing would throw away the thing they meant.
+export function staleEdits(shipped, edits) {
+  const out = [];
+  for (const [id, over] of Object.entries(edits || {})) {
+    if (!over || over.deleted) continue;
+    const base = over[EDIT_BASE];
+    const disk = shipped.components.get(id);
+    if (base == null || !disk) continue;
+    if ((disk.version ?? 1) > base) out.push({ id, from: base, to: disk.version ?? 1 });
+  }
+  return out;
+}
+
+// Two documents comparing equal as documents, ignoring the bookkeeping. An
+// edit that has been walked all the way back to what shipped is not an edit,
+// and should disappear rather than linger as a no-op that still shadows disk.
+export const sameDoc = (a, b) => JSON.stringify(withoutBase(a)) === JSON.stringify(withoutBase(b));
 
 export async function loadEditedLibrary(root = 'library') {
   return applyEdits(await loadLibrary(root), readEdits());

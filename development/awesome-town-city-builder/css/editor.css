@@ -155,6 +155,17 @@ body.editor .panel { overflow-y: auto; }
   background: #e7a24a;
 }
 
+/* Edited, and the shipped component has moved on since this forked from it.
+   A ring rather than a second dot: it is the same mark saying one more thing
+   about itself, not a separate condition competing for the same corner.
+   Hollow because there is nothing you must do about it, which is what
+   separates it from an unsaved change. */
+.card.dirty.behind::before {
+  background: none;
+  border: 2px solid #e7a24a;
+  width: 8px; height: 8px;
+}
+
 /* --- panel ------------------------------------------------------------ */
 
 .panel-head { display: flex; align-items: center; gap: 6px; }
