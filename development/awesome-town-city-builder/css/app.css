@@ -115,30 +115,40 @@ main {
 .tabbar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
   position: sticky;
   top: 0;
   z-index: 3;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
+  padding: 5px;
 }
+
+/* The same filled treatment the inspector's Module and Building toggle uses.
+   Both answer "which of these am I looking at", so they should not answer it
+   in two different visual languages. */
 .tabbtn {
   appearance: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
   color: var(--dim);
   font: inherit;
   font-size: 9px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 8px 2px 6px;
+  padding: 5px 2px;
+  border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tabbtn:hover { color: var(--text); }
-.tabbtn.on { color: var(--text); border-bottom-color: var(--accent); }
+.tabbtn:hover { color: var(--text); border-color: var(--dim); }
+.tabbtn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 
 .page { display: none; }
 .page.on { display: block; }
