@@ -9,7 +9,7 @@
   --accent-2: #ffd166;
   --bar-h: 44px;
   --keys-h: 26px;
-  --pw: 264px;
+  --pw: 300px;
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
@@ -223,13 +223,15 @@ select.wide { width: 100%; margin-bottom: 6px; }
 
 .row {
   display: grid;
-  grid-template-columns: 76px 1fr 44px;
+  /* Label, control, number, lock. The lock gets a column of its own so it
+     sits beside the value rather than floating over the row. */
+  grid-template-columns: 92px 1fr 44px 11px;
   align-items: center;
   gap: 6px;
   padding: 2px 0;
 }
-.row.check { grid-template-columns: auto 1fr; cursor: pointer; }
-.lbl { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.row.check { grid-template-columns: auto 1fr 11px; cursor: pointer; }
+.lbl { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .val { color: var(--text); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Type past the slider's range and the row says so, so an extreme value is
@@ -923,3 +925,36 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .row.changed > .lbl { color: var(--accent-2); }
 
 .filtered-out { display: none !important; }
+
+/* --- parameter locks ----------------------------------------------------- */
+/* A locked parameter is left alone by anything random: the dice, and the seed
+   reroll. Monochrome and tiny, in its own column beside the number, so a
+   column of them reads as a margin rather than as decoration. */
+
+.lockbtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  width: 11px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.row:hover .lockbtn { opacity: 0.4; }
+.lockbtn:hover { opacity: 1 !important; color: var(--text); }
+.lockbtn.on { opacity: 0.8; color: var(--text); }
+
+/* A locked row settles rather than shouts: the label brightens slightly and
+   that is all. Nothing here should compete with the values. */
+.row.locked .lbl { color: var(--text); opacity: 0.6; }
+
+/* Rerolling is randomness, so a locked seed refuses it the same way the dice
+   does. Without this the lock looked broken, because the one button next to
+   it carried on working. */
+.mini:disabled { opacity: 0.3; cursor: default; }

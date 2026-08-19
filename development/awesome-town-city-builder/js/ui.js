@@ -157,7 +157,7 @@ export const CONTROL_DEFS = [
       R('streetWidth', 'Street width', 0.5, 8, 0.1, 'Width of the smaller streets cutting between them.', { live: false }),
       R('setback', 'Setback', 0, 6, 0.05, 'Gap between the kerb and the buildings facing it.', { live: false }),
       R('frontageSpacing', 'Frontage gap', 0.6, 3, 0.01, 'How far apart buildings sit along a street. One packs them shoulder to shoulder.', { live: false, hard: [0.4, 12] }),
-      R('blockDepthRatio', 'Building depth', 0.3, 2.5, 0.01, 'How deep buildings are relative to their street frontage.', { live: false }),
+      R('blockDepthRatio', 'Depth ratio', 0.3, 2.5, 0.01, 'How deep buildings are relative to their street frontage.', { live: false }),
     ],
   },
   {
@@ -180,7 +180,7 @@ export const CONTROL_DEFS = [
       R('maxFloors', 'Floors max', 1, 60, 1, 'Tallest a building can be, before the roof.', { hard: [1, 200] }),
       R('centerBias', 'Downtown pull', 0, 1, 0.01, 'How much height follows distance from the middle. At one the towers cluster downtown.', { hard: [0, 1] }),
       R('floorHeight', 'Floor height', 0.6, 5, 0.05, 'Base height of one module. Scales the whole skyline against the block size.'),
-      R('floorJitter', 'Floor variance', 0, 0.8, 0.01, 'How far floors stray from the base height. Zero is even layers, high is hand-stacked.', { hard: [0, 0.98] }),
+      R('floorJitter', 'Floor jitter', 0, 0.8, 0.01, 'How far floors stray from the base height. Zero is even layers, high is hand-stacked.', { hard: [0, 0.98] }),
       R('lotFill', 'Lot fill', 0.2, 1, 0.01, 'How much of its lot a building covers. Past one they swallow the streets.', { hard: [0.02, 3] }),
       R('lotJitter', 'Lot variance', 0, 0.6, 0.01, 'How much footprints differ building to building. Zero makes every block the same.', { hard: [0, 0.98] }),
       R('setbackChance', 'Setbacks', 0, 1, 0.01, 'Odds a building steps inward on the way up. Rolled per floor.', { hard: [0, 1] }),
@@ -222,8 +222,8 @@ export const CONTROL_DEFS = [
         type: 'wheel',
         help: 'What a building is made of, as a share of the whole town: a texture, a reflective shader, one half of the collage pool, or flat colour. Drag any dot to trade weight between two, or drag one onto its neighbour to remove it. Click a row to nudge it, shift-click to nudge it down.',
       },
-      R('imageChance', 'Image vs colour', 0, 1, 0.01, 'Within an image or cutout building, odds a face takes a picture over a colour.', { hard: [0, 1] }),
-      R('sameImageChance', 'Wrap one image', 0, 1, 0.01, 'Odds a module wraps one image around every side, so the block reads as one object.', { hard: [0, 1] }),
+      R('imageChance', 'Image share', 0, 1, 0.01, 'Within an image or cutout building, odds a face takes a picture over a colour.', { hard: [0, 1] }),
+      R('sameImageChance', 'Wrap image', 0, 1, 0.01, 'Odds a module wraps one image around every side, so the block reads as one object.', { hard: [0, 1] }),
       R('zoomJitter', 'Crop variance', 0, 1.5, 0.01, 'How far images crop in past a plain fit, so one picture reads differently everywhere.', { hard: [0, 12] }),
       R('slabChance', 'Cornice slabs', 0, 1, 0.01, 'Odds of a thin overhanging slab between floors. Breaks up a tall stack and catches a shadow.', { hard: [0, 1] }),
       R('rotateChance', 'Quarter turns', 0, 1, 0.01, 'Odds a module is turned ninety degrees, changing which face meets the street.', { hard: [0, 1] }),
@@ -251,8 +251,8 @@ export const CONTROL_DEFS = [
     items: [
       R('glowChance', 'Lit modules', 0, 1, 0.01, 'How many modules are lit from within. Switches existing ones on and off, so the town never changes shape.', { cheap: true, hard: [0, 1] }),
       R('glowStrength', 'Glow strength', 0, 3, 0.01, 'How hard lit modules push. Past 1.5 the images inside start to wash out.', { cheap: true }),
-      R('glowTint', 'Glow takes image colour', 0, 1, 0.01, 'How much a lit face glows with the picture on it rather than the palette glow colour. At one, neon glows neon.', { cheap: true, hard: [0, 1] }),
-      R('glowImage', 'Bright parts glow more', 0, 1, 0.01, 'At zero the whole face glows evenly like a lightbox. At one only the bright areas burn.', { cheap: true, hard: [0, 1] }),
+      R('glowTint', 'Glow tint', 0, 1, 0.01, 'How much a lit face glows with the picture on it rather than the palette glow colour. At one, neon glows neon.', { cheap: true, hard: [0, 1] }),
+      R('glowImage', 'Glow bright', 0, 1, 0.01, 'At zero the whole face glows evenly like a lightbox. At one only the bright areas burn.', { cheap: true, hard: [0, 1] }),
     ],
   },
   {
@@ -346,7 +346,7 @@ export const CONTROL_DEFS = [
     section: 'Occlusion',
     tab: 'world',
     items: [
-      R('ao', 'Ambient occlusion', 0, 1, 0.01, 'Darkens where surfaces face each other, read off the depth buffer. Finds the corner between two buildings and under an overhang. Off by default, since the analytic contact shade below is cleaner for most shots.', { cheap: true, hard: [0, 1] }),
+      R('ao', 'Occlusion', 0, 1, 0.01, 'Darkens where surfaces face each other, read off the depth buffer. Finds the corner between two buildings and under an overhang. Off by default, since the analytic contact shade below is cleaner for most shots.', { cheap: true, hard: [0, 1] }),
       R('aoRadius', 'Reach', 0.3, 12, 0.1, 'How far out it looks for a neighbouring surface. Small catches creases, large shades whole streets.', { cheap: true, hard: [0.05, 60] }),
       R('aoSmoothing', 'Smoothing', 1, 4, 1, 'Rounds of blur over the occlusion. Each one widens the kernel, so this is the control that decides grainy against soft.', { cheap: true, hard: [1, 4] }),
       R('aoBias', 'Bias', 0, 0.4, 0.005, 'Nudge up if flat walls look dirty, down if corners look clean.', { cheap: true, hard: [0, 2] }),
@@ -375,7 +375,7 @@ export const CONTROL_DEFS = [
         cheap: true,
         help: 'Keeps whatever you are orbiting sharp. Turn it off to set the distance by hand.',
       },
-      R('dofFocus', 'Focus distance', 1, 300, 0.5, 'How far away the sharp plane sits, in world units. Only used when focus on pivot is off.', { cheap: true, hard: [0.1, 4000] }),
+      R('dofFocus', 'Focus', 1, 300, 0.5, 'How far away the sharp plane sits, in world units. Only used when focus on pivot is off.', { cheap: true, hard: [0.1, 4000] }),
       R('dofRange', 'Sharp depth', 2, 300, 1, 'How deep the sharp zone is, in world units either side of the focus. Make it shallow against a far focus and the town reads as a model on a table.', { cheap: true, hard: [0.5, 4000] }),
       R('bokeh', 'Bokeh', 0, 1, 0.01, 'How much the blur clumps into highlights rather than smearing evenly.', { cheap: true, hard: [0, 1] }),
     ],
@@ -465,6 +465,8 @@ export class Controls {
     this.locks = locks;
     this.onLockChange = onLockChange;
     this.lockPainters = new Map();
+    // Reroll buttons, so a locked seed can visibly refuse to roll.
+    this.rerollButtons = new Map();
     this.inputs = new Map();
     this.ranges = new Map();
     this.mounts = new Map();
@@ -690,7 +692,11 @@ export class Controls {
       lock.textContent = on ? '\u{1F512}' : '\u{1F513}';
       lock.classList.toggle('on', on);
       row.classList.toggle('locked', on);
-      lock.title = on ? 'Locked: the dice will leave this alone' : 'Keep this when rolling the dice';
+      lock.title = on
+        ? 'Locked. Nothing random will change this: not the dice, not reroll.'
+        : 'Lock this so nothing random changes it.';
+      const reroll = this.rerollButtons.get(def.key);
+      if (reroll) reroll.disabled = on;
     };
     lock.addEventListener('click', (e) => {
       e.preventDefault();
@@ -845,6 +851,10 @@ export class Controls {
         {
           class: 'mini',
           onclick: () => {
+            // A lock means randomness leaves this alone, and rerolling is
+            // randomness. Without this the lock looked broken, because the
+            // one button sitting next to it carried on working.
+            if (this.locks?.[def.key]) return;
             const next = Math.floor(Math.random() * 100000);
             input.value = next;
             this.onChange(def.key, next, def);
@@ -853,6 +863,7 @@ export class Controls {
         'reroll'
       );
       this.inputs.set(def.key, input);
+      this.rerollButtons.set(def.key, dice);
       return h('label', { class: 'row' }, h('span', { class: 'lbl' }, def.label), input, dice);
     }
 
