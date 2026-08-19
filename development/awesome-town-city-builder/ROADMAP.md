@@ -6,6 +6,11 @@ it make an environment, at scale, that stays editable."
 
 Read `COMPONENTS.md` first. This assumes it.
 
+**The running order now lives in `NEXT.md`**, written after the data audit
+moved three things and split Phase 1 in two. This file still holds the
+reasoning for why each phase exists and what it is worth; where the two
+disagree on sequence, NEXT.md is newer.
+
 ## The two invariants everything serves
 
 **Authored decisions survive procedural change.** This is the whole point of
