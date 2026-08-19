@@ -397,3 +397,96 @@ input.chip-w {
   border-radius: 2.5px;
   pointer-events: none;
 }
+
+/* --- confirm / prompt dialog ------------------------------------------- */
+
+.dlg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+}
+
+.dlg-panel {
+  width: min(400px, 86vw);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+
+.dlg-panel h2 { margin: 0 0 8px; font-size: 14px; }
+.dlg-msg { font-size: 12px; margin: 0 0 6px; line-height: 1.45; opacity: 0.85; }
+.dlg-detail { font-size: 11px; margin: 0 0 4px; line-height: 1.45; opacity: 0.5; }
+
+.dlg-input {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 7px;
+  border-radius: 3px;
+  margin: 6px 0 2px;
+}
+.dlg-input:focus { border-color: var(--accent); outline: none; }
+
+.dlg-actions { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+
+.btn.danger-solid {
+  background: #b3243f;
+  border-color: #b3243f;
+  color: #fff;
+}
+.btn.danger-solid:hover { background: #cf2a49; border-color: #cf2a49; }
+
+/* --- delete on a shelf card -------------------------------------------- */
+
+.card { position: relative; }
+
+.card-x {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+.card:hover .card-x { opacity: 0.75; }
+.card-x:hover { opacity: 1 !important; background: #b3243f; }
+
+/* Badge and delete would sit on top of each other, so the badge steps aside
+   while the card is hovered. */
+.card:hover .card-badge { opacity: 0; }
+
+.restore {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 0 10px 3px;
+  padding: 5px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.restore:hover { opacity: 1; border-color: var(--accent); }
+.restore span:first-child { flex: 1; text-align: left; }
+.restore-go { font-size: 10px; opacity: 0.7; }

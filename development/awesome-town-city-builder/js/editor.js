@@ -38,6 +38,7 @@ import { MODIFIERS } from './modifiers.js';
 import { renderThumb } from './thumbs.js';
 import { paramRow } from './paramrow.js';
 import { h, setChildren } from './ui.js';
+import { confirmDialog, promptDialog } from './dialog.js';
 
 const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit');
@@ -288,8 +289,18 @@ function renderCrumbs() {
 
 function shelfCard(doc) {
   const img = renderThumb(doc, library, 3);
+
+  // Delete lives on the card, since that is where you are when you decide a
+  // component was a mistake. Hidden until hover so a shelf of forty does not
+  // read as forty ways to lose something.
+  const kill = h('span', { class: 'card-x', title: `Delete ${doc.label}` }, '×');
+  kill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteComponent(doc.id);
+  });
+
   const card = h(
-    'button',
+    'div',
     {
       class: `card${doc.id === currentId() ? ' on' : ''}${isDirty(doc.id) ? ' dirty' : ''}`,
       draggable: 'true',
@@ -297,14 +308,28 @@ function shelfCard(doc) {
     },
     img ? h('img', { src: img, alt: doc.label }) : h('div', { class: 'card-blank' }, '∅'),
     h('span', { class: 'card-name' }, doc.label),
-    isAssembly(doc) ? h('span', { class: 'card-badge' }, String(doc.parts.length)) : null
+    isAssembly(doc) ? h('span', { class: 'card-badge' }, String(doc.parts.length)) : null,
+    kill
   );
   card.addEventListener('click', () => open(doc.id));
+  card.addEventListener('dblclick', () => renameComponent(doc.id));
   card.addEventListener('dragstart', (e) => {
     e.dataTransfer.setData('text/component-id', doc.id);
     e.dataTransfer.effectAllowed = 'copy';
   });
   return card;
+}
+
+function deletedSection() {
+  const gone = deletedIds();
+  if (!gone.length) return null;
+  const rows = gone.map((id) => {
+    const doc = shipped.components.get(id);
+    const b = h('button', { class: 'restore' }, h('span', {}, doc?.label || id), h('span', { class: 'restore-go' }, 'restore'));
+    b.addEventListener('click', () => restoreComponent(id));
+    return b;
+  });
+  return h('div', {}, h('div', { class: 'shelf-group' }, `Deleted (${gone.length})`), ...rows);
 }
 
 function renderShelf() {
@@ -321,7 +346,8 @@ function renderShelf() {
     built.length ? h('div', { class: 'shelf-group' }, 'Assemblies') : null,
     built.length ? h('div', { class: 'shelf-grid' }, ...built.map(shelfCard)) : null,
     h('div', { class: 'shelf-group' }, 'Shapes'),
-    h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard))
+    h('div', { class: 'shelf-grid' }, ...leaves.map(shelfCard)),
+    deletedSection()
   );
 }
 
@@ -348,41 +374,79 @@ bindDrop(viewportEl);
 
 // --- authoring --------------------------------------------------------------
 
-function createComponent() {
-  const label = prompt('Name the new component', 'New Component');
+async function createComponent() {
+  const label = await promptDialog({
+    title: 'New component',
+    message: 'An empty assembly. Drag parts onto it from the shelf.',
+    value: 'New Component',
+    confirmLabel: 'Create',
+  });
   if (!label) return;
-  const doc = newAssembly(label.trim(), new Set(library.components.keys()));
+  const doc = newAssembly(label, new Set(library.components.keys()));
   edits[doc.id] = doc;
   persist();
   open(doc.id);
   setStatus(`Created ${doc.label}. Drag parts in from the shelf.`);
 }
 
-function renameComponent() {
-  const doc = current();
+async function renameComponent(id = currentId()) {
+  const doc = docOf(id);
   if (!doc) return;
-  const label = prompt('Rename', doc.label);
+  const label = await promptDialog({ title: 'Rename', value: doc.label, confirmLabel: 'Rename' });
   if (!label) return;
-  mutate({ label: label.trim() });
+  mutate({ label }, {}, id);
 }
 
-function deleteComponent() {
-  const doc = current();
+// Deleting is reversible, because a library is a thing you accumulate and
+// losing an hour's work to a stray click is not a reasonable price. A
+// shipped component is only marked deleted and can be restored; one invented
+// here is dropped outright, which the dialog says plainly.
+async function deleteComponent(id = currentId()) {
+  const doc = docOf(id);
   if (!doc) return;
+
   const used = dependents(doc.id, library);
-  const warn = used.length
-    ? `${doc.label} is used by ${used.length} other component${used.length > 1 ? 's' : ''} (${used.join(', ')}). Delete anyway?`
-    : `Delete ${doc.label}?`;
-  if (!confirm(warn)) return;
-  edits[doc.id] = { deleted: true };
+  const isShipped = shipped.components.has(doc.id);
+
+  const ok = await confirmDialog({
+    title: `Delete ${doc.label}?`,
+    message: used.length
+      ? `It is used by ${used.length} other component${used.length > 1 ? 's' : ''}, which will lose that part.`
+      : 'Nothing else uses it.',
+    detail: isShipped
+      ? 'It ships with the tool, so this only hides it here and can be undone from Deleted on the shelf.'
+      : 'It was made here and is not on disk, so this cannot be undone.',
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
+
+  if (isShipped) edits[doc.id] = { deleted: true };
+  else delete edits[doc.id];
   persist();
-  trail = trail.filter((id) => id !== doc.id);
+
+  trail = trail.filter((t) => t !== doc.id);
   if (!trail.length) {
     const first = [...library.components.keys()][0];
     if (first) trail = [first];
   }
   render();
-  setStatus(`Deleted ${doc.label}.`);
+  setStatus(
+    `Deleted ${doc.label}.${used.length ? ` ${used.length} component${used.length > 1 ? 's' : ''} affected.` : ''}`
+  );
+}
+
+function restoreComponent(id) {
+  if (!edits[id]?.deleted) return;
+  delete edits[id];
+  persist();
+  render();
+  setStatus(`Restored ${docOf(id)?.label || id}.`);
+}
+
+// Ids the shipped library has that the edits have hidden, so a delete is
+// visibly undoable rather than a thing you have to remember you did.
+function deletedIds() {
+  return Object.keys(edits).filter((id) => edits[id]?.deleted && shipped.components.has(id));
 }
 
 function saveComponent() {
@@ -688,9 +752,9 @@ function renderPanel() {
       : doc.shape;
 
   const rename = h('button', { class: 'btn small' }, 'Rename');
-  rename.addEventListener('click', renameComponent);
+  rename.addEventListener('click', () => renameComponent());
   const remove = h('button', { class: 'btn small danger' }, 'Delete');
-  remove.addEventListener('click', deleteComponent);
+  remove.addEventListener('click', () => deleteComponent());
 
   const used = dependents(doc.id, library);
 
