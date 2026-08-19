@@ -1,7 +1,7 @@
 # What to build next
 
 Everything outstanding, in one list, ordered. This merges three sources that
-were drifting apart: the phases in `ROADMAP.md`, the eight findings in
+were drifting apart: the phases in `ROADMAP.md`, the nine findings in
 `DATA-AUDIT.md`, and the loose feature work agreed in conversation but never
 written down.
 
@@ -13,13 +13,21 @@ two disagree, this one is newer.
 
 ## What the audit changed about the plan
 
-Three things, and they are the whole reason this document exists rather than
+Four things, and they are the whole reason this document exists rather than
 an edit to the roadmap.
 
 **One item is losing work right now.** Everything else on the list is
 groundwork or capability. Positional building ids do not merely fail to
 protect an edit, they hand it to the wrong building. That belongs before all
 capability work, and it is small.
+
+**Roads were one bullet and needed a tier.** The old plan had "roads become a
+curve consumer" buried in the curves phase. But roads are the least editable
+thing in the tool — no id, no override of any kind, regenerated wholesale
+every rebuild — and the one with the largest effect on everything else, since
+buildings are placed along their kerbs. They also sit *upstream* of the
+identity problem: building ids embed the road's array index, so road identity
+is a prerequisite for fixing building identity rather than a follow-on.
 
 **Phase 1 was one block and should be two.** "Identity and locking" bundles a
 data-integrity fix with four authoring features. The fix is a day; the
@@ -38,22 +46,40 @@ that can be started independently. That reframing moves it up hard.
 
 Small, unglamorous, and each one prevents a class of loss.
 
-### 0.1 Override fingerprints and prune
+### 0.1 Road identity
+*Audit 9. Prerequisite for 0.2, not a parallel to it.*
+
+A road today is `{ pts, main, width }` with no id. The four pattern functions
+push them into an array and the array index *is* the identity — and that
+index goes straight into every building id as `` `b${ri}_${counter++}` ``.
+
+So the ordinal problem has two halves. The counter renumbers buildings within
+a road; `ri` renumbers every road and therefore every building in town, any
+time a pattern emits a different number of lines or emits them in a different
+order. Change the pattern, the radial ring count, or anything that makes
+`clipLine` reject a line it used to accept, and `ri` shifts under every
+override in the scene.
+
+Give a road a real record with a minted id, and derive building ids from that
+rather than from position in an array. Small, and it is the ground the next
+item stands on.
+
+### 0.2 Override fingerprints and prune
 *Audit 1, 5. Split out of roadmap Phase 1.*
 
-An override records what it was authored against: quantised x/z, road index,
+An override records what it was authored against: quantised x/z, road id,
 footprint. On reapply, a mismatch skips and reports rather than misapplying.
 Prune keys whose building no longer exists, in the same pass, since dead keys
 are precisely the ones most likely to land somewhere wrong later.
 
-This does not need minted ids and does not block on the identity system. It
-converts silent corruption into "3 edits could not be placed", which is
-recoverable and, more importantly, legible.
+This does not need the full minted-identity system from Tier 2. It converts
+silent corruption into "3 edits could not be placed", which is recoverable
+and, more importantly, legible.
 
 **Done when:** changing `cols` or density with edits in the scene never
 changes a building the user did not edit.
 
-### 0.2 `baseVersion` on component edits
+### 0.3 `baseVersion` on component edits
 *Audit 3.*
 
 Record the disk version an edit was made against. On load, compare. Where disk
@@ -64,7 +90,7 @@ Must land before there is a body of user edits worth preserving, and it is
 not retrofittable after. That is the entire argument for doing it now rather
 than in Phase 7 where schema work otherwise lives.
 
-### 0.3 Name the two hash streams
+### 0.4 Name the two hash streams
 *Audit 7.*
 
 One comment on `rng.js` and one on `constraints.js`, each naming the other and
@@ -143,7 +169,7 @@ best-effort.
 - **Minted identity on lock.** Locking is promotion: an unlocked thing has
   derived, anonymous identity, and locking moves it into the authored set
   where nothing downstream can renumber it. This is the permanent version of
-  what Tier 0.1 patches.
+  what Tier 0.2 patches.
 - **Locked facets.** A lock is a set, not a boolean. "Stays here but may
   change which rock it is."
 - **Reference frames.** A lock records what it is anchored to: world, a curve
@@ -200,14 +226,82 @@ are one thing: a curve, a distribution, and a component slot.
   surfaces: "wall faces fronting a street", "flat roof over four square
   metres". Houdini's groups and attributes, except typed and semantic, so
   they survive the geometry changing underneath them.
-- Roads become a curve consumer rather than a separate subsystem.
-- **Stairs as the proving case.** Two anchors, a path between them, a step
-  count derived from the height difference, staying attached when either end
-  moves. If stairs work, pipes and railings and billboards are trivial.
+- **Stairs as the proving case** for attachment. Two anchors, a path between
+  them, a step count derived from the height difference, staying attached
+  when either end moves. If stairs work, pipes and railings and billboards
+  are trivial.
+
+Roads are the other proving case, and large enough to be its own tier.
 
 ---
 
-## Tier 6 — volumes and regions
+## Tier 6 — roads
+
+Roads were one bullet in the old plan — "roads become a curve consumer" —
+which badly understated them. They are the least editable thing in the tool
+and the one with the largest effect on everything else, since buildings are
+placed along their kerbs. Every road change moves the town.
+
+Where they stand today: four pattern functions emit `{ pts, main, width }`
+polylines from `(seed, params)`, wholesale, every rebuild. No id until Tier
+0.1 gives them one. No overrides of any kind — a road cannot be moved, split,
+deleted, redrawn, or widened on its own. The geometry is one quad per
+segment, mitred badly by its own admission (`terrain.js:151`), with no
+junctions, no kerbs, no markings and no width variation along a road. That is
+fine for judging massing and not what a film pipeline wants from a street.
+
+### 6.1 Roads become curves
+A road is a curve plus a width profile plus a road type. The four patterns
+become curve *generators* rather than the only way a road can exist, which is
+the change that makes everything below possible.
+
+### 6.2 Hand-editable roads
+The point of the whole tier. Draw a road. Drag a control point and watch the
+buildings re-front onto it. Split, join, delete, reroute. Widen one road
+without touching the parameter that widens all of them.
+
+Roads use the same lock model as everything else, so this is not a new
+concept: an unlocked road is regenerated from the pattern, a locked one is
+authored and survives every reroll and every pattern change. Editing a road
+*is* locking it, the same way editing a building is.
+
+### 6.3 Junctions as generated components
+Where two curves meet, resolve a junction from the library — a crossroads, a
+T, a roundabout, a fork — rather than overlapping two ribbons and hoping.
+This is the single biggest visual upgrade in the tier and it needs no new
+machinery: a junction is a component, chosen by a role, sized by its
+constraints.
+
+### 6.4 Width profiles and cross sections
+A road's cross section is a small assembly: carriageway, kerb, pavement,
+gutter, verge. Distribute-along-curve already places what sits on it — lamp
+posts, bollards, parking meters, hydrants, street trees, signage — which is
+the first real payoff of Tier 5 and the thing the component library has been
+waiting for something to attach to.
+
+Width varying along a curve is what gives you a road narrowing into an alley
+without it being a different road.
+
+### 6.5 Road types drive what fronts them
+Highway, avenue, street, alley, path already half-exist as the `main` flag.
+Promote it: a road type carries its own setback, frontage spacing, building
+role mix and traffic weighting. An alley gets back doors and fire escapes; an
+avenue gets shopfronts. This is where the town stops reading as one texture
+applied evenly.
+
+### 6.6 Roads conform to terrain
+Once Tier 4 makes terrain a writable field, a road cuts and fills rather than
+draping over the surface. Cuttings, embankments and bridges fall out of the
+same mechanism, and the quarry case in the next tier is the same displacement
+run with a different brush.
+
+**Done when:** you can draw a street where you want one, and the buildings,
+traffic and street furniture all rearrange around it while everything you
+locked stays put.
+
+---
+
+## Tier 7 — volumes and regions
 
 Roadmap Phase 5. The art-direction layer and the answer to boolean cutouts.
 Box and extruded-spline volumes carrying rules: exclude, include, set density,
@@ -223,7 +317,7 @@ set by hand rather than tuning the machine with sliders.
 
 ---
 
-## Tier 7 — virtual scatter
+## Tier 8 — virtual scatter
 
 Roadmap Phase 6. A scatter is a function, not a list: `(region, seed) ->
 placements`, evaluated per tile on demand. Only locked placements become
@@ -238,7 +332,7 @@ harder to debug and provenance is the mitigation.
 
 ---
 
-## Tier 8 — ongoing, not sequenced
+## Tier 9 — ongoing, not sequenced
 
 Roadmap Phase 7, plus what the audit added.
 
@@ -277,8 +371,11 @@ rather than matching its operator count.
 
 ## If you only do one thing
 
-Tier 0.1. It is the smallest item on the list and the only one where every
-day of delay is edits quietly landing on the wrong buildings.
+Tiers 0.1 and 0.2 together — road identity, then override fingerprints. They
+are the smallest items on the list and the only ones where every day of delay
+is edits quietly landing on the wrong buildings. They have to go together:
+fingerprinting an override against a road index that itself renumbers fixes
+nothing.
 
 ## If you do one week
 
@@ -286,3 +383,11 @@ Tier 0 entire, then 1.1. That stops the loss, makes component edits
 survivable across updates, and untangles the field that every later system
 reads — which is also the first two fields of the placement record, so the
 week ends with Tier 3 already started.
+
+## The one to be impatient about
+
+Tier 6. Roads are where this stops being a machine you tune and starts being
+a set you dress, and they are currently the only major element of the world
+with no editing at all. Everything between here and there is real work that
+roads depend on — identity, curves, terrain as a field — but it is worth
+knowing which direction the groundwork points.

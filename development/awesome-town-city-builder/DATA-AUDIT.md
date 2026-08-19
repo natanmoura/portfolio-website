@@ -209,21 +209,65 @@ default outcome if nothing is put down first.
 Not urgent, but it is the one item here that is much cheaper to do *before*
 the systems that need it than after.
 
+### 9. Roads have no identity at all, and buildings key off their array index
+
+Added after the first pass, which treated roads as a rendering concern and
+missed that they sit upstream of everything in finding 1.
+
+A road is `{ pts, main, width }` (`layout.js:52`). No id, no record, nothing
+persisted. The four pattern functions push them into an array and the array
+index *is* the road's identity — `roads.forEach((road, ri) => ...)` at
+`layout.js:253`, and that `ri` goes straight into the building id as
+`` `b${ri}_${counter++}` ``.
+
+So the ordinal problem in finding 1 has two halves, and I only named the
+second. The counter renumbers buildings *within* a road; `ri` renumbers
+*every* road, and therefore every building in town, whenever the pattern
+emits a different number of lines or emits them in a different order. Change
+`roadPattern`, or the ring count in radial, or anything that makes `clipLine`
+reject a line it previously accepted, and `ri` shifts underneath every
+override in the scene.
+
+Which means the fingerprint fix in finding 1 does not stand on its own. An
+override fingerprinted against road 3 is fingerprinted against nothing stable
+unless roads get identity first.
+
+Beyond identity, roads are also the only major thing in the world with **no
+editability whatsoever**. Buildings have overrides, modules have overrides,
+components have an editor. A road cannot be moved, split, deleted, widened
+individually, or drawn by hand. They are regenerated wholesale from
+`(seed, params)` on every rebuild, and since buildings are placed along their
+kerbs, roads are simultaneously the least editable thing in the tool and the
+one with the largest effect on everything else.
+
+The geometry is thin too, and worth knowing before curves land: one quad per
+segment, mitred badly by its own admission (`terrain.js:151`), no junction
+geometry, no kerbs, no markings, no width variation along a road. Fine for
+massing. Not what a film pipeline needs from a street.
+
+**Fix, in two steps.** First, a road record with a stable minted id, which is
+a prerequisite for finding 1 rather than a follow-on from it. Second, roads
+become the first consumer of the curve primitive, which is where editing,
+junctions and proper geometry all come from at once — see the roads tier in
+`NEXT.md`.
+
 ---
 
 ## Suggested sequence
 
-1. Override fingerprint + prune (findings 1, 5) — the only work here that
-   prevents losing work, and it is small.
-2. Split `kind` into component id and tag-derived traits (finding 2) — this
+1. Road identity (finding 9) — a prerequisite for the next item, not a
+   parallel to it.
+2. Override fingerprint + prune (findings 1, 5) — the only work here that
+   prevents losing work, and it is small once roads are stable.
+3. Split `kind` into component id and tag-derived traits (finding 2) — this
    unblocks every later system that adds non-primitive components.
-3. `baseVersion` on edits (finding 3) — must land before there are edits in
+4. `baseVersion` on edits (finding 3) — must land before there are edits in
    the wild worth preserving.
-4. Shared spatial index (finding 8) — before terrain and curves, not after.
-5. Resolve provenance (finding 6) — folds into Phase 1's readout.
-6. Resolve memo (finding 4) — when scatter arrives, not before.
+5. Shared spatial index (finding 8) — before terrain and curves, not after.
+6. Resolve provenance (finding 6) — folds into Phase 1's readout.
+7. Resolve memo (finding 4) — when scatter arrives, not before.
 
-Findings 1 through 3 are corrections to what exists. Everything after is
+Findings 9, 1, 2 and 3 are corrections to what exists. Everything after is
 groundwork, and none of it requires revisiting the constraint model, the
 override model, or the component document, which are the three decisions the
 rest of the tool is built on and which this audit found no reason to change.
