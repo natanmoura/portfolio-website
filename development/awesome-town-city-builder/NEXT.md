@@ -207,6 +207,18 @@ Roadmap Phase 2, minus the two pieces that moved up.
   patches applied after it, so locking a plaza makes buildings move aside.
   Claim resolution must be deterministic or it reintroduces exactly the
   instability Tier 2 removed.
+- **Editable lots**, which is the claims machinery with a handle on it. A lot
+  is the third link in the generation chain and currently the only one with
+  no plan — see Tier 4. `placeSites` emits `{ id, x, z, angle, w, d }` per
+  building (`layout.js:283`) and nothing can touch it: you can edit the
+  building, but not the plot of land it stands on.
+
+  Those are different edits. Deleting a building leaves a gap where a
+  building was. Merging three lots gives you one wide footprint — a
+  department store, a plaza, a car park — and dragging a lot's edge rebuilds
+  the building to fit it. Both are claims on ground, so the record and the
+  resolution already exist by this point; what is missing is only selecting
+  lots and saying "these are one now."
 - **Layers become real**, and the Phase 0 strip fills with honest counts:
   4 authored against 14,206 procedural.
 - **View mode: Variation.** Tinting by which component or slot pick landed.
@@ -251,6 +263,24 @@ what happens when a system proposes and an author has an opinion; this
 applies it to geometry instead of to numbers. A road you have never touched
 is free. A road you have nudged is fixed. The interesting middle is a road
 that may reroute but has to keep meeting the two roads it currently meets.
+
+### The chain, and where each link is handled
+
+Four links, each one generated from the one above it:
+
+| Link | What it is today | Where it becomes editable |
+| --- | --- | --- |
+| **Boundary** | `half`, one scalar from cols × rows × cell | 4.2 |
+| **Roads** | `{ pts, main, width }` in a local array | 5.2 |
+| **Lots** | `{ id, x, z, angle, w, d }` from `placeSites` | Tier 3, as claims |
+| **Buildings** | modules with sparse overrides | already editable |
+
+The bottom link has been editable since long before any of this. The top
+three are the work. Reading it as a chain is what makes the ordering obvious:
+each link consumes the one above, so editing high up regenerates a lot and
+editing low down regenerates almost nothing — which is exactly what you want
+from an art-direction tool and exactly what a single `buildLayout` call
+cannot offer.
 
 ### 4.1 Curve primitive
 One type, serving every linear thing in the world: roads, rivers, walls,
