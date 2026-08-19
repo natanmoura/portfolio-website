@@ -1136,8 +1136,19 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
 }
 
 /* The shortcut list needs more width than a confirmation does. */
-.dlg-panel.wide { width: min(560px, 90vw); }
-.dlg-panel.wide dl.keys { max-height: 60vh; overflow-y: auto; }
+/* Nothing here scrolls. A shortcut list you have to scroll is a list you
+   cannot scan, which is the only thing it is for. Two pairs per row keeps
+   eighteen shortcuts to nine rows, so the whole thing fits at once and the
+   window stays a sensible shape rather than a tall ribbon.
+
+   The four column track works because dt and dd already alternate in the
+   markup: two of each fill a row in document order, with no wrapper per
+   pair. */
+.dlg-panel.wide { width: min(680px, 92vw); }
+.dlg-panel.wide dl.keys {
+  grid-template-columns: auto 1fr auto 1fr;
+  column-gap: 16px;
+}
 
 /* Dialogs are shared by both windows, so they live here rather than in the
    editor stylesheet. They were only loaded on one page, which left the other
