@@ -636,7 +636,22 @@ input[type="checkbox"] { accent-color: var(--accent); }
   pointer-events: none;
   display: none;
 }
-#stats.on { display: block; }
+/* One fact per row, label left and number right, for the same reason the
+   shortcut list is one column: a corner readout exists to be glanced at, and
+   a glance down an aligned edge is faster than reading a sentence of numbers
+   separated by dots. Values are their own column so digits line up as they
+   change rather than shuffling the words beside them. */
+#stats.on { display: grid; }
+#stats {
+  grid-template-columns: auto auto;
+  gap: 1px 12px;
+  align-items: baseline;
+}
+#stats b {
+  font-weight: 400;
+  color: var(--text);
+  text-align: right;
+}
 
 /* --- hover help --------------------------------------------------------- */
 
@@ -929,7 +944,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 }
 .status.on { opacity: 0.85; color: var(--accent-2); }
 
-#stats { white-space: pre-line; line-height: 1.35; }
+#stats { line-height: 1.35; }
 
 .btn.icon {
   padding: 3px 8px;

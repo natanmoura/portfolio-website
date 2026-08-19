@@ -41,6 +41,7 @@ import { h, setChildren } from './ui.js';
 import { confirmDialog, promptDialog } from './dialog.js';
 import { History } from './history.js';
 import { initPanelResize } from './resizer.js';
+import { writeStats } from './stats.js';
 
 const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit-body');
@@ -244,8 +245,10 @@ function renderStats(r) {
   if (!statsEl) return;
   const b = r.bounds;
   const tris = r.pieces.reduce((n, p) => n + (p.geometry ? p.geometry.pos.length / 9 : 0), 0);
-  const parts = r.parts ? `${r.parts.length} parts · ` : '';
-  statsEl.textContent = `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)} · ${parts}${tris} tris`;
+  const rows = [['Size', `${b.w.toFixed(2)} × ${b.h.toFixed(2)} × ${b.d.toFixed(2)}`]];
+  if (r.parts) rows.push(['Parts', r.parts.length]);
+  rows.push(['Tris', tris.toLocaleString()]);
+  writeStats(statsEl, rows);
 }
 
 // --- navigation -------------------------------------------------------------

@@ -43,6 +43,7 @@ import { History } from './history.js';
 import { Layers } from './layers.js';
 import { initPanelResize } from './resizer.js';
 import { buildExport, downloadExport } from './exporter.js';
+import { writeStats } from './stats.js';
 
 const APP_NAME = 'City Builder';
 
@@ -530,12 +531,6 @@ function updateStatus() {
   controls?.refreshModified();
 }
 
-// The heaviness readout, which lives with the frame rate because they answer
-// the same question. Grows a per-layer breakdown once layers exist.
-function countsLine() {
-  const s = builder.stats;
-  return `${state.city.buildings.length} buildings · ${s.modules} modules · ${s.triangles.toLocaleString()} tris`;
-}
 
 // --- editor actions --------------------------------------------------------
 
@@ -1441,7 +1436,14 @@ function animate() {
   if (state.params.showStats && frameAccum - statsAt > 0.5) {
     const info = stage.renderer.info.render;
     const fps = frameCount / (frameAccum - statsAt);
-    statsEl.textContent = `${fps.toFixed(0)} fps · ${info.calls} draws · ${builder.stats.chunks} chunks\n${countsLine()}`;
+    writeStats(statsEl, [
+      ['FPS', fps.toFixed(0)],
+      ['Draws', info.calls],
+      ['Chunks', builder.stats.chunks],
+      ['Buildings', state.city.buildings.length],
+      ['Modules', builder.stats.modules],
+      ['Tris', builder.stats.triangles.toLocaleString()],
+    ]);
     statsAt = frameAccum;
     frameCount = 0;
   }
