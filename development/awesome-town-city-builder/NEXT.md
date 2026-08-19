@@ -13,7 +13,7 @@ two disagree, this one is newer.
 
 ## What the audit changed about the plan
 
-Four things, and they are the whole reason this document exists rather than
+Six things, and they are the whole reason this document exists rather than
 an edit to the roadmap.
 
 **One item is losing work right now.** Everything else on the list is
@@ -28,6 +28,22 @@ every rebuild — and the one with the largest effect on everything else, since
 buildings are placed along their kerbs. They also sit *upstream* of the
 identity problem: building ids embed the road's array index, so road identity
 is a prerequisite for fixing building identity rather than a follow-on.
+
+**The generation chain should be editable at every stage, and it isn't
+written down anywhere.** `buildLayout` computes a boundary, generates roads
+from it, and walks their kerbs for lot sites — all inside one call, with
+every intermediate thrown away. Each of those should be an artifact you can
+hold and edit, where editing regenerates what is downstream and leaves what
+is upstream alone. That covers both the "roads generated from curves, then
+edited further" workflow and the "town extent is a shape you drew on the
+terrain rather than rows and columns" one, which are the same idea applied at
+two points in the chain. It is now the framing of Tier 4 rather than a bullet
+inside it.
+
+**Curves move ahead of terrain.** Consequence of the above: the boundary and
+the roads both want curves, both work on flat ground, and neither needs a
+terrain field to be useful. The roadmap's `Terrain -> Curves -> ...` chain is
+the evaluation order at runtime, not the order to build them in.
 
 **Phase 1 was one block and should be two.** "Identity and locking" bundles a
 data-integrity fix with four authoring features. The fix is a day; the
@@ -204,38 +220,91 @@ Roadmap Phase 2, minus the two pieces that moved up.
 
 ---
 
-## Tier 4 — terrain as a field
+## Tier 4 — curves, and the editable generation chain
 
-Roadmap Phase 3. Promote `heightAt` into `heightAt` / `normalAt` / `slopeAt`,
-have placements conform to it, and make it writable so volumes can displace
-it later. If terrain stays a rendered mesh rather than a queryable field,
-every later system special-cases it.
+Roadmap Phase 4, moved ahead of terrain and given the larger framing it
+needs. This is the highest-leverage tier on the list, and the one that
+changes what kind of tool this is.
+
+### The principle
+
+Right now the generation chain is a single function call. `buildLayout` picks
+a `half` from cols × rows × cell, runs a pattern function to get roads,
+walks their kerbs to get sites, and returns. The boundary, the road network
+and the lot sites all exist for the duration of one call and are then either
+rendered or thrown away. None of them is a thing you can hold.
+
+**Every one of those intermediates should be an artifact you can edit, and
+editing one should regenerate everything downstream of it and nothing
+upstream.** Generated first, edited second, and the edit survives the next
+reroll. That is the same relationship the parameter system already has, one
+level up:
+
+| Parameter | Artifact |
+| --- | --- |
+| `free` — the proposal stands | regenerated from the pattern every time |
+| `range` — clamped into bounds | may be re-routed, but must still connect these two points / stay in this corridor |
+| `fixed` — the proposal is ignored | authored by hand, the generator does not touch it |
+
+So there is no new locking concept to design. `constraints.js` already says
+what happens when a system proposes and an author has an opinion; this
+applies it to geometry instead of to numbers. A road you have never touched
+is free. A road you have nudged is fixed. The interesting middle is a road
+that may reroute but has to keep meeting the two roads it currently meets.
+
+### 4.1 Curve primitive
+One type, serving every linear thing in the world: roads, rivers, walls,
+fences, pipes, cables, powerlines, hedgerows, balustrades — and boundaries,
+which are the same object closed.
+
+Editable control points, a length parameterisation, sampling by t, and the
+lock states above.
+
+### 4.2 The town boundary becomes a shape
+The extent is currently `half`, one scalar, computed as
+`Math.max(cols, rows) * cell / 2` (`layout.js:307`) and threaded through
+every pattern function as an axis-aligned square. `clipLine` tests against
+it, `placeSites` rejects against it.
+
+Replace the scalar with a region that answers `contains(x, z)` and clips a
+line. A square derived from cols and rows is then just the default region,
+so nothing changes for a scene that never draws one — and the moment you
+want a town that follows a coastline, sits in a valley, or fills a shape you
+drew, that is the same interface.
+
+This is the smallest change in the tier and the one that most changes what
+the tool feels like, because it is the difference between "a town, sized"
+and "a town, sited."
+
+### 4.3 Generators produce curves rather than being the only source
+The four road patterns stop being the way roads exist and become one way
+roads are *proposed*. Same for whatever proposes a boundary. A generator's
+output is a set of curves you can then move, split, delete, extend or leave
+alone — and re-running the generator preserves everything you authored.
+
+This is the step that makes 4.2 and the whole roads tier possible, and it is
+mostly bookkeeping: the pattern functions already produce polylines, they
+just produce them into a local array that nobody can reach.
+
+### 4.4 Distribute-along-curve
+Slots into `algorithms.js` beside the nine arrangements already there, and
+needs nothing new from the component system. This is what puts lamp posts
+down a street, fence posts along a boundary, and pylons across a valley.
+
+### 4.5 Semantic anchors
+Promote `base`/`top`/`sides` into queryable tagged surfaces: "wall faces
+fronting a street", "flat roof area over four square metres", "edges at
+ground level". Houdini's groups and attributes, except typed and semantic,
+so they survive the geometry changing underneath them.
+
+**Stairs are the proving case for attachment**, as roads are for curves. Two
+anchors, a path between them, a step count derived from the height
+difference, and it stays attached when either end moves. If stairs work,
+pipes and railings and billboards are trivial.
 
 ---
 
-## Tier 5 — curves and semantic anchors
-
-Roadmap Phase 4, and the highest leverage item on the whole list. Roads,
-rivers, walls, fences, pipes, cables, powerlines, hedgerows and balustrades
-are one thing: a curve, a distribution, and a component slot.
-
-- Curve primitive.
-- Distribute-along-curve, which slots into `algorithms.js` beside the nine
-  already there.
-- **Semantic anchors** — promote base/top/sides into queryable tagged
-  surfaces: "wall faces fronting a street", "flat roof over four square
-  metres". Houdini's groups and attributes, except typed and semantic, so
-  they survive the geometry changing underneath them.
-- **Stairs as the proving case** for attachment. Two anchors, a path between
-  them, a step count derived from the height difference, staying attached
-  when either end moves. If stairs work, pipes and railings and billboards
-  are trivial.
-
-Roads are the other proving case, and large enough to be its own tier.
-
----
-
-## Tier 6 — roads
+## Tier 5 — roads
 
 Roads were one bullet in the old plan — "roads become a curve consumer" —
 which badly understated them. They are the least editable thing in the tool
@@ -250,54 +319,76 @@ segment, mitred badly by its own admission (`terrain.js:151`), with no
 junctions, no kerbs, no markings and no width variation along a road. That is
 fine for judging massing and not what a film pipeline wants from a street.
 
-### 6.1 Roads become curves
-A road is a curve plus a width profile plus a road type. The four patterns
-become curve *generators* rather than the only way a road can exist, which is
-the change that makes everything below possible.
+### 5.1 Roads become curve consumers
+A road is a curve from Tier 4, plus a width profile, plus a road type. The
+four patterns become the generators described in 4.3 — one way roads are
+proposed, not the only way they can exist.
 
-### 6.2 Hand-editable roads
+### 5.2 Hand-editable roads
 The point of the whole tier. Draw a road. Drag a control point and watch the
 buildings re-front onto it. Split, join, delete, reroute. Widen one road
 without touching the parameter that widens all of them.
 
-Roads use the same lock model as everything else, so this is not a new
-concept: an unlocked road is regenerated from the pattern, a locked one is
-authored and survives every reroll and every pattern change. Editing a road
-*is* locking it, the same way editing a building is.
+No new concept, because Tier 4 already established it: an untouched road is
+`free` and regenerates from the pattern, an edited road is `fixed` and the
+pattern does not touch it, and the middle case is a road that may reroute but
+has to keep meeting the roads it currently meets. Editing a road *is* locking
+it, the same way editing a building is.
 
-### 6.3 Junctions as generated components
+### 5.3 Junctions as generated components
 Where two curves meet, resolve a junction from the library — a crossroads, a
 T, a roundabout, a fork — rather than overlapping two ribbons and hoping.
 This is the single biggest visual upgrade in the tier and it needs no new
 machinery: a junction is a component, chosen by a role, sized by its
 constraints.
 
-### 6.4 Width profiles and cross sections
+### 5.4 Width profiles and cross sections
 A road's cross section is a small assembly: carriageway, kerb, pavement,
-gutter, verge. Distribute-along-curve already places what sits on it — lamp
-posts, bollards, parking meters, hydrants, street trees, signage — which is
-the first real payoff of Tier 5 and the thing the component library has been
-waiting for something to attach to.
+gutter, verge. Distribute-along-curve (4.4) already places what sits on it —
+lamp posts, bollards, parking meters, hydrants, street trees, signage — which
+is the first real payoff of the curve tier and the thing the component
+library has been waiting for something to attach to.
 
 Width varying along a curve is what gives you a road narrowing into an alley
 without it being a different road.
 
-### 6.5 Road types drive what fronts them
+### 5.5 Road types drive what fronts them
 Highway, avenue, street, alley, path already half-exist as the `main` flag.
 Promote it: a road type carries its own setback, frontage spacing, building
 role mix and traffic weighting. An alley gets back doors and fire escapes; an
 avenue gets shopfronts. This is where the town stops reading as one texture
 applied evenly.
 
-### 6.6 Roads conform to terrain
-Once Tier 4 makes terrain a writable field, a road cuts and fills rather than
-draping over the surface. Cuttings, embankments and bridges fall out of the
-same mechanism, and the quarry case in the next tier is the same displacement
-run with a different brush.
+### 5.6 Roads conform to terrain
+Needs Tier 6. Once terrain is a writable field, a road cuts and fills rather
+than draping over the surface. Cuttings, embankments and bridges fall out of
+the same mechanism, and the quarry case two tiers down is the same
+displacement run with a different brush.
+
+The only item in this tier that waits on terrain — 5.1 through 5.5 all run on
+flat ground.
 
 **Done when:** you can draw a street where you want one, and the buildings,
 traffic and street furniture all rearrange around it while everything you
 locked stays put.
+
+---
+
+## Tier 6 — terrain as a field
+
+Roadmap Phase 3, moved after curves and roads. Promote `heightAt` into
+`heightAt` / `normalAt` / `slopeAt`, have placements conform to it, and make
+it writable so roads can cut into it and volumes can displace it.
+
+If terrain stays a rendered mesh rather than a queryable field, every later
+system special-cases it.
+
+**On the reordering:** the roadmap's layer chain has terrain first, and that
+is still the right *evaluation* order at runtime. It is not the right build
+order. Curves are needed by more things sooner — the boundary, roads, every
+linear object — and all of it works on flat ground first. Terrain arrives
+when things need to sit on something other than a plane, which is one item in
+the roads tier and the whole of the volumes tier.
 
 ---
 
@@ -386,8 +477,13 @@ week ends with Tier 3 already started.
 
 ## The one to be impatient about
 
-Tier 6. Roads are where this stops being a machine you tune and starts being
-a set you dress, and they are currently the only major element of the world
-with no editing at all. Everything between here and there is real work that
-roads depend on — identity, curves, terrain as a field — but it is worth
-knowing which direction the groundwork points.
+Tiers 4 and 5, and specifically 4.2 and 5.2 — drawing the town's outline
+instead of setting rows and columns, and dragging a road instead of rerolling
+until one lands where you wanted. That is where this stops being a machine
+you tune and becomes a set you dress.
+
+Everything before them is real work they depend on: identity so an edit
+survives, placements so there is something to edit, curves so there is
+something to draw with. But it is worth knowing which direction the
+groundwork points, and 4.2 in particular is small — one scalar becoming an
+interface — for how much it changes.
