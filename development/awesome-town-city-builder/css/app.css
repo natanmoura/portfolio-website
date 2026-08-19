@@ -85,6 +85,18 @@ html, body {
    pinning main to the window, which pushed everything down by the height of
    the bar and left the panels free to grow past the viewport instead of
    scrolling inside it. */
+/* The `hidden` attribute only gets its `display: none` from the browser's own
+   stylesheet, and any author rule setting `display` outranks it. So a view
+   given `display: grid` below stays laid out while claiming to be hidden —
+   invisible, full size, absolutely positioned, and swallowing every click
+   meant for the view underneath it.
+
+   Important, and one of the few places that word is honest: `hidden` means
+   hidden. `main.editor` matches with the same specificity and loads from a
+   later file, so without this it wins on source order and the bug comes
+   straight back the next time a view gets its own display rule. */
+[hidden] { display: none !important; }
+
 main {
   position: absolute;
   inset: var(--bar-h) 0 0 0;
