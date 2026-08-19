@@ -958,3 +958,28 @@ input[type="checkbox"] { accent-color: var(--accent); }
    does. Without this the lock looked broken, because the one button next to
    it carried on working. */
 .mini:disabled { opacity: 0.3; cursor: default; }
+
+/* --- panel handles ------------------------------------------------------- */
+/* A real grid column rather than something floating over the seam, so the
+   grab area is exactly where the panels meet by construction. */
+
+.pane-handle {
+  position: relative;
+  cursor: col-resize;
+  background: var(--line);
+  transition: background 0.12s ease;
+}
+.pane-handle:hover,
+.pane-handle:focus-visible { background: var(--accent); outline: none; }
+
+/* The visible seam is thin, but the reachable one is not: a five pixel target
+   is a fiddly target, so it is widened invisibly either side. */
+.pane-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+
+/* Dragging across a viewport otherwise selects everything it crosses. */
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing iframe, body.resizing canvas { pointer-events: none; }

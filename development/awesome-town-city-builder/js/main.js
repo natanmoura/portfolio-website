@@ -40,6 +40,7 @@ import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
 import { Layers } from './layers.js';
+import { initPanelResize } from './resizer.js';
 import { buildExport, downloadExport } from './exporter.js';
 
 const APP_NAME = 'City Builder';
@@ -263,6 +264,15 @@ async function boot() {
   rebuildAll();
   frameCity();
   applyEnv();
+
+  // Panel widths are view state, like layer visibility: dragging one wider
+  // changes what you can see and nothing about the town.
+  initPanelResize({
+    main: document.querySelector('main'),
+    left: { key: 'controls', side: 'left', var: '--pw-l', min: 220, max: 620, def: 300 },
+    right: { key: 'inspector', side: 'right', var: '--pw-r', min: 220, max: 620, def: 300 },
+    storeKey: 'awesome-town:panels',
+  });
 
   initTooltips();
   buildUI();

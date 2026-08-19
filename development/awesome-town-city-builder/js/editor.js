@@ -40,6 +40,7 @@ import { paramRow } from './paramrow.js';
 import { h, setChildren } from './ui.js';
 import { confirmDialog, promptDialog } from './dialog.js';
 import { History } from './history.js';
+import { initPanelResize } from './resizer.js';
 
 const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit');
@@ -224,7 +225,12 @@ function resize() {
   const w = viewportEl.clientWidth;
   const hgt = viewportEl.clientHeight;
   if (!w || !hgt) return;
-  renderer.setSize(w, hgt, false);
+  // updateStyle left on. With it off the canvas gets no CSS size and falls
+  // back to its drawing buffer, which on a 2x display is twice the viewport,
+  // so the view was being cropped to a quarter of itself by the container's
+  // overflow. Invisible until the panels became draggable and the numbers
+  // stopped matching.
+  renderer.setSize(w, hgt);
   camera.aspect = w / hgt;
   camera.updateProjectionMatrix();
 }
@@ -900,6 +906,13 @@ window.addEventListener('storage', (e) => {
   edits = readEdits();
   rebuildLibrary();
   render();
+});
+
+initPanelResize({
+  main: document.querySelector("main"),
+  left: { key: "shelf", side: "left", var: "--pw-l", min: 170, max: 520, def: 236 },
+  right: { key: "edit", side: "right", var: "--pw-r", min: 260, max: 620, def: 340 },
+  storeKey: "awesome-town:editor-panels",
 });
 
 shipped = await loadLibrary('library');

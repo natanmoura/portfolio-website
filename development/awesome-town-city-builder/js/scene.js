@@ -187,6 +187,10 @@ export class Stage {
     this._worldUp = new THREE.Vector3(0, 1, 0);
 
     this.resize();
+    // Watching the container rather than only the window, because the panels
+    // beside it are draggable and the viewport changes size without the
+    // window ever doing so.
+    new ResizeObserver(() => this.resize()).observe(this.container);
     addEventListener('resize', () => this.resize());
   }
 

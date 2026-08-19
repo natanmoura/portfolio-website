@@ -786,7 +786,11 @@ export class Controls {
         picker = h('div', { class: 'mount' });
         this.mounts.set(def.roleMount, picker);
       }
-      return h('div', { class: 'wheel-block' }, h('h3', { class: 'grp' }, def.label), picker, mount);
+      // Picker under the chart, not over it. The chart is the subject and
+      // wants to sit straight under its own heading; which components are in
+      // play is the footnote that explains what the slices are, so it reads
+      // better after them than before.
+      return h('div', { class: 'wheel-block' }, h('h3', { class: 'grp' }, def.label), mount, picker);
     }
 
     // A hole for main.js to fill: scene management, the shortcut list.
