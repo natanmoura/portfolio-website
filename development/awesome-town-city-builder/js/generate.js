@@ -17,38 +17,32 @@ import { buildLayout } from './layout.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 import { resolveParamsWith } from './constraints.js';
 
-// The kind vocabulary and the role definitions live in roles.js; re-exported
-// here so the many existing importers of these names are undisturbed.
+// The kind vocabulary and the role definitions live in roles.js; what a given
+// component is *like* lives in traits.js. Both re-exported here so the many
+// existing importers of these names are undisturbed.
+//
+// A module's `kind` is the id of the component it is an instance of. It used
+// to double as a key into six hardcoded tables of primitives, which is why
+// traits.js exists: a role may hold any component now, and a name is no
+// longer enough to answer what something is made of. Every question below
+// goes through a `…Of(id, doc)` call that asks the component first.
 import { BODY_KINDS, ROOF_KINDS, MODULE_KINDS, KIND_LABEL, includedFor } from './roles.js';
+import {
+  FAMILY,
+  ROOFS_BY_FAMILY,
+  ROOF_SET,
+  MATERIAL_KINDS,
+  POINTED_ROOFS,
+  familyOf,
+  isRoofKind,
+  isPointedRoof,
+  takesMaterial,
+  takesImages,
+  flatSlotsOf,
+} from './traits.js';
 
 export { BODY_KINDS, ROOF_KINDS, MODULE_KINDS, KIND_LABEL };
-
-// Family drives building cohesion: a round building reaches for round parts.
-export const FAMILY = {
-  box: 'boxy',
-  pillars: 'boxy',
-  pillars8: 'boxy',
-  post: 'boxy',
-  octagon: 'round',
-  cylinder: 'round',
-  sphere: 'round',
-  spin: 'round',
-  pyramid: 'boxy',
-  gable: 'boxy',
-  cone: 'round',
-  dome: 'round',
-  flat: 'boxy',
-  flag: 'boxy',
-};
-
-// Roofs that come to a point can carry a spire.
-export const POINTED_ROOFS = new Set(['pyramid', 'cone']);
-
-// What a building's material — concrete, brick, wood, or the reflective glass
-// shader — is allowed to cover. Never a roof, but pillars are fair game even
-// though they never take a picture: a column being made of stone or wood
-// reads fine, a photo wrapped round one inch of it does not.
-export const MATERIAL_KINDS = new Set(['box', 'octagon', 'cylinder', 'sphere', 'pillars', 'pillars8', 'post']);
+export { FAMILY, ROOFS_BY_FAMILY, ROOF_SET, MATERIAL_KINDS, POINTED_ROOFS };
 
 // What a building's whole surface can be, as one weighted pick instead of a
 // chain of independent chances — the wheel in the Surface tab edits this
@@ -65,13 +59,6 @@ export const SURFACE_LABEL = {
   cutout: 'Cutout',
   colour: 'Colour',
 };
-
-export const ROOFS_BY_FAMILY = {
-  boxy: ['flat', 'pyramid', 'gable'],
-  round: ['flat', 'cone', 'dome'],
-};
-
-export const ROOF_SET = new Set(['pyramid', 'gable', 'cone', 'dome']);
 
 export const DEFAULTS = {
   seed: 8114,
@@ -217,13 +204,13 @@ const PATTERNS = ['solid', 'alternate', 'half', 'mirror', 'caps', 'banded'];
 
 // Two colours per module, laid out geometrically. Which slots count as caps
 // depends on the shape, so a colour break lands where the form breaks.
-function capSlots(kind, n) {
+function capSlots(kind, n, doc) {
   // Only a real hidden base counts as a cap, and pyramid/gable/cone already
   // carry theirs in FLAT_SLOTS. A dome has no such slot — its panels are all
   // visible sides of one hemisphere — so there is nothing here for it to
   // fall back to without picking an arbitrary panel and painting it alone,
   // which is exactly the stray single-colour patch this used to produce.
-  const flat = flatSlots(kind);
+  const flat = flatSlotsOf(kind, doc);
   return flat.length ? new Set(flat) : new Set();
 }
 
@@ -231,13 +218,13 @@ function capSlots(kind, n) {
 // mistake, so they always share a colour and only the deck takes the second.
 const COLONNADES = { pillars: 4, pillars8: 8 };
 
-function paintSlots(kind, n, pattern, a, b) {
+function paintSlots(kind, n, pattern, a, b, doc) {
   const columns = COLONNADES[kind];
   if (columns) {
     const deck = pattern === 'solid' ? a : b;
     return Array.from({ length: n }, (_, i) => (i < columns ? a : deck));
   }
-  const caps = capSlots(kind, n);
+  const caps = capSlots(kind, n, doc);
   const out = [];
   for (let i = 0; i < n; i++) {
     let useB = false;
@@ -270,11 +257,8 @@ function paintSlots(kind, n, pattern, a, b) {
 // image wrapped round a column a few inches wide is unreadable smear. A
 // sphere is never a canvas either — a picture curved fully around a ball
 // reads as a mistake from every angle.
-const NO_IMAGES = new Set(['flag', 'pillars', 'pillars8', 'post', 'sphere']);
-
-function imagesAllowed(kind) {
-  return !ROOF_SET.has(kind) && !NO_IMAGES.has(kind);
-}
+// These are defaults in traits.js now, where a component can overrule them
+// for itself rather than being told what it is by a list of other names.
 
 // Three colours per building, spread across the palette rather than adjacent
 // to each other, so a scheme reads as a choice.
@@ -291,7 +275,11 @@ function buildingScheme(rng, palette) {
 // --- modules ---------------------------------------------------------------
 
 function makeModule(t, params, palette, ctx, index, id) {
-  const { signature, family, scheme, collage, pickRange, isRoof, material } = ctx;
+  const { signature, family, scheme, collage, pickRange, isRoof, material, lib } = ctx;
+  // What a component says about itself, or nothing when the library has not
+  // loaded. Every trait call below falls back to the shipped tables in that
+  // case, which is what the whole town did before this existed.
+  const docOf = (k) => lib?.components?.get(k) || null;
 
   // Which entries this role may draw from at all. Family cohesion then
   // narrows that further, rather than the two competing: excluding a shape
@@ -311,7 +299,7 @@ function makeModule(t, params, palette, ctx, index, id) {
   } else if (t.kindRoll < params.cohesion && bodyKeys.includes(signature)) {
     kind = signature;
   } else if (t.kindRoll < params.cohesion + (1 - params.cohesion) * 0.7) {
-    const siblings = new Set(bodyKeys.filter((k) => FAMILY[k] === family));
+    const siblings = new Set(bodyKeys.filter((k) => familyOf(k, docOf(k)) === family));
     kind = pickWeighted(params.moduleMix, bodyKeys, t.familyPick, siblings.size ? siblings : null);
   } else {
     kind = pickWeighted(params.moduleMix, bodyKeys, t.kindPick);
@@ -323,7 +311,8 @@ function makeModule(t, params, palette, ctx, index, id) {
   const a = scheme[Math.floor(t.colourA * 3)];
   const bChoices = scheme.filter((c) => c !== a);
   const b = bChoices[Math.floor(t.colourB * bChoices.length)] || a;
-  const colours = paintSlots(kind, n, pattern, a, b);
+  const doc = docOf(kind);
+  const colours = paintSlots(kind, n, pattern, a, b, doc);
 
   // Which images a module would carry is rolled regardless of its shape, and
   // then filtered by what the shape allows. Keeping the roll means switching a
@@ -332,8 +321,8 @@ function makeModule(t, params, palette, ctx, index, id) {
   // to — image or cutout, never both — via pickRange.start/count.
   const wrapOne = t.wrap < params.sameImageChance;
   const sharedImage = pickRange.count ? pickRange.start + Math.floor(t.images[0] * pickRange.count) : null;
-  const allowed = imagesAllowed(kind);
-  const blocked = new Set(flatSlots(kind));
+  const allowed = takesImages(kind, doc);
+  const blocked = new Set(flatSlotsOf(kind, doc));
 
   const faces = [];
   for (let i = 0; i < MAX_SLOTS; i++) {
@@ -357,7 +346,7 @@ function makeModule(t, params, palette, ctx, index, id) {
   // straight shape check against the building's single choice rather than a
   // per-module roll. A roof never qualifies regardless of what shape it
   // resolved to, since a flat roof is a box underneath.
-  const usesMaterial = !isRoof && material && MATERIAL_KINDS.has(kind);
+  const usesMaterial = !isRoof && material && takesMaterial(kind, doc);
 
   // The glow ticket travels to the shader rather than being resolved here, so
   // the "lit modules" slider switches existing modules on and off instead of
@@ -512,7 +501,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
 
   // Building-level identity, rolled before anything the sliders can shift.
   const signature = pickWeighted(params.moduleMix, includedFor(params, 'body'), brng.float());
-  const family = FAMILY[signature] || 'boxy';
+  const family = familyOf(signature, library?.components?.get(signature));
   const scheme = buildingScheme(brng, palette);
   // One roll decides the building's whole surface — a texture, a reflective
   // shader, one half of the collage pool, or flat colour. A hand pick from
@@ -557,7 +546,10 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   let w = site.w * (1 + (sizeRollW * 2 - 1) * params.lotJitter * 0.4);
   let d = site.d * (1 + (sizeRollD * 2 - 1) * params.lotJitter * 0.4);
 
-  const ctx = { signature, family, scheme, collage, pickRange, isRoof: false, material };
+  // The library travels in the context so every trait question can be put to
+  // the component itself rather than to a list of primitive names. Null before
+  // it loads, which is the case the fallbacks in traits.js exist for.
+  const ctx = { signature, family, scheme, collage, pickRange, isRoof: false, material, lib: library };
   let modules = [];
   for (let i = 0; i < floors; i++) {
     const t = tickets(new Rng(hashIdModule(seed, id, i)));
@@ -608,7 +600,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     modules.push(m);
 
     // A roof that comes to a point can carry a spire.
-    if (POINTED_ROOFS.has(m.kind) && t.spire < params.spireChance) {
+    if (isPointedRoof(m.kind, library?.components?.get(m.kind)) && t.spire < params.spireChance) {
       const j = modules.length;
       const st = tickets(new Rng(hashIdModule(seed, id, j)));
       const spire = makeModule(st, params, palette, { ...ctx, isRoof: true }, j, moduleId(j));
@@ -619,7 +611,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
       spire.rotY = st.rot * Math.PI * 2;
       spire.spinSpeed = 0;
       // Repaint for the flag's own two slots.
-      const cols = paintSlots('flag', 2, spire.pattern, spire.scheme[0], spire.scheme[1]);
+      const cols = paintSlots('flag', 2, spire.pattern, spire.scheme[0], spire.scheme[1], library?.components?.get('flag'));
       spire.faces.forEach((f, k) => {
         f.image = null;
         f.color = cols[Math.min(k, 1)];
@@ -636,7 +628,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     m.id = moduleId(i);
     m.index = i;
   });
-  modules = modules.map((m) => applyOverride(m, overrides[m.id])).filter((m) => !m.deleted);
+  modules = modules.map((m) => applyOverride(m, overrides[m.id], library)).filter((m) => !m.deleted);
   if (!modules.length) return null;
   modules.forEach((m, i) => {
     m.index = i;
@@ -714,7 +706,7 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
 
 function adjustFloors(modules, delta, params, palette, ctx, seed, buildingId) {
   const top = modules[modules.length - 1];
-  const hasRoof = ROOF_SET.has(top.kind);
+  const hasRoof = isRoofKind(top.kind, ctx.lib?.components?.get(top.kind));
   const body = hasRoof ? modules.slice(0, -1) : modules;
   if (delta < 0) {
     const keep = Math.max(1, body.length + delta);
@@ -764,9 +756,12 @@ export function bendStack(modules, height, amount, direction) {
   }
 }
 
-function applyOverride(module, override) {
+function applyOverride(module, override, lib) {
   if (!override) return module;
   const { faces, ...rest } = override;
+  // Read after the shape change lands, not before: a hand edit that turns a
+  // cube into a sphere has to be judged as a sphere.
+  const docAfter = () => lib?.components?.get(module.kind) || null;
   // Changing the shape, the pattern or the pair of colours re-lays the colour
   // across the slots. Explicit per-face edits are applied after, so they win.
   const repaint =
@@ -777,16 +772,17 @@ function applyOverride(module, override) {
   // A hand shape change can move a module off of material-eligible ground —
   // pillars and roofs never wear a material regardless of what they wore a
   // moment ago.
-  if (rest.kind !== undefined && !MATERIAL_KINDS.has(module.kind)) {
+  if (rest.kind !== undefined && !takesMaterial(module.kind, docAfter())) {
     module.matKind = null;
     module.matIndex = null;
   }
   if (repaint) {
+    const doc = docAfter();
     const n = slotCount(module.kind, module.blades);
     const [a, b] = module.scheme;
-    const colours = paintSlots(module.kind, n, module.pattern, a, b);
-    const allowed = imagesAllowed(module.kind);
-    const blockedSlots = new Set(flatSlots(module.kind));
+    const colours = paintSlots(module.kind, n, module.pattern, a, b, doc);
+    const allowed = takesImages(module.kind, doc);
+    const blockedSlots = new Set(flatSlotsOf(module.kind, doc));
     module.faces.forEach((f, i) => {
       f.image = allowed && !blockedSlots.has(i) ? f.imageRaw ?? null : null;
       if (f.image == null) f.color = colours[Math.min(i, n - 1)] || a;

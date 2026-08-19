@@ -15,7 +15,7 @@ import { Inspector } from './inspector.js';
 import { initTooltips, withHelp } from './tooltip.js';
 import { MixWheel } from './piechart.js';
 import { Scenes } from './scenes.js';
-import { slotCount } from './geometry.js';
+import { slotsOf } from './traits.js';
 import {
   DEFAULTS,
   generateCity,
@@ -844,7 +844,9 @@ function bindKeys() {
     const { module } = entry;
     const id = module.id;
     const slot = sel.slot || 0;
-    const count = slotCount(module.kind, module.blades);
+    // The module knows, once built. Falls back to the shape for a primitive,
+    // which is every case where the two agree anyway.
+    const count = slotsOf(module, library?.components?.get(module.kind));
 
     switch (e.key) {
       case 'i':
@@ -1048,6 +1050,7 @@ function buildUI() {
     matPool,
     () => stage.clockTime || 0
   );
+  inspector.library = library;
 
   document.getElementById('btn-help').onclick = showShortcuts;
 

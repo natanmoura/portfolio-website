@@ -20,22 +20,10 @@ export const BODY_KINDS = ['box', 'octagon', 'cylinder', 'pillars', 'pillars8', 
 export const ROOF_KINDS = ['flat', 'pyramid', 'gable', 'cone', 'dome'];
 export const MODULE_KINDS = [...BODY_KINDS, 'pyramid', 'gable', 'cone', 'dome', 'flag'];
 
-export const KIND_LABEL = {
-  box: 'Cube',
-  octagon: 'Octagon',
-  cylinder: 'Cylinder',
-  pillars: 'Pillars 4',
-  pillars8: 'Pillars 8',
-  post: 'Post',
-  sphere: 'Sphere',
-  spin: 'Spin',
-  flat: 'Flat',
-  pyramid: 'Pyramid',
-  gable: 'Gable',
-  cone: 'Cone',
-  dome: 'Dome',
-  flag: 'Flag',
-};
+// What each shipped id is called in the UI. Defined once, in traits.js, with
+// everything else that describes what a component is rather than what it does.
+import { KIND_LABEL } from './traits.js';
+export { KIND_LABEL };
 
 export const ROLES = {
   body: {

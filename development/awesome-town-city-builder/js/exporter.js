@@ -33,7 +33,10 @@ function hexToRgb(hex) {
 // what lands in Blender is what was on screen.
 function emitModule(sink, building, module, opts) {
   const faces = [];
-  const n = slotCount(module.kind, module.blades);
+  // An assembly carries its real slot count from build.js; a primitive gets
+  // it from its shape. Getting this wrong exports faces onto the wrong
+  // panels, which is invisible here and obvious in Blender.
+  const n = module.slotCount || slotCount(module.kind, module.blades);
   for (let i = 0; i < n; i++) {
     const f = module.faces[i] || module.faces[0];
     const item = f.image == null ? null : opts.pool.get(f.image);

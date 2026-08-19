@@ -222,6 +222,12 @@ export class CityBuilder {
         { w: m.w, h: m.h, d: m.d }
       );
       const shape = mergeResolved(resolved);
+      // How many slots this actually turned out to have. Nothing upstream can
+      // know it — an assembly's slot count only exists once its parts have
+      // been resolved and merged — so it is stamped back onto the module for
+      // the inspector to read. Without it the panel offers a cube's six faces
+      // for an object with fifty-six.
+      m.slotCount = shape.slots.length;
       // An assembly has more slots than the module has faces, so the faces
       // repeat across it. A cheap rule, and it keeps a stack of parts reading
       // as one object rather than one painted part and the rest blank.

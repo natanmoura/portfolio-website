@@ -11,7 +11,12 @@
 import { h, rangeRow, setChildren } from './ui.js';
 import { withHelp } from './tooltip.js';
 import { slotCount, slotLabels } from './geometry.js';
-import { MODULE_KINDS, BODY_KINDS, KIND_LABEL, ROOF_SET, MATERIAL_KINDS } from './generate.js';
+import { MODULE_KINDS, BODY_KINDS, KIND_LABEL } from './generate.js';
+// What this component is like, asked of the component rather than looked up
+// in a list of primitive names. An assembly in a role is a component this
+// panel had never heard of, and used to get a cube's answers to every
+// question it asked.
+import { isRoofKind, takesMaterial, slotsOf, slotNamesOf } from './traits.js';
 
 const KIND_HELP = {
   box: 'Six flat faces. The workhorse.',
@@ -62,6 +67,9 @@ export class Inspector {
     this.matPool = matPool;
     this.actions = actions;
     this.getTime = getTime || (() => 0);
+    // Set once the components load, so every trait question can be put to the
+    // component itself. Null until then, and traits.js falls back.
+    this.library = null;
     this.locked = false;
     this.applyAll = false;
     this.body = h('div', { class: 'insp-body' });
@@ -157,7 +165,8 @@ export class Inspector {
     const id = module.id;
     this.head.textContent = `Module ${module.index + 1} of ${building.modules.length}`;
 
-    const isRoof = ROOF_SET.has(module.kind);
+    const doc = this.library?.components?.get(module.kind) || null;
+    const isRoof = isRoofKind(module.kind, doc);
     const kindRow = h(
       'div',
       { class: 'chips' },
@@ -180,8 +189,8 @@ export class Inspector {
     const size = (key, label, min, max, help) =>
       this.slider(label, module[key], min, max, 0.02, (v) => actions.setModule(id, { [key]: v }), help);
 
-    const n = slotCount(module.kind, module.blades);
-    const labels = slotLabels(module.kind, module.blades);
+    const n = slotsOf(module, doc);
+    const labels = slotNamesOf(module, doc);
     const slot = Math.min(selection.slot || 0, n - 1);
     const face = module.faces[slot] || module.faces[0];
     const setFace = (patch) => actions.setFace(id, slot, patch, this.applyAll, n);
@@ -327,7 +336,7 @@ export class Inspector {
       'Glow'
     );
 
-    const materialEligible = !isRoof && MATERIAL_KINDS.has(module.kind);
+    const materialEligible = !isRoof && takesMaterial(module.kind, doc);
     const usesMaterial = !!module.matKind;
     const materialRow =
       materialEligible &&
