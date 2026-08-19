@@ -8,7 +8,7 @@
 // Patterns are simplified versions of real ones. What matters is the family
 // of shapes each produces, not that it survives a planner's inspection.
 
-import { Rng } from './rng.js';
+import { Rng, hashString, hashCoords } from './rng.js';
 
 export const ROAD_PATTERNS = ['grid', 'boulevard', 'radial', 'organic'];
 
@@ -48,8 +48,36 @@ function clipLine(px, pz, angle, half) {
   ];
 }
 
+// A road's identity comes from where it is, not from when it was made.
+//
+// It used to be the array index, and the array index was also half of every
+// building id. So adding one ring to a radial pattern, or changing a
+// parameter that made `clipLine` reject a line it used to accept, renumbered
+// every road after it and therefore every building in town — and the
+// overrides keyed to those buildings did not become orphaned, they landed on
+// different buildings. Position is the only thing about a road that a user
+// would call the same road tomorrow, so position is what the id is made of.
+//
+// Quantised to a tenth of a metre, which is far finer than any road moves
+// without being a different road, and coarse enough that float noise between
+// two runs of the same pattern cannot shift it.
+function roadId(pts) {
+  const q = (n) => Math.round(n * 10);
+  let key = `${pts.length}`;
+  for (const [x, z] of pts) key += `|${q(x)},${q(z)}`;
+  return `r${hashString(key).toString(36)}`;
+}
+
 function pushLine(roads, pts, main, width) {
-  if (pts) roads.push({ pts, main, width });
+  if (!pts) return;
+  const id = roadId(pts);
+  // Two roads landing on the same quantised polyline would share an id and
+  // therefore share building ids. It takes a degenerate pattern to manage it,
+  // but a duplicate id is the one failure this whole change exists to
+  // prevent, so it is worth the four lines to make it impossible.
+  let unique = id;
+  for (let n = 2; roads.some((r) => r.id === unique); n++) unique = `${id}.${n}`;
+  roads.push({ id: unique, pts, main, width });
 }
 
 // --- patterns --------------------------------------------------------------
@@ -243,15 +271,31 @@ class RoadIndex {
 }
 
 // Walk both kerbs of every road, dropping buildings that face it.
-function placeSites(roads, params, rng, half) {
+//
+// Every candidate plot draws from its own stream, keyed by the road it is on
+// and how far along that road it sits — never from a running one. That is the
+// same discipline `tickets()` already applies to modules in generate.js, and
+// it is here for the same reason: a shared stream means a plot rejected for
+// density shifts the jitter and the footprint of every plot after it, so
+// nudging one slider moves buildings that had nothing to do with it.
+//
+// The tickets are drawn as a fixed block, always four, always in this order,
+// whether or not the plot survives. Turning density down now removes plots
+// and leaves the survivors exactly where they were.
+function siteTickets(seed, roadId, slot) {
+  const rng = new Rng(hashCoords(hashString(`${roadId}|${slot}`), seed, 0x2545f491));
+  return { keep: rng.float(), jitter: rng.float(), w: rng.float(), d: rng.float() };
+}
+
+function placeSites(roads, params, half) {
   const sites = [];
+  const seed = params.seed >>> 0;
   const frontage = params.cell * params.lotFill;
   const depth = frontage * params.blockDepthRatio;
   const packing = new Packing(Math.max(frontage, depth) * 1.2);
   const kerbs = new RoadIndex(roads, Math.max(frontage, depth) * 2 + params.highwayWidth);
 
   roads.forEach((road, ri) => {
-    let counter = 0;
     for (let s = 0; s < road.pts.length - 1; s++) {
       const [ax, az] = road.pts[s];
       const [bx, bz] = road.pts[s + 1];
@@ -265,15 +309,21 @@ function placeSites(roads, params, rng, half) {
       const step = frontage * params.frontageSpacing;
       const offset = road.width / 2 + params.setback + depth / 2;
 
-      for (let t = step * 0.5; t < len; t += step) {
+      let k = 0;
+      for (let t = step * 0.5; t < len; t += step, k++) {
         for (const side of [-1, 1]) {
-          if (!rng.chance(params.density)) continue;
-          const jitter = rng.range(-step * 0.12, step * 0.12);
+          // The slot is where this plot sits on this road, and it does not
+          // move when a neighbour comes or goes. Segment, step and kerb are
+          // all the identity a plot needs, and all of it is stable.
+          const slot = `${s}.${k}${side < 0 ? 'l' : 'r'}`;
+          const t4 = siteTickets(seed, road.id, slot);
+          if (t4.keep >= params.density) continue;
+          const jitter = (t4.jitter * 2 - 1) * step * 0.12;
           const px = ax + ux * (t + jitter) - uz * side * offset;
           const pz = az + uz * (t + jitter) + ux * side * offset;
           if (Math.abs(px) > half || Math.abs(pz) > half) continue;
-          const w = frontage * (1 + rng.range(-1, 1) * params.lotJitter);
-          const d = depth * (1 + rng.range(-1, 1) * params.lotJitter);
+          const w = frontage * (1 + (t4.w * 2 - 1) * params.lotJitter);
+          const d = depth * (1 + (t4.d * 2 - 1) * params.lotJitter);
           const radius = Math.max(w, d) * 0.44;
           if (!packing.fits(px, pz, radius)) continue;
           // Its own street already has clearance built into the offset. Every
@@ -281,7 +331,7 @@ function placeSites(roads, params, rng, half) {
           if (kerbs.blocked(px, pz, Math.max(w, d) * 0.42, ri)) continue;
           packing.add(px, pz, radius);
           sites.push({
-            id: `b${ri}_${counter++}`,
+            id: `${road.id}_${slot}`,
             x: px,
             z: pz,
             // A Y rotation of theta sends local +X to (cos, -sin), so negating
@@ -292,6 +342,7 @@ function placeSites(roads, params, rng, half) {
             d,
             main: road.main,
             roadIndex: ri,
+            roadId: road.id,
           });
         }
       }
@@ -321,6 +372,6 @@ export function buildLayout(params) {
       gridPattern(roads, rng, params, half);
   }
 
-  const sites = placeSites(roads, params, rng, half);
+  const sites = placeSites(roads, params, half);
   return { roads, sites, half };
 }

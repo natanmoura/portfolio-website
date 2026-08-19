@@ -144,9 +144,11 @@ export const DEFAULTS = {
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const mix = (a, b, t) => a + (b - a) * t;
 
-// Ids come from the layout now: `b{road}_{slot}` for a building and
-// `b{road}_{slot}_m{i}` for a module. They stay stable as long as the street
-// parameters do, which is what keeps hand edits attached to their building.
+// Ids come from the layout: `{roadId}_{segment}.{step}{kerb}` for a building
+// and that plus `_m{i}` for a module. Every part of it describes where the
+// building is rather than when it was made, so a plot keeps its id when a
+// neighbour appears or disappears, and a hand edit stays on the building it
+// was made against. See `roadId` and `placeSites` in layout.js.
 export function moduleIdFor(buildingId, i) {
   return `${buildingId}_m${i}`;
 }
