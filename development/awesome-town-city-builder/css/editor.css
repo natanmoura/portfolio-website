@@ -12,7 +12,7 @@ body.editor #viewport {
   min-width: 0;
 }
 
-#viewport.drop-on { outline: 2px dashed #6f9ff0; outline-offset: -8px; }
+#viewport.drop-on { outline: 2px dashed var(--select); outline-offset: -8px; }
 
 body.editor .panel { overflow-y: auto; }
 
@@ -111,7 +111,7 @@ body.editor .panel { overflow-y: auto; }
 }
 
 .card:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
-.card.on { border-color: #6f9ff0; background: rgba(111,159,240,0.14); }
+.card.on { border-color: var(--select); background: rgba(111, 159, 240, 0.14); }
 .card:active { cursor: grabbing; }
 
 .card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
@@ -182,7 +182,7 @@ body.editor .panel { overflow-y: auto; }
 
 /* --- parts ------------------------------------------------------------ */
 
-.part-list.drop-on { outline: 2px dashed #6f9ff0; outline-offset: 2px; }
+.part-list.drop-on { outline: 2px dashed var(--select); outline-offset: 2px; }
 
 /* A part is one component, so it reads as one solid object rather than a
    header with loose rows under it. The whole box takes a single surface
@@ -196,8 +196,8 @@ body.editor .panel { overflow-y: auto; }
   overflow: hidden;
 }
 .part.on {
-  border-color: var(--accent);
-  background: rgba(255, 46, 106, 0.1);
+  border-color: var(--select);
+  background: rgba(111, 159, 240, 0.12);
 }
 .part.off { opacity: 0.45; }
 
@@ -455,52 +455,6 @@ input.pm-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   pointer-events: none;
 }
 
-/* --- confirm / prompt dialog ------------------------------------------- */
-
-.dlg-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: grid;
-  place-items: center;
-  z-index: 80;
-}
-
-.dlg-panel {
-  width: min(400px, 86vw);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 16px 18px 14px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
-}
-
-.dlg-panel h2 { margin: 0 0 8px; font-size: 14px; }
-.dlg-msg { font-size: 12px; margin: 0 0 6px; line-height: 1.45; opacity: 0.85; }
-.dlg-detail { font-size: 11px; margin: 0 0 4px; line-height: 1.45; opacity: 0.5; }
-
-.dlg-input {
-  width: 100%;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  padding: 5px 7px;
-  border-radius: 3px;
-  margin: 6px 0 2px;
-}
-.dlg-input:focus { border-color: var(--accent); outline: none; }
-
-.dlg-actions { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
-
-.btn.danger-solid {
-  background: #b3243f;
-  border-color: #b3243f;
-  color: #fff;
-}
-.btn.danger-solid:hover { background: #cf2a49; border-color: #cf2a49; }
-
 /* --- delete on a shelf card -------------------------------------------- */
 
 .card { position: relative; }
@@ -593,4 +547,29 @@ input.shelf-find::-webkit-search-cancel-button { filter: invert(0.6); }
   top: 10px;
   left: 10px;
   z-index: 5;
+}
+
+/* The breadcrumb sits above the panel it steers rather than in the title bar.
+   It names the component being edited, which is what the panel underneath is
+   about, so it belongs to the panel and not to the app. */
+#edit > .crumbs {
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  flex: none;
+}
+#edit {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#edit-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 10px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }

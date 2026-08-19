@@ -23,7 +23,6 @@
     <a class="apptab" href="index.html">City Builder</a>
     <a class="apptab on" href="editor.html">Components</a>
   </nav>
-  <nav id="crumbs" class="crumbs"></nav>
   <span id="status" class="status"></span>
   <span class="grow"></span>
   <button class="btn" id="btn-revert">Revert</button>
@@ -33,7 +32,10 @@
 <main>
   <aside id="shelf" class="panel"></aside>
   <div id="viewport"></div>
-  <aside id="edit" class="panel"></aside>
+  <aside id="edit" class="panel">
+    <div id="crumbs" class="crumbs"></div>
+    <div id="edit-body"></div>
+  </aside>
 </main>
 
 <script type="module" src="js/editor.js"></script>

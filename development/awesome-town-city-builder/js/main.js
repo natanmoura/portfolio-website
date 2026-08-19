@@ -187,7 +187,7 @@ const viewport = document.getElementById('viewport');
 const loadingEl = document.getElementById('loading');
 const statusEl = document.getElementById('status');
 const statsEl = document.getElementById('stats');
-const sceneNameEl = document.getElementById('scene-name');
+let sceneNameEl = null;
 const undoBtn = document.getElementById('btn-undo');
 const redoBtn = document.getElementById('btn-redo');
 
@@ -1092,8 +1092,15 @@ function buildSceneTools() {
   // Undo and redo moved to the header, where a primary action belongs.
   historyLabel = null;
 
+  // Which scene is open, and whether it has hand edits on top. It sat in the
+  // title bar, which is not the wrong idea, but it was floating text beside
+  // the app tabs with nothing tying it to anything. Here it is the first line
+  // of the tab that saves and loads it, which is where you look when you care.
+  sceneNameEl = h('div', { class: 'scene-name' });
+
   setChildren(mount,
     h('h3', { class: 'grp' }, 'Scenes'),
+    sceneNameEl,
     withHelp(select, 'Presets ship with the site. Saved is your own library on this machine. Picking either loads its sliders and all its hand edits.', 'Scenes'),
     h(
       'div',

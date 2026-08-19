@@ -7,6 +7,12 @@
   --dim: #918a76;
   --accent: #ff2e6a;
   --accent-2: #ffd166;
+  /* Selection is its own colour, and deliberately not the accent. Pink marks
+     the choice you have made in a control; blue marks the thing you have
+     picked in the world. Keeping them apart means a highlighted part in the
+     panel and the highlighted geometry in the viewport read as the same
+     statement, which is exactly what they are. */
+  --select: #6f9ff0;
   --bar-h: 44px;
   --keys-h: 26px;
   --pw: 300px;
@@ -86,12 +92,17 @@ html, body {
 
 /* --- layout ------------------------------------------------------------- */
 
+/* Absolute, not relative. It is already a containing block for the inspector
+   that floats inside it, so there was never a reason to add position again
+   lower down, and doing so silently cancelled this one: `inset` stopped
+   pinning main to the window, which pushed everything down by the height of
+   the bar and left the panels free to grow past the viewport instead of
+   scrolling inside it. */
 main {
   position: absolute;
   inset: var(--bar-h) 0 0 0;
   display: grid;
   grid-template-columns: var(--pw) 1fr;
-  position: relative;
   /* The implicit row is auto, which means a panel taller than the window
      grows the row rather than scrolling inside it. minmax(0, 1fr) pins the
      row to the window and lets the panels be smaller than their content,
@@ -691,11 +702,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
 }
 #loading.gone { opacity: 0; pointer-events: none; }
 .load-inner { width: 260px; text-align: center; }
+/* A status line rather than a title, so it takes status weight. */
+/* A status line rather than a brand, so it takes status weight. */
 .load-inner h2 {
-  margin: 0 0 4px;
-  font-size: 13px;
-  letter-spacing: 0.22em;
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  font-weight: 400;
+  color: var(--dim);
 }
 .load-inner p { margin: 4px 0; color: var(--dim); font-size: 11px; }
 .load-inner .bar {
@@ -908,13 +923,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
 /* Three slots rather than one line doing four jobs: what just happened, what
    scene this is, and how heavy it is (the last lives with the frame rate). */
 
+/* Lives at the top of the Scene tab now rather than floating in the title
+   bar. It is the first line of the tab that saves and loads it, which is
+   where you look when you care which scene you are in. */
 .scene-name {
   font-size: 11px;
-  opacity: 0.55;
-  margin-left: 14px;
-  white-space: nowrap;
+  color: var(--dim);
+  padding: 1px 0 6px;
 }
-.scene-name.edited { opacity: 0.9; color: var(--accent-2); }
+.scene-name.edited { color: var(--accent-2); }
 
 .status {
   font-size: 11px;
@@ -1121,3 +1138,53 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
 /* The shortcut list needs more width than a confirmation does. */
 .dlg-panel.wide { width: min(560px, 90vw); }
 .dlg-panel.wide dl.keys { max-height: 60vh; overflow-y: auto; }
+
+/* Dialogs are shared by both windows, so they live here rather than in the
+   editor stylesheet. They were only loaded on one page, which left the other
+   rendering an overlay as plain markup in the page flow. */
+/* --- confirm / prompt dialog ------------------------------------------- */
+
+.dlg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+}
+
+.dlg-panel {
+  width: min(400px, 86vw);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+
+.dlg-panel h2 { margin: 0 0 8px; font-size: 14px; }
+.dlg-msg { font-size: 12px; margin: 0 0 6px; line-height: 1.45; opacity: 0.85; }
+.dlg-detail { font-size: 11px; margin: 0 0 4px; line-height: 1.45; opacity: 0.5; }
+
+.dlg-input {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 7px;
+  border-radius: 3px;
+  margin: 6px 0 2px;
+}
+.dlg-input:focus { border-color: var(--accent); outline: none; }
+
+.dlg-actions { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+
+.btn.danger-solid {
+  background: #b3243f;
+  border-color: #b3243f;
+  color: #fff;
+}
+.btn.danger-solid:hover { background: #cf2a49; border-color: #cf2a49; }
+

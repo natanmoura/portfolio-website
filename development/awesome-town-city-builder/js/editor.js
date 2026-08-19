@@ -43,7 +43,7 @@ import { History } from './history.js';
 import { initPanelResize } from './resizer.js';
 
 const shelfEl = document.getElementById('shelf');
-const editEl = document.getElementById('edit');
+const editEl = document.getElementById('edit-body');
 const viewportEl = document.getElementById('viewport');
 const statusEl = document.getElementById('status');
 const crumbEl = document.getElementById('crumbs');
