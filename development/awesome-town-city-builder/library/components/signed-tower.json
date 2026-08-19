@@ -1,6 +1,6 @@
 {
   "id": "signed-tower",
-  "version": 1,
+  "version": 2,
   "label": "Signed Tower",
   "tags": [
     "structural",
@@ -8,6 +8,7 @@
   ],
   "parts": [
     {
+      "id": "p0",
       "component": "box",
       "params": {
         "w": {
@@ -28,6 +29,7 @@
       }
     },
     {
+      "id": "p1",
       "component": "octagon",
       "params": {
         "w": {
@@ -48,6 +50,7 @@
       }
     },
     {
+      "id": "p2",
       "component": "cone",
       "params": {
         "w": {
@@ -66,6 +69,7 @@
       }
     },
     {
+      "id": "p3",
       "component": "flag",
       "params": {
         "w": {

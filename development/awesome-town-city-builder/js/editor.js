@@ -34,6 +34,7 @@ import {
   slotIsChoice,
   pickSlot,
   newAssembly,
+  newPart,
   dependents,
 } from './library.js';
 import { ALGORITHMS, DEFAULT_ALGORITHM, algorithmOf } from './algorithms.js';
@@ -496,7 +497,7 @@ function bindDrop(el) {
     const doc = current();
     if (!id || !isAssembly(doc)) return;
     e.preventDefault();
-    mutate({ parts: [...doc.parts, { component: id, params: {} }] });
+    mutate({ parts: [...doc.parts, newPart(id)] });
     setStatus(`Added ${docOf(id)?.label || id}.`);
   });
 }
@@ -771,7 +772,7 @@ function partsSection(doc) {
   }
   add.addEventListener('change', () => {
     if (!add.value) return;
-    mutate({ parts: [...doc.parts, { component: add.value, params: {} }] });
+    mutate({ parts: [...doc.parts, newPart(add.value)] });
   });
 
   const list = h('div', { class: 'part-list' }, ...doc.parts.map((p, i) => slotBlock(doc, p, i)));

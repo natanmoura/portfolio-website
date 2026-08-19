@@ -157,6 +157,29 @@ export function slotMix(part) {
 
 export const slotIsChoice = (part) => slotCandidates(part).length > 1;
 
+// --- part identity ----------------------------------------------------------
+
+// A part's name, which is not where it sits in the list.
+//
+// Slot picks used to draw from a path holding the part's position, so adding
+// a plinth at the bottom of a lamp post rerolled the lamp at the top: every
+// part after the insertion moved one place along and drew from a different
+// stream. Exactly the failure road identity had, one layer down, and the same
+// answer — a name that describes the thing rather than its turn in a queue.
+//
+// Minted at authoring time and written into the document, so it is stable by
+// being recorded rather than by being computed. Parts on disk from before
+// this fall back to their index, which is what they have always resolved
+// against, so nothing already authored shifts on the way past.
+export const partIdOf = (part, index) => part?.id || `p${index}`;
+
+let minted = 0;
+export const mintPartId = () =>
+  `p${Date.now().toString(36).slice(-4)}${(minted++).toString(36)}`;
+
+// A part as the editor adds one: named from birth.
+export const newPart = (component, params = {}) => ({ id: mintPartId(), component, params });
+
 // Which candidate this seed lands on. Weighted the same way the city picks a
 // module kind, and drawn from the slot's own path so adding a candidate
 // tomorrow does not reshuffle unrelated slots.
@@ -343,7 +366,10 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     // Each instance draws down its own path, so a slot with several
     // candidates gives a row of different pillars rather than one pillar
     // repeated — the variation costs nothing extra.
-    const partPath = `${p}.i${i}`;
+    // Which part this is, and which time round the list. Both stable under
+    // insertion: the part carries its own name, and the cycle counts this
+    // part's own instances rather than every instance before it.
+    const partPath = `${p}.${partIdOf(part, partIndex)}#${Math.floor(i / list.length)}`;
     const chosenId = pickSlot(part, seed, partPath);
     const child = chosenId ? lib.components.get(chosenId) : null;
     if (!child) {
