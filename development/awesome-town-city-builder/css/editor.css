@@ -517,3 +517,16 @@ input.pm-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .restore:hover { opacity: 1; border-color: var(--accent); }
 .restore span:first-child { flex: 1; text-align: left; }
 .restore-go { font-size: 10px; opacity: 0.7; }
+
+/* Icon buttons in the header: undo, redo. Square, quiet, and clearly off
+   when there is nothing to step to. */
+.btn.icon {
+  padding: 3px 8px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.btn.icon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.btn.icon:disabled:hover { background: none; border-color: var(--line); }

@@ -39,6 +39,7 @@ import { renderThumb } from './thumbs.js';
 import { paramRow } from './paramrow.js';
 import { h, setChildren } from './ui.js';
 import { confirmDialog, promptDialog } from './dialog.js';
+import { History } from './history.js';
 
 const shelfEl = document.getElementById('shelf');
 const editEl = document.getElementById('edit');
@@ -54,6 +55,10 @@ let seed = 1;
 // it is what to come back out to.
 let trail = [];
 let selectedPart = -1;
+// Undo over the edit layer. Only `edits` is snapshotted: which component is
+// open and which part is selected are view state, and stepping back a change
+// should not also move you somewhere else.
+let history = null;
 
 const currentId = () => trail[trail.length - 1] || null;
 const docOf = (id) => library.components.get(id) || null;
@@ -85,8 +90,15 @@ function mutate(patch, opts = {}, id = currentId()) {
   edits[id] = { ...(edits[id] || {}), ...(docOf(id) || {}), ...patch };
   if (base && JSON.stringify(edits[id]) === JSON.stringify(base)) delete edits[id];
   persist();
-  if (opts.live) refreshViewport();
-  else render();
+  if (opts.live) {
+    refreshViewport();
+    return;
+  }
+  // Recorded on commit only. A drag reports continuously and then once on
+  // release, so history gets one entry per completed gesture rather than one
+  // per pixel of travel.
+  history?.record(opts.key ?? `${id}:${Object.keys(patch).join(',')}`);
+  render();
 }
 
 const isDirty = (id) => Boolean(edits[id]);
@@ -385,6 +397,7 @@ async function createComponent() {
   const doc = newAssembly(label, new Set(library.components.keys()));
   edits[doc.id] = doc;
   persist();
+  history?.record(null);
   open(doc.id);
   setStatus(`Created ${doc.label}. Drag parts in from the shelf.`);
 }
@@ -423,6 +436,7 @@ async function deleteComponent(id = currentId()) {
   if (isShipped) edits[doc.id] = { deleted: true };
   else delete edits[doc.id];
   persist();
+  history?.record(null);
 
   trail = trail.filter((t) => t !== doc.id);
   if (!trail.length) {
@@ -439,6 +453,7 @@ function restoreComponent(id) {
   if (!edits[id]?.deleted) return;
   delete edits[id];
   persist();
+  history?.record(null);
   render();
   setStatus(`Restored ${docOf(id)?.label || id}.`);
 }
@@ -468,6 +483,7 @@ function revertComponent() {
   if (!id || !edits[id]) return;
   delete edits[id];
   persist();
+  history?.record(null);
   render();
   setStatus('Reverted to the shipped version.');
 }
@@ -563,7 +579,7 @@ function slotBlock(doc, part, i) {
   const pins = part.params || {};
   const schema = { ...(chosenDoc?.params || {}), ...pins };
   const rows = Object.entries(schema).map(([key, value]) =>
-    paramRow(key, value, (next, o) => replace({ params: { ...pins, [key]: next } }, o))
+    paramRow(key, value, (next, o) => replace({ params: { ...pins, [key]: next } }, { ...o, key: `${doc.id}:pin${i}:${key}` }))
   );
 
   return h(
@@ -614,7 +630,7 @@ function algorithmSection(doc) {
   const params = { ...def.defaults, ...(doc.algorithmParams || {}) };
   const rows = Object.entries(params).map(([name, value]) =>
     paramRow(name, value, (next, o) =>
-      mutate({ algorithmParams: { ...(doc.algorithmParams || {}), [name]: next } }, o)
+      mutate({ algorithmParams: { ...(doc.algorithmParams || {}), [name]: next } }, { ...o, key: `${doc.id}:algo:${name}` })
     )
   );
 
@@ -657,7 +673,7 @@ function modifierSection(doc) {
 
     const params = { ...def.defaults, ...(entry.params || {}) };
     const rows = Object.entries(params).map(([name, value]) =>
-      paramRow(name, value, (next, o) => replace({ params: { ...params, [name]: next } }, o))
+      paramRow(name, value, (next, o) => replace({ params: { ...params, [name]: next } }, { ...o, key: `${doc.id}:mod${i}:${name}` }))
     );
 
     return h(
@@ -716,7 +732,7 @@ function variantSection() {
 
 function paramsSection(doc) {
   const rows = Object.entries(doc.params || {}).map(([name, value]) =>
-    paramRow(name, value, (next, o) => mutate({ params: { ...(doc.params || {}), [name]: next } }, o))
+    paramRow(name, value, (next, o) => mutate({ params: { ...(doc.params || {}), [name]: next } }, { ...o, key: `${doc.id}:param:${name}` }))
   );
   const add = h('button', { class: 'btn small' }, '+ size params');
   add.addEventListener('click', () =>
@@ -782,7 +798,36 @@ function render() {
 // --- boot -------------------------------------------------------------------
 
 document.getElementById('btn-save').addEventListener('click', saveComponent);
-document.getElementById('btn-revert').addEventListener('click', revertComponent);
+document.getElementById('btn-revert').addEventListener('click', () => revertComponent());
+
+const undoBtn = document.getElementById('btn-undo');
+const redoBtn = document.getElementById('btn-redo');
+undoBtn.addEventListener('click', () => history?.undo());
+redoBtn.addEventListener('click', () => history?.redo());
+
+function updateHistoryButtons() {
+  if (!history) return;
+  const { back, forward } = history.depth();
+  undoBtn.disabled = !history.canUndo();
+  redoBtn.disabled = !history.canRedo();
+  undoBtn.title = back ? `Undo (${back} back)` : 'Nothing to undo';
+  redoBtn.title = forward ? `Redo (${forward} forward)` : 'Nothing to redo';
+}
+
+// Checked before the focus guard, so undo still works with a field focused —
+// the alternative is typing in a number box and finding Ctrl+Z does nothing.
+window.addEventListener('keydown', (e) => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (!mod) return;
+  const key = e.key.toLowerCase();
+  if (key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    history?.undo();
+  } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+    e.preventDefault();
+    history?.redo();
+  }
+});
 
 // Another window editing the same library, most likely the town saving a
 // scene. Reload rather than assume ours is current.
@@ -795,6 +840,27 @@ window.addEventListener('storage', (e) => {
 
 shipped = await loadLibrary('library');
 rebuildLibrary();
+
+history = new History(
+  () => ({ edits }),
+  (snap) => {
+    edits = snap.edits || {};
+    persist();
+    // The open component may have been deleted by the step being undone, so
+    // the trail is pruned to what still exists rather than left dangling.
+    trail = trail.filter((id) => library.components.has(id));
+    if (!trail.length) {
+      const first = [...library.components.keys()][0];
+      if (first) trail = [first];
+    }
+    selectedPart = -1;
+    render();
+  }
+);
+history.reset();
+history.onChange(updateHistoryButtons);
+updateHistoryButtons();
+
 resize();
 const first = [...library.components.values()].find(isAssembly) || [...library.components.values()][0];
 if (first) trail = [first.id];

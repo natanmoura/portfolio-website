@@ -29,12 +29,16 @@ export class History {
     this.listeners = new Set();
   }
 
+  // Whatever read() hands back, cloned. Deliberately incurious about the
+  // shape: the town snapshots params and overrides, the component editor
+  // snapshots its edit layer, and neither needs its own history class.
+  //
+  // What must never go in here is view state. Which component is open, which
+  // part is selected, where the camera is: undoing a change should not also
+  // teleport you somewhere else, and a snapshot that carries the viewport
+  // around is a snapshot that fights the user.
   snapshot() {
-    const s = this.read();
-    return {
-      params: structuredClone(s.params),
-      overrides: structuredClone(s.overrides),
-    };
+    return structuredClone(this.read());
   }
 
   reset() {
