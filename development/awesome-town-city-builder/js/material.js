@@ -277,7 +277,41 @@ export class CityMaterial {
     });
   }
 
-  patchSurface(material) {
+  // A see-through copy of the surface material, for the layers strip.
+  //
+  // It has to be a separate material rather than a flag on this one, for two
+  // reasons that both bite. The city shares a single material instance across
+  // every chunk, so mutating it to fade one thing fades the lot and leaves no
+  // clean way back. And this material writes a mirror flag into the alpha
+  // channel for the reflection pass to read, which is only safe while it is
+  // opaque: turn transparency on and the renderer starts honouring that
+  // alpha, so every mirror face disappears and the whole city moves into the
+  // transparent draw queue.
+  //
+  // The ghost carries the same vertex patches, because rotation, bend and
+  // wave all happen on the GPU and a plain material would draw the town in
+  // the wrong place. It just writes a real alpha instead of a flag.
+  get ghostMaterial() {
+    if (!this._ghost) {
+      this._ghost = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.85,
+        metalness: 0.0,
+        side: THREE.FrontSide,
+        transparent: true,
+        opacity: 0.14,
+        depthWrite: false,
+      });
+      this.patchSurface(this._ghost, { ghost: true });
+    }
+    return this._ghost;
+  }
+
+  setGhostOpacity(v) {
+    this.ghostMaterial.opacity = v;
+  }
+
+  patchSurface(material, opts = {}) {
     material.onBeforeCompile = (shader) => {
       this.bind(shader);
       shader.vertexShader = shader.vertexShader
@@ -335,11 +369,18 @@ export class CityMaterial {
         // anything hooked earlier gets overwritten before it ever renders.
         .replace(
           '#include <opaque_fragment>',
-          `#include <opaque_fragment>
+          opts.ghost
+            ? // The ghost is genuinely transparent, so the alpha channel is
+              // back to meaning what it says. No mirror flag: a ghosted town
+              // is not what the reflection pass should be reading anyway.
+              `#include <opaque_fragment>
+           gl_FragColor.a = opacity;`
+            : `#include <opaque_fragment>
            gl_FragColor.a = vMatLayer < -2.5 ? 0.0 : 1.0;`
         );
     };
-    material.customProgramCacheKey = () => 'awesome-town-surface-' + shaderVersion();
+    material.customProgramCacheKey = () =>
+      `awesome-town-surface-${opts.ghost ? 'ghost-' : ''}${shaderVersion()}`;
   }
 
   // Shadows need the same vertex motion, or a bobbing town casts a still one.

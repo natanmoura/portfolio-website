@@ -448,36 +448,19 @@ function applyEnv() {
 // window and nowhere else.
 function applyLayerVisibility() {
   if (!layers || !stage) return;
-  const ghostOpacity = 0.12;
 
   stage.setGridVisible(layers.visible('grid'));
   stage.ground.setRoadsVisible(layers.visible('roads'));
   traffic.setVisible(layers.visible('traffic'));
 
   builder.root.visible = layers.visible('buildings');
-  setGhost(builder.root, layers.ghosted('buildings'), ghostOpacity);
+  // The city owns its own ghost material, because its meshes share one
+  // instance and it writes a mirror flag into the alpha channel that is only
+  // safe while opaque. Fading it from out here would take the mirrors with
+  // it and shuffle the whole draw order.
+  builder.setGhost(layers.ghosted('buildings'));
 
-  if (stage.ground.mesh) {
-    stage.ground.mesh.visible = layers.visible('ground');
-    setGhost(stage.ground.mesh, layers.ghosted('ground'), ghostOpacity);
-  }
-  if (traffic.group) setGhost(traffic.group, layers.ghosted('traffic'), ghostOpacity);
-}
-
-// Ghosting is a material property rather than a second copy of the geometry,
-// so it costs nothing and cannot drift from what it is ghosting.
-function setGhost(root, on, opacity) {
-  root.traverse((o) => {
-    if (!o.material) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of mats) {
-      if (m.__ghostBase === undefined) m.__ghostBase = m.opacity ?? 1;
-      m.transparent = on ? true : m.__ghostWasTransparent ?? m.transparent;
-      if (m.__ghostWasTransparent === undefined) m.__ghostWasTransparent = m.transparent;
-      m.opacity = on ? opacity : m.__ghostBase;
-      m.depthWrite = on ? false : true;
-    }
-  });
+  if (stage.ground.mesh) stage.ground.mesh.visible = layers.visible('ground');
 }
 
 function updateLayerCounts() {

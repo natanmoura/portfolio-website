@@ -31,6 +31,7 @@ export class CityBuilder {
     // The component library, so a module whose kind is an assembly can be
     // resolved and merged at geometry time. Null until the app sets it.
     this.library = null;
+    this._ghosted = false;
     this.stats = { chunks: 0, modules: 0, triangles: 0 };
     this._color = new THREE.Color();
   }
@@ -174,6 +175,22 @@ export class CityBuilder {
 
   find(id) {
     return this.city ? this.city.buildings.find((b) => b.id === id) : null;
+  }
+
+  // Ghosting swaps which material the meshes point at rather than editing the
+  // one they share. Every chunk uses a single material instance, so mutating
+  // it to fade the town would fade everything that instance touches and leave
+  // nothing to restore from. Meshes made after this still need telling, which
+  // is why the flag is remembered.
+  setGhost(on) {
+    this._ghosted = Boolean(on);
+    this.applyGhost();
+  }
+
+  applyGhost() {
+    const mat = this._ghosted ? this.mat.ghostMaterial : this.mat.material;
+    for (const mesh of this.chunks.values()) mesh.material = mat;
+    if (this.solo) this.solo.material = mat;
   }
 
   // --- merging ------------------------------------------------------------
@@ -400,7 +417,7 @@ export class CityBuilder {
     // whole town, so give culling generous slack.
     if (geo.boundingSphere) geo.boundingSphere.radius *= 1.3;
 
-    const mesh = new THREE.Mesh(geo, this.mat.material);
+    const mesh = new THREE.Mesh(geo, this._ghosted ? this.mat.ghostMaterial : this.mat.material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.customDepthMaterial = this.mat.depthMaterial;

@@ -27,13 +27,21 @@ const STORE_KEY = 'awesome-town:layer-view';
 // The layers as they exist today. Buildings, roads and traffic are real
 // things the town already draws; the rest arrive with the placement work and
 // are declared here so the strip does not have to be rebuilt to hold them.
+// `ghostable` is opt-in rather than assumed. Fading something means having a
+// material that can be faded without breaking what it was doing: several of
+// these are drawn by shaders that use the alpha channel for their own
+// purposes, and a layer that claims to ghost and then does nothing is worse
+// than one that only offers on and off.
 export const LAYERS = [
-  { id: 'buildings', label: 'Buildings', help: 'Everything stacked on a lot.' },
+  { id: 'buildings', label: 'Buildings', help: 'Everything stacked on a lot.', ghostable: true },
   { id: 'roads', label: 'Roads', help: 'The tarmac. Hiding it leaves the massing alone.' },
   { id: 'traffic', label: 'Traffic', help: 'Cars and flyers. Hidden without being forgotten.' },
   { id: 'ground', label: 'Ground', help: 'The terrain surface under everything.' },
   { id: 'grid', label: 'Grid', help: 'The reference grid.' },
 ];
+
+const byId = Object.fromEntries(LAYERS.map((l) => [l.id, l]));
+const statesFor = (id) => (byId[id]?.ghostable ? CYCLE : [SHOWN, HIDDEN]);
 
 export class Layers {
   constructor(mount, onChange) {
@@ -53,7 +61,7 @@ export class Layers {
     try {
       const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
       for (const [id, v] of Object.entries(saved)) {
-        if (CYCLE.includes(v) && id in out) out[id] = v;
+        if (id in out && statesFor(id).includes(v)) out[id] = v;
       }
     } catch {
       // A corrupt view preference is not worth failing over. Everything shown
@@ -92,8 +100,9 @@ export class Layers {
   }
 
   cycle(id) {
-    const at = CYCLE.indexOf(this.get(id));
-    this.set(id, CYCLE[(at + 1) % CYCLE.length]);
+    const states = statesFor(id);
+    const at = states.indexOf(this.get(id));
+    this.set(id, states[(at + 1) % states.length]);
   }
 
   // Everything else hidden, or restored if this layer is already the only one
@@ -125,7 +134,9 @@ export class Layers {
         'button',
         {
           class: `lyr ${state}`,
-          title: `${layer.help}\nClick to cycle shown, ghosted, hidden. Shift-click to solo.`,
+          title: `${layer.help}\n${
+            layer.ghostable ? 'Click cycles shown, ghosted, hidden.' : 'Click shows or hides.'
+          } Shift-click to solo.`,
         },
         dot,
         h('span', { class: 'lyr-name' }, layer.label),
