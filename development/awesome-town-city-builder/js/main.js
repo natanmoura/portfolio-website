@@ -26,6 +26,7 @@ import {
   KIND_LABEL,
   SURFACE_KINDS,
   SURFACE_LABEL,
+  reconcileOverrides,
 } from './generate.js';
 import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
@@ -36,7 +37,7 @@ import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
 import { loadEditedLibrary, EDITS_KEY } from './library.js';
 import { openShelfPicker } from './shelfpicker.js';
-import { infoDialog } from './dialog.js';
+import { infoDialog, confirmDialog } from './dialog.js';
 import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
@@ -365,6 +366,44 @@ function rebuildAll() {
   builder.build(state.city);
   if (stage) builder.sortPending(stage.camera);
   reindex();
+  checkOverrides();
+}
+
+// Edits with nothing to land on, counted after every full rebuild.
+//
+// They are reported and never pruned automatically. A building can vanish
+// mid-drag and come back when the slider does, so silently discarding its
+// edit would turn a moment of hesitation into lost work. The count sits in
+// the scene line, and the list is one click away.
+let unplaced = [];
+function checkOverrides() {
+  const before = unplaced.length;
+  unplaced = reconcileOverrides(state.overrides, state.city).unplaced;
+  if (unplaced.length && unplaced.length !== before) {
+    noteStatus(`${unplaced.length} edit${unplaced.length === 1 ? '' : 's'} could not be placed`, 6000);
+  }
+}
+
+function showUnplaced() {
+  if (!unplaced.length) return;
+  const lines = unplaced.slice(0, 40).join('\n');
+  const more = unplaced.length > 40 ? `\n… and ${unplaced.length - 40} more` : '';
+  confirmDialog({
+    title: `${unplaced.length} edit${unplaced.length === 1 ? '' : 's'} with nowhere to go`,
+    message:
+      'These edits name buildings this town does not have. Usually the street parameters moved far enough that the plot they were made on is gone. They are kept until you say otherwise, in case the change was a slip.',
+    detail: lines + more,
+    confirmLabel: 'Discard them',
+    danger: true,
+  }).then((ok) => {
+    if (!ok) return;
+    const n = unplaced.length;
+    for (const key of unplaced) delete state.overrides[key];
+    unplaced = [];
+    history?.record('discard-unplaced');
+    noteStatus(`Discarded ${n} edit${n === 1 ? '' : 's'}`);
+    updateStatus();
+  });
 }
 
 function rebuildLot(id) {
@@ -519,9 +558,13 @@ function updateStatus() {
     sceneNameEl.textContent = [
       state.sceneName || 'Unsaved',
       edits ? `${edits} edit${edits === 1 ? '' : 's'}` : null,
+      // Worth its own word rather than folding into the count, because an
+      // edit that is not on screen is the one you want to be told about.
+      unplaced.length ? `${unplaced.length} unplaced` : null,
     ]
       .filter(Boolean)
       .join(' · ');
+    sceneNameEl.classList.toggle('warn', unplaced.length > 0);
     // Hand edits are the thing you most want to notice you have, so the name
     // carries the count and marks itself when there are any.
     sceneNameEl.classList.toggle('edited', edits > 0);
@@ -534,8 +577,19 @@ function updateStatus() {
 
 // --- editor actions --------------------------------------------------------
 
+// Every edit remembers the plot it was made on, stamped once when the
+// override first appears and never rewritten. Never rewritten is the point:
+// re-stamping on each edit would let the fingerprint follow the building as
+// it drifted, which is precisely the drift it exists to notice.
+function siteOf(id) {
+  const building = byBuilding.get(id) || byModule.get(id)?.building;
+  return building?.site || null;
+}
+
 function patchOverride(id, patch) {
-  state.overrides[id] = { ...(state.overrides[id] || {}), ...patch };
+  const current = state.overrides[id];
+  const at = current?.at || siteOf(id);
+  state.overrides[id] = { ...(current || {}), ...patch, ...(at ? { at } : {}) };
 }
 
 const actions = {
@@ -1091,7 +1145,7 @@ function buildSceneTools() {
   // title bar, which is not the wrong idea, but it was floating text beside
   // the app tabs with nothing tying it to anything. Here it is the first line
   // of the tab that saves and loads it, which is where you look when you care.
-  sceneNameEl = h('div', { class: 'scene-name' });
+  sceneNameEl = h('div', { class: 'scene-name', onclick: () => showUnplaced() });
 
   setChildren(mount,
     h('h3', { class: 'grp' }, 'Scenes'),

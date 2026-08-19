@@ -430,6 +430,67 @@ function applyComponents(modules, params, library, seed, id) {
   }
 }
 
+// --- override fingerprints -------------------------------------------------
+
+// What an override was authored against, stamped when it is first written.
+//
+// Since Tier 0.1 a building id already encodes where the building is, so two
+// different buildings cannot share one — the old failure, where an edit
+// landed on somebody else's building, is structurally gone. This is the belt
+// to that pair of braces, and it earns its place on the cases ids cannot
+// cover: a scene saved before ids changed shape, a library or pattern that
+// moves a road without renaming it, and hand-edited scene files.
+export const fingerprint = (site) => ({
+  x: Math.round(site.x * 100) / 100,
+  z: Math.round(site.z * 100) / 100,
+  road: site.roadId || null,
+});
+
+// Tolerant of a shift, strict about a swap.
+//
+// Nudging setback or frontage moves every building in town by a little, and
+// rejecting every edit in the scene over that would make the fingerprint far
+// more destructive than the problem it guards against. A plot that has moved
+// further than a cell and a half, though, is not the plot the edit was made
+// on, whatever the id says.
+export function overrideMoved(over, site, params) {
+  const at = over?.at;
+  if (!at) return false;
+  if (at.road && site.roadId && at.road !== site.roadId) return true;
+  return Math.hypot(site.x - at.x, site.z - at.z) > params.cell * 1.5;
+}
+
+// Which stored edits have nothing to land on. Reported rather than silently
+// dropped, and pruned only when the author says so: an edit whose building
+// vanished because a slider is mid-drag should still be there when the
+// slider comes back.
+export function reconcileOverrides(overrides, city) {
+  // Plots, not buildings, are what an edit needs in order to mean something.
+  // A building deleted by its own override is absent from the town and still
+  // perfectly well placed: the plot is there and the edit is the reason
+  // nothing stands on it. Anchoring on the built list instead would report
+  // every deletion as a failure, every rebuild, forever.
+  const plots = new Set(city.layout.sites.map((s) => s.id));
+  const live = new Set();
+  for (const b of city.buildings) for (const m of b.modules) live.add(m.id);
+
+  const unplaced = [];
+  for (const key of Object.keys(overrides)) {
+    const isModule = key.includes('_m');
+    const plot = isModule ? key.slice(0, key.lastIndexOf('_m')) : key;
+    if (!plots.has(plot)) {
+      unplaced.push(key);
+      continue;
+    }
+    if (!isModule || live.has(key)) continue;
+    // The module is gone from a plot that still exists. If this edit is what
+    // removed it, it has done its job; otherwise the building lost floors
+    // under it and there is nothing left for it to describe.
+    if (!overrides[key]?.deleted) unplaced.push(key);
+  }
+  return { unplaced };
+}
+
 // --- lot -------------------------------------------------------------------
 
 export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, half, library = null) {
@@ -437,6 +498,13 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   const id = site.id;
   const bOver = overrides[id] || {};
   if (bOver.deleted) return null;
+
+  // An override remembers the plot it was authored against. If the plot that
+  // holds this id today is somewhere else entirely, the edit was meant for a
+  // different building and applying it would be worse than dropping it — a
+  // silently wrong town reads as the tool being unpredictable, where a
+  // reported one reads as a thing that happened. See `overrideMoved`.
+  if (overrideMoved(bOver, site, params)) return generateLot(site, params, {}, imageCount, cutoutCount, materialCount, groundAt, half, library);
 
   const seed = (params.seed + (bOver.seedNudge || 0)) >>> 0;
   const brng = new Rng(hashId(seed, id));
@@ -626,6 +694,10 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     x,
     y,
     z,
+    // Where the plot is, before any hand offset. What an edit fingerprints
+    // itself against, so the stamp does not drift every time the building is
+    // nudged.
+    site: fingerprint(site),
     // The site angle turns the building to face its street. A hand rotation
     // adds on top of that rather than replacing it.
     rotY: site.angle + (bOver.rotY || 0),
