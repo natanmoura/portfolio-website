@@ -463,10 +463,15 @@ export const CONTROL_DEFS = [
 
 export class Controls {
   // onChange(key, value, def)
-  constructor(root, defs, values, onChange) {
+  constructor(root, defs, values, onChange, locks = {}, onLockChange = null) {
     this.root = root;
     this.values = values;
     this.onChange = onChange;
+    // Which parameters the dice must leave alone. Owned by the caller so it
+    // travels with the scene rather than living in two places.
+    this.locks = locks;
+    this.onLockChange = onLockChange;
+    this.lockPainters = new Map();
     this.inputs = new Map();
     this.ranges = new Map();
     this.mounts = new Map();
@@ -655,7 +660,51 @@ export class Controls {
       row.dataset.help = def.help;
       row.dataset.helpTitle = def.label;
     }
+    if (def.key && def.type !== 'mount' && def.type !== 'wheel') this.addLock(row, def);
     return row;
+  }
+
+  // A padlock on every parameter, hidden until you go looking for it.
+  //
+  // A locked parameter is skipped by the dice. That is all it does, and it is
+  // the whole point: the randomiser is the one action that can undo an hour
+  // of tuning in a keystroke, and the seed in particular takes the entire town
+  // with it. Being able to say "keep this, roll the rest" is what makes the
+  // dice usable as a tool rather than a party trick.
+  //
+  // Locking is authoring intent, so unlike layer visibility it belongs to the
+  // scene and is saved with it.
+  addLock(row, def) {
+    const lock = h('button', {
+      class: 'lockbtn',
+      type: 'button',
+      title: 'Keep this when rolling the dice',
+    });
+    const paint = () => {
+      const on = Boolean(this.locks && this.locks[def.key]);
+      lock.textContent = on ? '\u{1F512}' : '\u{1F513}';
+      lock.classList.toggle('on', on);
+      row.classList.toggle('locked', on);
+      lock.title = on ? 'Locked: the dice will leave this alone' : 'Keep this when rolling the dice';
+    };
+    lock.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.locks) return;
+      if (this.locks[def.key]) delete this.locks[def.key];
+      else this.locks[def.key] = true;
+      paint();
+      this.onLockChange?.(def.key, Boolean(this.locks[def.key]));
+    });
+    this.lockPainters.set(def.key, paint);
+    paint();
+    row.appendChild(lock);
+    row.classList.add('lockable');
+  }
+
+  // Called when locks arrive from elsewhere, such as loading a scene.
+  syncLocks() {
+    this.lockPainters.forEach((paint) => paint());
   }
 
   buildItem(def) {

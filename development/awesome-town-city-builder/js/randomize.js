@@ -46,7 +46,11 @@ function randomSurfaceMix() {
   return { texture, glass, mirror, image, cutout, colour };
 }
 
-export function randomParams(current) {
+// `locks` names parameters to leave exactly as they are. Applied at the end
+// rather than checked at every assignment, so this stays a straight list of
+// what a good random town looks like instead of a hundred conditionals, and
+// so a parameter added here is covered by locking without being told about it.
+export function randomParams(current, locks = null) {
   const p = { ...current };
 
   p.seed = Math.floor(Math.random() * 100000);
@@ -174,6 +178,14 @@ export function randomParams(current) {
   // Keep the housekeeping toggles where they were.
   for (const key of ['showRoads', 'showCars', 'showGrid', 'showStats', 'bloomOn', 'shadows']) {
     p[key] = current[key] ?? DEFAULTS[key];
+  }
+
+  // Anything locked comes back exactly as it went in. Last word, so it holds
+  // regardless of what the rolls above decided.
+  if (locks) {
+    for (const key of Object.keys(locks)) {
+      if (locks[key]) p[key] = current[key];
+    }
   }
   return p;
 }

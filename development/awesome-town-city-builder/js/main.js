@@ -166,6 +166,9 @@ const SURFACE_META = Object.fromEntries(
 const state = {
   params: structuredClone({ ...DEFAULTS, ...ENV_DEFAULTS }),
   overrides: {},
+  // Which parameters the dice must leave alone. Authoring intent rather than
+  // a view preference, so it saves with the scene.
+  paramLocks: {},
   city: null,
   selection: null,
   sceneName: '',
@@ -873,6 +876,11 @@ function buildUI() {
       }
       markAll();
       history?.record(`param:${key}`);
+    },
+    state.paramLocks,
+    (key, on) => {
+      autosave();
+      noteStatus(on ? `${key} locked against the dice` : `${key} unlocked`);
     }
   );
 
@@ -1066,7 +1074,7 @@ function buildSceneTools() {
     const name =
       askName || !state.sceneName || state.scenePreset ? prompt('Save scene as', suggestName()) : state.sceneName;
     if (!name) return;
-    Scenes.save(name, state.params, state.overrides);
+    Scenes.save(name, { ...state.params, __locks: state.paramLocks }, state.overrides);
     state.sceneName = name;
     state.scenePreset = false;
     refreshSceneMenu();
@@ -1128,7 +1136,7 @@ function buildSceneTools() {
         class: 'chip wide-chip',
         onclick: () => {
           if (!confirm('Randomise every setting?\n\nThis replaces all your current sliders. Hand edits are kept.')) return;
-          state.params = { ...state.params, ...randomParams(state.params) };
+          state.params = { ...state.params, ...randomParams(state.params, state.paramLocks) };
           state.sceneName = '';
           deselect();
           syncPanels();
@@ -1209,6 +1217,10 @@ function buildShortcuts() {
 
 function syncPanels() {
   controls.sync(state.params);
+  // Loading a scene replaces the locks object wholesale, so the panel is
+  // re-pointed at the new one rather than left holding the old.
+  controls.locks = state.paramLocks;
+  controls.syncLocks();
   // Roles first: the mix wheels are rebuilt against the include lists, so
   // they have to be current before the wheels are asked to show a value.
   for (const draw of roleRedraws) draw();
@@ -1266,6 +1278,10 @@ function applyScene(scene, name, isPreset = false) {
   // A scene saved before roles existed has none, and gets the full lists,
   // so it generates exactly as it did when it was saved.
   state.params.roles = { ...DEFAULTS.roles, ...(scene.params?.roles || {}) };
+  // Locks ride inside params so they survive every path a scene takes, but
+  // they are not parameters and must not reach the generator.
+  state.paramLocks = { ...(scene.params?.__locks || {}) };
+  delete state.params.__locks;
   state.overrides = scene.overrides || {};
   state.sceneName = name || scene.name || '';
   state.scenePreset = isPreset;
@@ -1335,7 +1351,7 @@ function snapshot() {
 }
 
 function autosave() {
-  Scenes.saveAuto(state.params, state.overrides, state.sceneName);
+  Scenes.saveAuto({ ...state.params, __locks: state.paramLocks }, state.overrides, state.sceneName);
 }
 
 function restore() {
@@ -1346,6 +1362,8 @@ function restore() {
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(saved.params?.surfaceMix || {}) };
   state.params.roles = { ...DEFAULTS.roles, ...(saved.params?.roles || {}) };
+  state.paramLocks = { ...(saved.params?.__locks || {}) };
+  delete state.params.__locks;
   state.overrides = saved.overrides || {};
   state.sceneName = saved.current || '';
   state.scenePreset = false;
