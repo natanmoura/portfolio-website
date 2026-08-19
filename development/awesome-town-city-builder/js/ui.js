@@ -158,13 +158,6 @@ export const CONTROL_DEFS = [
       R('setback', 'Setback', 0, 6, 0.05, 'Gap between the kerb and the buildings facing it.', { live: false }),
       R('frontageSpacing', 'Frontage gap', 0.6, 3, 0.01, 'How far apart buildings sit along a street. One packs them shoulder to shoulder.', { live: false, hard: [0.4, 12] }),
       R('blockDepthRatio', 'Building depth', 0.3, 2.5, 0.01, 'How deep buildings are relative to their street frontage.', { live: false }),
-      {
-        key: 'showRoads',
-        label: 'Show roads',
-        type: 'check',
-        cheap: true,
-        help: 'Draws the tarmac. Turn it off to see the massing alone.',
-      },
     ],
   },
   {
@@ -177,13 +170,6 @@ export const CONTROL_DEFS = [
       R('carSpeed', 'Speed', 0, 40, 0.1, 'How fast traffic moves.', { cheap: true }),
       R('carSize', 'Size', 0.2, 4, 0.01, 'Scale of the vehicles against the buildings.', { live: false }),
       R('flyerHeight', 'Flying height', 2, 60, 0.5, 'How high the flyers cruise above the ground.', { live: false }),
-      {
-        key: 'showCars',
-        label: 'Show traffic',
-        type: 'check',
-        cheap: true,
-        help: 'Hides every vehicle without forgetting them.',
-      },
     ],
   },
   {
@@ -329,13 +315,6 @@ export const CONTROL_DEFS = [
         type: 'colorToggle',
         cheap: true,
         help: 'Haze takes the sky colour by default. Override to push the distance warm or cold.',
-      },
-      {
-        key: 'showGrid',
-        label: 'Street grid',
-        type: 'check',
-        cheap: true,
-        help: 'The lot grid on the ground. Useful while laying out, off for a final look.',
       },
       {
         key: 'showStats',

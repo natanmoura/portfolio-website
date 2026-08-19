@@ -39,6 +39,7 @@ import { openShelfPicker } from './shelfpicker.js';
 import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
+import { Layers } from './layers.js';
 import { buildExport, downloadExport } from './exporter.js';
 
 const APP_NAME = 'Awesome Town';
@@ -208,6 +209,8 @@ let historyLabel;
 // the checkboxes back in step with the params they describe.
 const roleRedraws = [];
 let rebuildMixWheels = null;
+// Layer visibility. Purely a view concern, kept out of params on purpose.
+let layers = null;
 
 boot();
 
@@ -424,11 +427,9 @@ function applyEnv() {
   stage.setShadows(p.shadows, p.shadowSoftness, p.shadowDetail);
   stage.setShadowQuality(p.softShadows, p.shadowLightSize, p.shadowSamples);
   materials.setOcclusion(p.occlusion, p.occlusionHeight);
-  stage.setGridVisible(p.showGrid);
-  stage.ground.setRoadsVisible(p.showRoads);
   traffic.setNight(night);
-  traffic.setVisible(p.showCars);
   statsEl.classList.toggle('on', !!p.showStats);
+  applyLayerVisibility();
 
   // The shader gates glow by comparing each module's ticket against the
   // chance. Mirror that here so the editor agrees about what is lit without
@@ -438,6 +439,54 @@ function applyEnv() {
       for (const m of b.modules) m.glow = m.glowTicket < p.glowChance;
     }
   }
+}
+
+// Layer visibility onto the scene.
+//
+// The one rule: this reads view state and writes nothing back. Generation,
+// export and saving never consult it, so a hidden layer is hidden in this
+// window and nowhere else.
+function applyLayerVisibility() {
+  if (!layers || !stage) return;
+  const ghostOpacity = 0.12;
+
+  stage.setGridVisible(layers.visible('grid'));
+  stage.ground.setRoadsVisible(layers.visible('roads'));
+  traffic.setVisible(layers.visible('traffic'));
+
+  builder.root.visible = layers.visible('buildings');
+  setGhost(builder.root, layers.ghosted('buildings'), ghostOpacity);
+
+  if (stage.ground.mesh) {
+    stage.ground.mesh.visible = layers.visible('ground');
+    setGhost(stage.ground.mesh, layers.ghosted('ground'), ghostOpacity);
+  }
+  if (traffic.group) setGhost(traffic.group, layers.ghosted('traffic'), ghostOpacity);
+}
+
+// Ghosting is a material property rather than a second copy of the geometry,
+// so it costs nothing and cannot drift from what it is ghosting.
+function setGhost(root, on, opacity) {
+  root.traverse((o) => {
+    if (!o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of mats) {
+      if (m.__ghostBase === undefined) m.__ghostBase = m.opacity ?? 1;
+      m.transparent = on ? true : m.__ghostWasTransparent ?? m.transparent;
+      if (m.__ghostWasTransparent === undefined) m.__ghostWasTransparent = m.transparent;
+      m.opacity = on ? opacity : m.__ghostBase;
+      m.depthWrite = on ? false : true;
+    }
+  });
+}
+
+function updateLayerCounts() {
+  if (!layers || !state.city) return;
+  layers.setCounts({
+    buildings: state.city.buildings.length,
+    roads: state.city.layout.roads.length,
+    traffic: Math.round(state.params.carCount + state.params.flyerCount),
+  });
 }
 
 // A one-off message that sits in the status bar until the next rebuild
@@ -481,6 +530,7 @@ function updateStatus() {
     sceneNameEl.classList.toggle('edited', edits > 0);
   }
   updateHistoryButtons();
+  updateLayerCounts();
 }
 
 // The heaviness readout, which lives with the frame rate because they answer
@@ -825,7 +875,7 @@ function buildUI() {
   defs.find((i) => i.key === 'roadPattern').options = ROAD_PATTERNS.map((k) => [k, PATTERN_LABEL[k]]);
 
   controls = new Controls(
-    document.getElementById('controls'),
+    document.getElementById('controls-body'),
     CONTROL_DEFS,
     state.params,
     (key, value, def) => {
@@ -967,6 +1017,11 @@ function buildUI() {
   );
   history.reset();
   history.onChange(updateHistoryLabel);
+
+  layers = new Layers(document.getElementById('layers'), () => {
+    applyLayerVisibility();
+    stage.render();
+  });
 
   undoBtn?.addEventListener('click', () => history?.undo());
   redoBtn?.addEventListener('click', () => history?.redo());

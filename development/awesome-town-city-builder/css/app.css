@@ -824,3 +824,56 @@ input[type="checkbox"] { accent-color: var(--accent); }
   line-height: 1.2;
 }
 .btn.icon:disabled { opacity: 0.3; cursor: default; }
+
+/* --- layers strip -------------------------------------------------------- */
+/* Persistent above the tabs, because visibility is something you change while
+   doing something else. Three states: shown, ghosted, hidden. */
+
+#layers {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.lyr-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 7px 8px;
+}
+
+.lyr {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.lyr:hover { opacity: 1; background: rgba(255, 255, 255, 0.06); }
+.lyr.shown { opacity: 0.95; }
+.lyr.ghosted { opacity: 0.6; }
+.lyr.hidden { opacity: 0.32; }
+.lyr.hidden .lyr-name { text-decoration: line-through; }
+
+.lyr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  border: 1px solid var(--accent);
+}
+.lyr-dot.shown { background: var(--accent); }
+.lyr-dot.ghosted { background: linear-gradient(135deg, var(--accent) 50%, transparent 50%); }
+.lyr-dot.hidden { background: none; border-color: var(--dim); }
+
+.lyr-count {
+  font-size: 9px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
