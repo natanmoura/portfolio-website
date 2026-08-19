@@ -46,6 +46,7 @@ import { initPanelResize } from './resizer.js';
 import { buildExport, downloadExport } from './exporter.js';
 import { writeStats } from './stats.js';
 import { resetNotes, readNotes, describe } from './provenance.js';
+import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './locks.js';
 
 const APP_NAME = 'City Builder';
 
@@ -656,6 +657,22 @@ function patchOverride(id, patch) {
   state.overrides[id] = { ...(current || {}), ...patch, ...(at ? { at } : {}) };
 }
 
+// Replaces rather than merges, which matters for anything that removes a
+// field. Merging a patch that deleted a key leaves the key exactly where it
+// was, so unlocking a facet quietly kept both the lock and the values it had
+// captured — the thing carried on being frozen while claiming not to be.
+function setOverride(id, next) {
+  const at = state.overrides[id]?.at || siteOf(id);
+  // `at` is bookkeeping, not an edit. An override holding nothing else is a
+  // no-op that would still be counted, shown and saved, so it goes.
+  const real = Object.keys(next || {}).filter((k) => k !== 'at');
+  if (!real.length) {
+    delete state.overrides[id];
+    return;
+  }
+  state.overrides[id] = at ? { ...next, at } : next;
+}
+
 const actions = {
   buildingOverride: (id) => state.overrides[id] || {},
   refresh: () => refreshInspector(),
@@ -676,6 +693,22 @@ const actions = {
   setModule(id, patch) {
     patchOverride(id, patch);
     markLotOfModule(id);
+  },
+
+  // Locking captures what the module looks like right now, so the promise is
+  // about a value somebody wrote down rather than one the generator might
+  // happen to produce again. Unlocking takes those fields back out, which is
+  // what makes it a genuine hand-back rather than a hidden edit.
+  moduleLocks: (id) => locksOf(state.overrides[id]),
+  toggleLock(id, facet) {
+    const entry = byModule.get(id);
+    if (!entry) return;
+    const next = withFacet(state.overrides[id], entry.module, facet, !isLocked(state.overrides[id], facet));
+    // Replaces, because unlocking is a removal. A merge would leave the
+    // captured fields behind and the thing would stay frozen silently.
+    setOverride(id, next);
+    markLotOfModule(id);
+    history?.record(`lock:${id}:${facet}`);
   },
 
   setFace(id, slot, patch, all, count = 1) {
@@ -777,9 +810,16 @@ for (const name of [...Object.keys(HISTORY_KEYS), ...HISTORY_DISCRETE]) {
   };
 }
 
+// A reroll used to take every module edit in the building with it, which made
+// locking pointless: the only way to keep anything was not to reroll. Held
+// facets survive, everything else goes back to being generated, and an
+// override left holding nothing is dropped rather than kept as clutter.
 function clearModuleOverrides(buildingId) {
   for (const key of Object.keys(state.overrides)) {
-    if (key.startsWith(`${buildingId}_m`)) delete state.overrides[key];
+    if (!key.startsWith(`${buildingId}_m`)) continue;
+    const kept = keepLocked(state.overrides[key]);
+    if (kept) state.overrides[key] = kept;
+    else delete state.overrides[key];
   }
 }
 

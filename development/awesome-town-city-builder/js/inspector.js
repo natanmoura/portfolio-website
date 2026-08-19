@@ -17,6 +17,7 @@ import { MODULE_KINDS, BODY_KINDS, KIND_LABEL } from './generate.js';
 // panel had never heard of, and used to get a cube's answers to every
 // question it asked.
 import { isRoofKind, takesMaterial, slotsOf, slotNamesOf } from './traits.js';
+import { FACETS, FACET_KEYS } from './locks.js';
 
 const KIND_HELP = {
   box: 'Six flat faces. The workhorse.',
@@ -366,8 +367,37 @@ export class Inspector {
         'Building material'
       );
 
+    // What a reroll is not allowed to touch. Sits at the top because it
+    // changes the meaning of everything below it: a locked facet is a
+    // decision you have made, and the controls under it are still generated.
+    const held = actions.moduleLocks ? actions.moduleLocks(id) : [];
+    const lockRow = withHelp(
+      h(
+        'div',
+        { class: 'chips locks' },
+        FACET_KEYS.map((facet) =>
+          withHelp(
+            h(
+              'button',
+              {
+                class: `chip sm lock${held.includes(facet) ? ' on' : ''}`,
+                onclick: () => actions.toggleLock(id, facet),
+              },
+              FACETS[facet].label
+            ),
+            FACETS[facet].help,
+            FACETS[facet].label
+          )
+        )
+      ),
+      'A lock is a set, not a switch. Hold the shape and let the size reroll, or keep a collage you spent an hour on while everything under it changes. Rerolling the building goes around whatever is held here.',
+      'Keep through a reroll'
+    );
+
     setChildren(this.tabsMount, this.tabs(selection));
     setChildren(this.body,
+      label('Keep through a reroll'),
+      lockRow,
       label('Shape'),
       kindRow,
       label('Size'),

@@ -1227,3 +1227,17 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
 }
 .btn.danger-solid:hover { background: #cf2a49; border-color: #cf2a49; }
 
+
+/* --- locks --------------------------------------------------------------- */
+/* Amber, not pink and not blue. Pink is a choice you made in a control and
+   blue is the thing you picked in the world; a lock is neither. It is a
+   promise about what a reroll may not touch, and it wants its own colour so
+   it does not read as "currently selected". Same amber the modified marker
+   already uses, because both mean the same thing: you decided this. */
+.chip.lock.on {
+  background: rgba(231, 162, 74, 0.18);
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+.chip.lock.on::before { content: '\2022'; margin-right: 4px; }
+.chips.locks { margin-bottom: 2px; }
