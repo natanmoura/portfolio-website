@@ -58,11 +58,40 @@ that can be started independently. That reframing moves it up hard.
 
 ---
 
-## Tier 0 — before anything else
+## Status
+
+**Tier 0 is done. Tier 1 is done except 1.2.** Seven commits, each verified
+against a digest of every building and module in the town, hashed across all
+four road patterns — every one of them byte-identical to the town before the
+change, which is the bar this work had to clear.
+
+Two things came out different from what was written here, both recorded in
+their commits and worth knowing before reading the plan below:
+
+- **1.1 kept the field name `kind`.** The plan said rename it to
+  `componentId`. The audit's finding was about the *trait lookups* being
+  keyed on a name, and those all moved; renaming the field itself touches
+  forty sites, changes the override schema and breaks every saved scene, for
+  no behavioural gain. A comment where `kind` is defined says it is a
+  component id.
+- **0.1 grew a third fix.** `placeSites` drew from one running rng shared
+  across every candidate plot, so a plot rejected for density shifted the
+  jitter and footprint of every plot after it on that road. Identity was
+  worthless without it — a stable id on a building that moves anyway is
+  bookkeeping, not a guarantee. Each candidate now draws its own block of
+  tickets, the same discipline `tickets()` already applied to modules.
+
+**1.2, the single-page shell, is deliberately unstarted.** It restructures
+how the whole app boots and is the one item here that cannot be left half
+done, so it wants someone watching. It is otherwise ready to go.
+
+---
+
+## Tier 0 — before anything else ✅
 
 Small, unglamorous, and each one prevents a class of loss.
 
-### 0.1 Road identity
+### 0.1 Road identity ✅
 *Audit 9. Prerequisite for 0.2, not a parallel to it.*
 
 A road today is `{ pts, main, width }` with no id. The four pattern functions
@@ -80,7 +109,7 @@ Give a road a real record with a minted id, and derive building ids from that
 rather than from position in an array. Small, and it is the ground the next
 item stands on.
 
-### 0.2 Override fingerprints and prune
+### 0.2 Override fingerprints and prune ✅
 *Audit 1, 5. Split out of roadmap Phase 1.*
 
 An override records what it was authored against: quantised x/z, road id,
@@ -95,7 +124,7 @@ and, more importantly, legible.
 **Done when:** changing `cols` or density with edits in the scene never
 changes a building the user did not edit.
 
-### 0.3 `baseVersion` on component edits
+### 0.3 `baseVersion` on component edits ✅
 *Audit 3.*
 
 Record the disk version an edit was made against. On load, compare. Where disk
@@ -106,7 +135,7 @@ Must land before there is a body of user edits worth preserving, and it is
 not retrofittable after. That is the entire argument for doing it now rather
 than in Phase 7 where schema work otherwise lives.
 
-### 0.4 Name the two hash streams
+### 0.4 Name the two hash streams ✅
 *Audit 7.*
 
 One comment on `rng.js` and one on `constraints.js`, each naming the other and
@@ -119,7 +148,7 @@ for the wrong one and silently regenerating every saved scene.
 
 Nothing in Tiers 2+ is safe or cheap until these exist.
 
-### 1.1 Split `module.kind`
+### 1.1 Split `module.kind` ✅
 *Audit 2. Front half of roadmap Phase 2.*
 
 `m.componentId` says what to resolve. Traits — family, whether it takes a
@@ -137,7 +166,7 @@ ids, so the breakage compounds.
 **Done when:** a lamp post in the body role reports its own family, its own
 material eligibility, and its own slots in the inspector.
 
-### 1.2 Single-page shell
+### 1.2 Single-page shell ← next
 *Agreed in conversation, never scheduled.*
 
 City Builder and Components are two documents, so crossing between them
@@ -148,7 +177,7 @@ caches that outlive the switch.
 Worth doing before the tool grows more views, not after, since every view
 added first is another one to port.
 
-### 1.3 Shared spatial index
+### 1.3 Shared spatial index ✅
 *Audit 8. Pulled forward from roadmap Phase 2.*
 
 `layout.js` already solves XZ proximity twice privately, in `packing` and
@@ -160,7 +189,7 @@ Pulled ahead of the systems that need it because four more private
 implementations is the default outcome otherwise, and unifying them
 afterwards is a much larger job than putting one down first.
 
-### 1.4 Resolve provenance
+### 1.4 Resolve provenance ✅
 *Audit 6, and roadmap Phase 1's readout.*
 
 Keep the forgiving empty-means-everything fallbacks — they are right during a
