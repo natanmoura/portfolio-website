@@ -65,8 +65,13 @@ export class Inspector {
     this.locked = false;
     this.applyAll = false;
     this.body = h('div', { class: 'insp-body' });
+    // The Module and Building toggle belongs in the header rather than at the
+    // top of the scrolling body. It chooses what the body contains, and a
+    // control that scrolls away with the thing it chose reads as part of that
+    // thing rather than as the switch for it.
+    this.tabsMount = h('div', { class: 'insp-tabs' });
     this.root.append(
-      h('header', { class: 'insp-head' }, h('h2', {}, 'Nothing selected')),
+      h('header', { class: 'insp-head' }, h('h2', {}, 'Nothing selected'), this.tabsMount),
       this.body
     );
     this.head = this.root.querySelector('h2');
@@ -103,6 +108,9 @@ export class Inspector {
   hide() {
     this.root.classList.add('empty');
     this.head.textContent = 'Nothing selected';
+    // Nothing to switch between, so the toggle goes rather than sitting there
+    // offering a choice about an object that is not there.
+    setChildren(this.tabsMount);
     setChildren(this.body,
       h('p', { class: 'hint' }, 'Click a module to edit it. Shift-click selects the whole building.'),
       h('p', { class: 'hint' }, 'Hover any control for a note on what it does.')
@@ -346,8 +354,8 @@ export class Inspector {
         'Building material'
       );
 
+    setChildren(this.tabsMount, this.tabs(selection));
     setChildren(this.body,
-      this.tabs(selection),
       label('Shape'),
       kindRow,
       label('Size'),
@@ -466,8 +474,8 @@ export class Inspector {
     this.head.textContent = `Building ${building.gx + 1},${building.gz + 1}`;
     const over = actions.buildingOverride(id);
 
+    setChildren(this.tabsMount, this.tabs({ mode: 'building' }));
     setChildren(this.body,
-      this.tabs({ mode: 'building' }),
       label(
         `${building.modules.length} modules · ${building.height.toFixed(1)} tall · ${building.family}`
       ),
