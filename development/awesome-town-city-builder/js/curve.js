@@ -190,6 +190,40 @@ export function flatten(curve, perSegment = 12) {
   return out;
 }
 
+// Extra points along a flattened curve, so it can be measured or drawn
+// against ground it was never sampled for.
+//
+// `flatten` deliberately emits nothing between two corner points — a straight
+// segment *is* its endpoints, as far as the curve's own shape goes. That is
+// right for shape and wrong for everything that has to meet the world: a
+// two-point road offers a hit test nothing but its two ends, so aiming at the
+// middle of it measures from thirty metres away, and drawing it across a hill
+// draws through the hill. Both are the same missing samples.
+//
+// These carry no ids and nothing downstream counts them, which is what makes
+// it safe to add as many as the terrain or the pointer needs. `lift` is
+// interpolated with the rest so a raised run stays raised between samples.
+export function densify(points, spacing = 2) {
+  if (points.length < 2 || !(spacing > 0)) return points;
+  const out = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / spacing));
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      out.push({
+        x: a.x + (b.x - a.x) * t,
+        y: (a.y || 0) + ((b.y || 0) - (a.y || 0)) * t,
+        z: a.z + (b.z - a.z) * t,
+        lift: (a.lift || 0) + ((b.lift || 0) - (a.lift || 0)) * t,
+      });
+    }
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
 export function length(curve, perSegment = 12) {
   const pts = flatten(curve, perSegment);
   let total = 0;

@@ -23,7 +23,19 @@
 // work and it should cost one gesture.
 
 import * as THREE from 'three';
-import { FREE, OFFSET, movePoint, pointIdOf, insertAt, removePoint, setCorner, closestOn } from './curve.js';
+import {
+  FREE,
+  OFFSET,
+  movePoint,
+  pointIdOf,
+  insertAt,
+  removePoint,
+  setCorner,
+  closestOn,
+  flatten,
+  settleAll,
+  densify,
+} from './curve.js';
 
 // Where a control point actually sits in the world, which is not what the
 // point stores: a raised road's point holds a lift above the terrain, and the
@@ -62,6 +74,9 @@ export class CurveEditor {
     this.plane = new THREE.Plane();
     this.hitPoint = new THREE.Vector3();
     this.grabOffset = new THREE.Vector3();
+    // Scratch for `nearestOnRay`, which runs per sample per curve on every
+    // pointer move and must not allocate.
+    this._probe = new THREE.Vector3();
 
     this.curves = [];
     this.selectedCurve = null;
@@ -90,29 +105,62 @@ export class CurveEditor {
     this.onSelect(curveId, [...this.selectedPoints]);
   }
 
+  // How close the pointer comes to a curve **where the curve actually is**.
+  //
+  // This used to drop the ray onto the plane `y = 0` and measure in XZ from
+  // there, which is exact for a curve lying on flat ground at the origin
+  // height and wrong by tens of metres for anything else. A road on an
+  // eighteen-metre mesa is nowhere near the point where the ray crosses zero:
+  // at a typical camera angle the miss is the height divided by the tangent
+  // of the elevation, so the test was asking about a patch of ground well
+  // beyond the hill. That is most of why clicking a road on high ground felt
+  // unreliable — it was not imprecision, it was aiming at the wrong place.
+  //
+  // Measuring from the ray to the settled curve in three dimensions has no
+  // such assumption, costs the same, and is the distance a person is
+  // actually judging by eye when they aim at a line.
+  nearestOnRay(curve) {
+    // Densified first: `flatten` emits nothing between two corner points, so a
+    // straight two-point road would otherwise offer only its own ends to
+    // measure against and aiming at the middle of it would report the
+    // distance to whichever end was nearer.
+    const flat = settleAll(curve, densify(flatten(curve, 12), 2), this.view.groundAt);
+    let best = null;
+    for (const p of flat) {
+      this._probe.set(p.x, p.y || 0, p.z);
+      const distance = this.raycaster.ray.distanceToPoint(this._probe);
+      if (!best || distance < best.distance) best = { distance, x: p.x, z: p.z };
+    }
+    return best;
+  }
+
   // The curve under the pointer, by its line rather than by its handles.
   //
   // Handles are only drawn for the selected curve, which leaves no way to
   // select a different one — a real gap while the boundary was the only thing
   // being edited, and a blocking one the moment there are forty roads. Lines
-  // are close to unhittable with a raycast at any sensible tolerance, so this
-  // drops to the ground plane and asks each curve how far away it is, which
-  // is the question `closestOn` already answers.
+  // are close to unhittable with a raycast at any sensible tolerance, so each
+  // curve is asked how near it comes to the ray instead.
   //
   // `maxDistance` is in world units, so the caller passes something scaled to
   // the town — a block, usually — rather than this file guessing.
   pickCurve(e, maxDistance = Infinity) {
     if (!this.enabled) return null;
     this.castFrom(e);
-    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    if (!this.raycaster.ray.intersectPlane(ground, this.hitPoint)) return null;
     let best = null;
     for (const curve of this.curves) {
-      const near = closestOn(curve, this.hitPoint.x, this.hitPoint.z, 8);
-      if (near.distance > maxDistance) continue;
+      const near = this.nearestOnRay(curve);
+      if (!near || near.distance > maxDistance) continue;
       if (!best || near.distance < best.distance) best = { curve, distance: near.distance };
     }
     return best;
+  }
+
+  // The handle under the pointer, if any. Same path the press uses, so a
+  // hover highlight can never promise a grab the press would miss.
+  pickHandle(e) {
+    if (!this.enabled) return null;
+    return this.view.pick(this.castFrom(e));
   }
 
   // Pointer position in normalised device coordinates, which is what the
@@ -309,10 +357,12 @@ export class CurveEditor {
     const curve = this.curveById(this.selectedCurve);
     if (!curve) return false;
     this.castFrom(e);
-    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    if (!this.raycaster.ray.intersectPlane(ground, this.hitPoint)) return false;
-    const near = closestOn(curve, this.hitPoint.x, this.hitPoint.z);
-    if (near.distance > (opts.maxDistance ?? Infinity)) return false;
+    // Where on the curve the pointer is aiming, found in 3D for the same
+    // reason `pickCurve` is — then handed back to `closestOn` in plan, which
+    // is what knows about segments and parameters.
+    const aim = this.nearestOnRay(curve);
+    if (!aim || aim.distance > (opts.maxDistance ?? Infinity)) return false;
+    const near = closestOn(curve, aim.x, aim.z);
     const next = insertAt(curve, near.segment, near.t);
     this.replace(next);
     this.onChange(next);

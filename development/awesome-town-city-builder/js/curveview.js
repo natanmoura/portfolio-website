@@ -21,7 +21,7 @@
 // zoomed out and handles that swallow the model when zoomed in.
 
 import * as THREE from 'three';
-import { flatten, settle, settleAll, pointIdOf, ribbonEdges, ribbonTriangles } from './curve.js';
+import { flatten, settle, settleAll, densify, pointIdOf, ribbonEdges, ribbonTriangles } from './curve.js';
 
 const LINE = 0x6f9ff0;
 const LINE_SELECTED = 0xffd166;
@@ -41,6 +41,11 @@ const LINE_LANDFORM = 0xc0894a;
 const HANDLE = 0xe9e3d4;
 const HANDLE_CORNER = 0xff2e6a;
 const HANDLE_SELECTED = 0xffd166;
+// The handle the pointer is on. Deliberately close to the selected colour
+// without being it: hovering is what selecting is about to be, and a wholly
+// different hue would read as a third kind of point rather than as a preview
+// of the second.
+const HANDLE_HOVER = 0xfff0b8;
 
 // Screen-space size of a control point, in pixels. Big enough to hit without
 // aiming, small enough not to hide what is under it.
@@ -67,32 +72,6 @@ const GRIP_SCALE = 0.62;
 const HANDLE_GRIP = 0x8fa8c8;
 const HANDLE_HELD = 0xff8a3d;
 
-// Extra points along a polyline so it can follow ground it was not sampled
-// against. Purely for drawing — these carry no ids and nothing downstream
-// counts them, which is what makes it safe to add as many as the terrain
-// needs. `lift` is interpolated with everything else so a raised road's line
-// draws on its deck rather than on the ground under it.
-function densify(points, spacing) {
-  if (points.length < 2) return points;
-  const out = [];
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / spacing));
-    for (let s = 0; s < steps; s++) {
-      const t = s / steps;
-      out.push({
-        x: a.x + (b.x - a.x) * t,
-        y: (a.y || 0) + ((b.y || 0) - (a.y || 0)) * t,
-        z: a.z + (b.z - a.z) * t,
-        lift: (a.lift || 0) + ((b.lift || 0) - (a.lift || 0)) * t,
-      });
-    }
-  }
-  out.push(points[points.length - 1]);
-  return out;
-}
-
 export class CurveView {
   constructor(scene) {
     this.root = new THREE.Group();
@@ -118,6 +97,7 @@ export class CurveView {
     this.selectedCurve = null;
     this.selectedPoints = new Set();
     this.hoveredCurve = null;
+    this.hoveredPoint = null;
     this.groundAt = null;
     this.curves = [];
   }
@@ -150,9 +130,16 @@ export class CurveView {
   // every pointer move, and a full curve rebuild on every pixel of travel is
   // exactly the kind of cost this project's own drag-vs-drop split exists to
   // avoid elsewhere.
-  hover(curveId) {
-    if (this.hoveredCurve === curveId) return;
+  // `pointId` is the individual handle under the pointer, when there is one.
+  // A curve highlight answers "which line would a click land on"; a handle
+  // highlight answers the more precise question you are actually asking once
+  // the curve is already picked up, which is "am I on the point or between
+  // two of them". Without it, aiming at a nine-pixel dot is done entirely by
+  // memory of where the cursor hotspot is.
+  hover(curveId, pointId = null) {
+    if (this.hoveredCurve === curveId && this.hoveredPoint === pointId) return;
     this.hoveredCurve = curveId;
+    this.hoveredPoint = pointId;
     this.rebuild();
   }
 
@@ -271,11 +258,12 @@ export class CurveView {
       if (curve.id !== this.selectedCurve) {
         if (flat.length > 1) {
           const at = settle(curve, flat[Math.floor(flat.length / 2)], this.groundAt);
+          const onGrip = this.hoveredPoint === curve.id;
           const grip = new THREE.Mesh(this.handleGeo, new THREE.MeshBasicMaterial({
-            color: curve.held ? HANDLE_HELD : HANDLE_GRIP,
+            color: onGrip ? HANDLE_HOVER : curve.held ? HANDLE_HELD : HANDLE_GRIP,
             depthTest: false,
             transparent: true,
-            opacity: 0.85,
+            opacity: onGrip ? 1 : 0.85,
             side: THREE.DoubleSide,
           }));
           grip.position.set(at.x, at.y + 0.06, at.z);
@@ -283,7 +271,11 @@ export class CurveView {
           grip.frustumCulled = false;
           // No pointId: picking this selects the curve rather than grabbing a
           // point, which is what `grip` tells the editor.
-          grip.userData = { curveId: curve.id, grip: true, px: HANDLE_PX * GRIP_SCALE };
+          grip.userData = {
+            curveId: curve.id,
+            grip: true,
+            px: HANDLE_PX * GRIP_SCALE * (onGrip ? 1.45 : 1),
+          };
 
           this.handles.add(grip);
         }
@@ -293,8 +285,12 @@ export class CurveView {
       settled.forEach((p, i) => {
         const id = pointIdOf(curve.points[i], i);
         const chosen = this.selectedPoints.has(id);
+        // Hover outranks corner but not selection: what a click would do next
+        // matters more than what kind of point this is, and less than what you
+        // have already chosen.
+        const hovered = !chosen && id === this.hoveredPoint;
         const mat = new THREE.MeshBasicMaterial({
-          color: chosen ? HANDLE_SELECTED : curve.points[i].corner ? HANDLE_CORNER : HANDLE,
+          color: chosen ? HANDLE_SELECTED : hovered ? HANDLE_HOVER : curve.points[i].corner ? HANDLE_CORNER : HANDLE,
           depthTest: false,
           transparent: true,
           side: THREE.DoubleSide,
@@ -304,8 +300,10 @@ export class CurveView {
         dot.renderOrder = 901;
         dot.frustumCulled = false;
         // Everything the picker and the drag need, so neither has to search
-        // back through the data to work out what was grabbed.
-        dot.userData = { curveId: curve.id, pointId: id, index: i };
+        // back through the data to work out what was grabbed. `px` also grows
+        // on hover — colour alone is easy to miss on a dot this size, and the
+        // size change is what reads as "this one".
+        dot.userData = { curveId: curve.id, pointId: id, index: i, px: hovered ? HANDLE_PX * 1.45 : HANDLE_PX };
         this.handles.add(dot);
       });
     }

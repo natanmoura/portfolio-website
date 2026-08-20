@@ -37,9 +37,33 @@ export class Picker {
     this.marker.visible = false;
     this.marker.renderOrder = 1000;
     stage.scene.add(this.marker);
+
+    // Whether clicks may land on buildings at all. Off while the buildings
+    // layer is anything but fully shown — see `setPickable`.
+    this.pickable = true;
+  }
+
+  // **A layer you cannot see properly is a layer you cannot select.**
+  //
+  // Raycasting does not enforce this on its own: three.js tests `layers` and
+  // geometry and ignores `object.visible` entirely, so a hidden building is
+  // hit exactly as readily as a shown one. Hiding the buildings therefore
+  // stopped them drawing and left every click still landing on them, which is
+  // the worst of both — an invisible thing eating the gesture meant for the
+  // road behind it.
+  //
+  // Ghosted counts as "not properly visible" too, and that is the case worth
+  // fixing rather than a bonus. Ghost exists to keep the town legible while
+  // you work on something else (see layers.js), which means it is context
+  // rather than the working set; a faded building that still swallows clicks
+  // aimed at a street is precisely the thing ghosting was supposed to get out
+  // of the way.
+  setPickable(on) {
+    this.pickable = Boolean(on);
   }
 
   cast() {
+    if (!this.pickable) return null;
     const hits = this.raycaster.intersectObject(this.builder.root, true);
     for (const hit of hits) {
       const found = this.builder.resolve(hit);

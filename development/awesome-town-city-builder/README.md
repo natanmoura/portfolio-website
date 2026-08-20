@@ -632,6 +632,47 @@ withHelp(node, 'What it does, and what the extremes look like.', 'Label')
 Write what the control does and what its extremes look like, not a restatement
 of the label.
 
+### A layer you cannot see, you cannot select
+
+Hiding or ghosting the buildings stops them taking clicks. Raycasting does not
+enforce that on its own — three.js tests geometry and layer masks and ignores
+`object.visible` entirely — so a hidden building went on eating every click
+aimed at the road behind it. Ghosted counts as unselectable too, and that is
+the case worth having: ghost exists to keep the town legible while you work on
+something else, so a faded building that still swallows clicks is exactly the
+thing ghosting was meant to get out of the way. `picker.pick` already falls
+through to the curves when it finds nothing, so a click simply reaches the
+street. Any selection is dropped as the layer fades, or the keyboard would
+still be pointed at a building you cannot see.
+
+### Aiming at a curve
+
+Two gestures, and both used to be measured against the plane `y = 0`: drop the
+ray to that plane, then compare in XZ. That is exact for a curve lying on flat
+ground and wrong by the height of the hill for anything else — aiming *exactly*
+at a control point eighteen metres up measured between fourteen and thirty-six
+metres away, against a threshold of one block. Every one of those clicks
+missed. Both now measure from the ray to the curve in three dimensions, which
+has no such assumption and is the distance a person is judging by eye anyway.
+
+The samples have to be dense enough to measure against. `flatten` emits
+nothing between two corner points, because a straight segment *is* its
+endpoints as far as shape goes, so a two-point road offered a hit test only
+its two ends and aiming at the middle reported the distance to whichever end
+was nearer. `densify` in curve.js is shared by the hit test and the drawing
+for the same reason.
+
+**Shift-click adds a control point** to the curve you are holding. Double-click
+still does too, but it was unreliable for a reason no amount of aiming fixes:
+the first click of the pair runs the ordinary click handler, and landing
+slightly too far from the line deselects the curve, so the second click
+arrives with nothing selected and adds nothing. Two thresholds had to pass in
+a row and missing either silently undid the gesture.
+
+Hovering highlights the individual handle under the pointer, not just the
+curve it belongs to. Colour alone is easy to miss on a nine-pixel dot, so it
+grows as well.
+
 ### Selection
 
 Click a module, shift-click a building. Double-click drops a fresh image on the

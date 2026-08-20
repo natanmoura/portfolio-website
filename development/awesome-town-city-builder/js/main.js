@@ -43,7 +43,7 @@ import { infoDialog, confirmDialog } from './dialog.js';
 import { renderThumb } from './thumbs.js';
 import { ROLES, includedFor, toggleInRole, roleLabel } from './roles.js';
 import { History } from './history.js';
-import { Layers } from './layers.js';
+import { Layers, SHOWN } from './layers.js';
 import { initPanelResize } from './resizer.js';
 import { buildExport, downloadExport } from './exporter.js';
 import { writeStats } from './stats.js';
@@ -177,7 +177,7 @@ const SHORTCUTS = [
   ['alt + drag a handle', 'raise or lower that bit of road'],
   ['L', 'hold this road as it is, or let it go'],
   ['delete, no points picked', 'delete the whole curve'],
-  ['double click a picked curve', 'add a control point'],
+  ['shift + click a picked curve', 'add a control point'],
   ['C', 'corner or curve, on the picked points'],
   ['F', 'frame the whole town'],
   ['T', 'start or stop the tour'],
@@ -810,6 +810,19 @@ function applyLayerVisibility() {
   // Only editable while you can see them. A drag that lands on something
   // hidden is indistinguishable from the tool ignoring you.
   curveEditor?.setEnabled(layers.visible('curves'));
+
+  // The same rule, applied to the one layer that can be clicked and also
+  // faded. Buildings stop taking clicks unless they are fully shown, so a
+  // click aimed at a street reaches the street instead of being eaten by a
+  // ghost standing in front of it — `picker.pick` already falls through to
+  // the curves when it finds nothing, so this needs no other wiring.
+  const solid = layers.get('buildings') === SHOWN;
+  picker?.setPickable(solid);
+  // And a selection made before the layer faded goes with it. Leaving it
+  // would keep a highlight box on something you can no longer click and, far
+  // worse, leave every keyboard edit — reroll, delete, nudge — pointed at a
+  // building you cannot see.
+  if (!solid && state.selection) deselectBuilding();
 }
 
 function updateLayerCounts() {
@@ -1162,8 +1175,17 @@ function bindPointer() {
     // Sharing `pickCurve` with the actual pick is what keeps the preview
     // honest — a highlight built from a different test than the click uses
     // would eventually show a curve as reachable that a click then misses.
-    const near = curveEditor?.pickCurve(e, state.params.cell);
-    curveView?.hover(near?.curve.id ?? null);
+    // A handle first, because it is the more precise answer and the one that
+    // outranks the line it sits on: over a control point, what a click does is
+    // grab that point, not pick the curve. A grip reports itself under its own
+    // curve's id, since that is what taking it selects.
+    const handle = curveEditor?.pickHandle(e);
+    if (handle) {
+      curveView?.hover(handle.curveId, handle.grip ? handle.curveId : handle.pointId);
+    } else {
+      const near = curveEditor?.pickCurve(e, state.params.cell);
+      curveView?.hover(near?.curve.id ?? null, null);
+    }
     canvas.style.cursor = near ? 'pointer' : '';
   });
 
@@ -1189,6 +1211,20 @@ function bindPointer() {
 
     const hit = picker.pick(e);
     if (!hit) {
+      // Shift adds a control point to the curve you are already holding.
+      //
+      // Double-click did this and still does, but it was unreliable for a
+      // reason no amount of aiming fixes: the first click of the pair runs the
+      // ordinary click handler, and if it lands even slightly too far from the
+      // line it deselects the curve — so the second click arrives with nothing
+      // selected and adds nothing. Two thresholds had to pass in a row, and
+      // missing either one silently undid the gesture. A modifier on a single
+      // click has no such race.
+      if (e.shiftKey && curveEditor?.addPointAt(e, { maxDistance: state.params.cell })) {
+        noteStatus('Point added');
+        stage.render();
+        return;
+      }
       // Nothing built under the pointer. Before giving up, ask the curves:
       // clicking beside a street is how you pick that street up, and a click
       // on empty tarmac is otherwise the one gesture in this tool that could
@@ -2506,6 +2542,6 @@ Object.defineProperty(window, 'cc', {
   get: () => ({
     state, stage, builder, materials, pool, matPool, particlePool, picker, inspector, controls, wheels, traffic, particles, flyby,
     actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curveEditor, curves,
-    liftAt, isRaised,
+    liftAt, isRaised, layers,
   }),
 });
