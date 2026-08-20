@@ -59,8 +59,16 @@ const L = [
 // hangs off thorax2 rather than off thorax1, because that is roughly where it
 // rides on the ribcage, and it is a translating joint because the horse has no
 // clavicle.
+// Each limb is authored at a single Z, so the chain is exactly parasagittal.
+//
+// A real limb does taper very slightly toward the midline at the top, about a
+// centimetre from scapula to hoof, but the solver treats a limb as planar and a
+// step it cannot represent shows up as a permanent offset between where the hoof
+// is asked to go and where it lands. A centimetre of anatomical taper is not
+// worth a centimetre of hoof slide, and it is below the level of detail the
+// blockout is modelling anyway.
 const LIMB_L = [
-  ['scapula.F', 'thorax2', 0.42, 1.52, 0.16, 'foreleg'],
+  ['scapula.F', 'thorax2', 0.42, 1.52, 0.17, 'foreleg'],
   ['shoulder.F', 'scapula.F', 0.5, 1.1, 0.17, 'foreleg'],
   ['elbow.F', 'shoulder.F', 0.38, 0.85, 0.17, 'foreleg'],
   ['carpus.F', 'elbow.F', 0.44, 0.5, 0.17, 'foreleg'],
@@ -68,7 +76,7 @@ const LIMB_L = [
   ['pastern.F', 'fetlock.F', 0.52, 0.09, 0.17, 'foreleg'],
   ['hoof.F', 'pastern.F', 0.55, 0.0, 0.17, 'foreleg'],
 
-  ['hip.H', 'pelvis', -0.58, 1.24, 0.15, 'hindleg'],
+  ['hip.H', 'pelvis', -0.58, 1.24, 0.16, 'hindleg'],
   ['stifle.H', 'hip.H', -0.4, 0.82, 0.16, 'hindleg'],
   ['hock.H', 'stifle.H', -0.62, 0.44, 0.16, 'hindleg'],
   ['fetlock.H', 'hock.H', -0.6, 0.16, 0.16, 'hindleg'],

@@ -70,6 +70,8 @@ export const PARAM_LABELS = {
   flip: 'Flip copy',
   spin: 'Random spin',
   axis: 'Axis',
+  turn: 'Turn',
+  spinSpeed: 'Spin',
 };
 
 // Anything unnamed falls back to its key with the first letter raised, so a
@@ -132,6 +134,10 @@ export const PARAM_HINTS = {
   taper: { step: 0.01, track: { lo: 0, hi: 1 }, hard: [-10, 10] },
   twist: { step: 0.01, track: { lo: -2, hi: 2 }, hard: [-50, 50] },
   jitter: { step: 0.01, track: { lo: 0, hi: 1 }, hard: [-50, 50] },
+  // Matches the inspector's own Turn/Spin sliders, so a value authored here
+  // and one nudged by hand on a placed module read on the same scale.
+  turn: { step: 0.01, track: { lo: 0, hi: Math.PI * 2 }, hard: [-40, 40] },
+  spinSpeed: { step: 0.01, track: { lo: -3, hi: 3 }, hard: [-40, 40] },
 };
 
 // Failing a named hint, typing may go a long way past the track either way.
@@ -203,7 +209,7 @@ export function paramRow(name, param, onChange, opts = {}) {
         { class: `${p.mode === mode ? 'on' : ''} m-${mode}`.trim(), title: `${meta.label}. ${meta.help}` },
         meta.icon
       );
-      b.addEventListener('click', () => onChange(switchMode(p, mode), { live: false }));
+      b.addEventListener('click', () => onChange(switchMode(p, mode, opts.sample), { live: false }));
       return b;
     })
   );
@@ -367,9 +373,21 @@ export function paramRow(name, param, onChange, opts = {}) {
     paint();
     row.classList.toggle('extended', beyond(lo) || beyond(hi));
   } else {
-    // Free. Nothing to show, and saying so is the point: this parameter has
-    // no value here because whatever places the component decides it.
-    slot.appendChild(h('span', { class: 'pm-free' }, 'set by the scene'));
+    // Free. There is no value to set, because whatever places the component
+    // decides it — but there is very much a value to *see*, and not showing
+    // one is why this row reads as a broken control rather than as an
+    // explanation. "Width does nothing" is what a row with no number, no
+    // knob and no visible way in looks like.
+    //
+    // So the sample the editor is currently drawing goes in the value slot,
+    // greyed, next to a line saying who chose it. The way to take it over is
+    // the Exact button already sitting in this row, and `switchMode` starts
+    // from this number so pinning holds the shape you were looking at rather
+    // than jumping to the middle of the track.
+    slot.appendChild(h('span', { class: 'pm-free' }, 'set by the scene · = to pin it'));
+    if (Number.isFinite(opts.sample)) {
+      setChildren(value, h('span', { class: 'pm-sample', title: 'What it drew this time. Not stored.' }, String(round(opts.sample))));
+    }
   }
 
   return row;
@@ -377,10 +395,15 @@ export function paramRow(name, param, onChange, opts = {}) {
 
 // Mode changes carry the number across rather than resetting it, so trying
 // range and going back to fixed does not lose what was tuned.
-function switchMode(p, mode) {
+function switchMode(p, mode, sample) {
   if (mode === p.mode) return p;
   if (mode === 'fixed') {
-    const v = p.mode === 'fixed' ? p.value : ((p.min ?? 0) + (p.max ?? 1)) / 2;
+    // The sample first, when there is one. Pinning a free parameter should
+    // hold the shape you are looking at — landing on the midpoint of the
+    // track instead makes the model jump the instant you take control of it,
+    // which reads as the button doing something wrong.
+    const v =
+      p.mode === 'fixed' ? p.value : Number.isFinite(sample) ? sample : ((p.min ?? 0) + (p.max ?? 1)) / 2;
     return { mode: 'fixed', value: round(v) };
   }
   const mid = p.mode === 'fixed' ? p.value : ((p.min ?? 0) + (p.max ?? 1)) / 2;

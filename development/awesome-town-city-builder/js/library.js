@@ -303,6 +303,19 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
   }
 
   const dims = resolveParamsWith(doc.params || {}, proposals, seed, `${p}.dims`);
+  // `w`/`h`/`d` are structural rather than incidental — every component
+  // occupies some size on all three axes whether or not its author bothered
+  // to declare tunable params for them. A component that never mentions `w`
+  // is not saying "nothing may ever propose my width", it is saying it never
+  // needed a knob for it — a different thing from refusing a proposal a
+  // caller (a template, a slot pin, the city's own generator) explicitly
+  // offers. Without this, `resolveParamsWith` only ever answers for keys the
+  // component listed, so any axis it left out silently dropped whatever was
+  // proposed for it — the reason an assembly with no declared size, which is
+  // most of them, never actually responded to being told how big to be.
+  for (const axis of ['w', 'h', 'd']) {
+    if (!(axis in (doc.params || {})) && Number.isFinite(proposals?.[axis])) dims[axis] = proposals[axis];
+  }
   const tags = doc.tags || [];
 
   if (isAssembly(doc)) return resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen);
@@ -319,7 +332,17 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
     return { id: doc.id, doc, bounds, box, anchors: anchorsFor(w, h, d), tags, params: dims, pieces: [] };
   }
 
-  const base = buildShape(doc.shape, w, h, d, doc.faces ?? 1, doc.shapeOpts || {});
+  // `blades` is not a size and has no business going through `dims` — it is
+  // a shape option, like every other entry in `shapeOpts`, except one whose
+  // value the *caller* decides per instance (the city rolls a blade count
+  // per module the same ticket-driven way it rolls everything else) rather
+  // than the author fixing once on the document. A proposal for it overrides
+  // whatever the component itself declared, the same priority a locked
+  // component param already gets over a proposal for `w`/`h`/`d`.
+  const shapeOpts = Number.isFinite(proposals?.blades)
+    ? { ...(doc.shapeOpts || {}), blades: proposals.blades }
+    : doc.shapeOpts || {};
+  const base = buildShape(doc.shape, w, h, d, doc.faces ?? 1, shapeOpts);
   const geometry = applyModifiers(base, doc.modifiers, seed, `${p}.mod`);
   // Measured, not assumed. A cone asked for a 1×1×1 box occupies rather less
   // of it, and a noise modifier can push a shape outside one entirely.
@@ -382,7 +405,13 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     // A slot pins parameters on whatever it picked without touching the
     // component itself, which is how one box is a wide plinth here and a
     // narrow post there. Pins are proposals, so the child's own locks still
-    // get the last word — constraints only ever tighten going inward.
+    // get the last word — constraints only ever tighten going inward. This
+    // is the author's own hand-tuned proportion for this specific part in
+    // this specific assembly, and nothing else should override it: the
+    // assembly has no separate size of its own to reconcile it against (see
+    // the `bounds`/`scale` comment below), so what the parts resolve to,
+    // stacked, is the assembly's real size — the same way its height varies
+    // when a part's own pinned range lands somewhere new.
     const proposals = part.params
       ? resolveParams(part.params, seed, `${partPath}.pin`)
       : undefined;
@@ -400,7 +429,11 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   const pieces = [];
   for (const part of placed) {
     const s = part.scale ?? 1;
-    const spin = part.rotY || 0;
+    // The arrangement's own placement angle, plus whatever this part's own
+    // component resolved its `turn` param to — a pinned or authored facing,
+    // same as any other pin, riding along on top of wherever the ring or
+    // stack put the part rather than replacing it.
+    const spin = (part.rotY || 0) + (Number.isFinite(part.params?.turn) ? part.params.turn : 0);
     const cos = Math.cos(spin);
     const sin = Math.sin(spin);
     // Every resolved part already stands on its own zero, so placing it is
@@ -438,24 +471,108 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   const tight = boxSize(box);
 
   // A component's own size params still override what the parts added up to,
-  // so an assembly can be told how big it is from outside.
+  // so an assembly can be told how big it is from outside — a template, a
+  // slot pin, or the city's own generator handing every module a size before
+  // it is drawn.
   const bounds = {
     w: Number.isFinite(dims.w) ? dims.w : tight.w,
     h: Number.isFinite(dims.h) ? dims.h : tight.h,
     d: Number.isFinite(dims.d) ? dims.d : tight.d,
   };
 
+  // Baked into the geometry here, not left as `bounds` reporting a number the
+  // triangles do not agree with. That used to be the entire bug: an assembly
+  // told to be a different size updated its own metadata and nothing about
+  // what actually got drawn, because a child's geometry is fixed the moment
+  // it resolves — a leaf regenerates itself at whatever size it is asked
+  // for, but an assembly's children each resolve their own size from their
+  // own params before the assembly's request is even known, so nothing
+  // downstream of that ever revisits it. Rescaling the composed result,
+  // after every child has already been placed, is what a request to be a
+  // different size while keeping the same composition actually has to mean —
+  // stretching every part in proportion to how the assembly as a whole
+  // needs to change, not re-authoring each part's own independent size.
+  const scale = {
+    x: tight.w > 1e-6 ? bounds.w / tight.w : 1,
+    y: tight.h > 1e-6 ? bounds.h / tight.h : 1,
+    z: tight.d > 1e-6 ? bounds.d / tight.d : 1,
+  };
+  const rescaled =
+    scale.x === 1 && scale.y === 1 && scale.z === 1 ? pieces : pieces.map((piece) => scalePiece(piece, scale));
+
+  // Spin is a single speed for the whole merged mesh — there is no such
+  // thing as one part of a rigid assembly spinning without the rest, the
+  // same way a spinner's own cards all turn together as one module. An
+  // assembly can still declare its own `spinSpeed` param to opt every
+  // instance of it in by default; short of that, a part whose own component
+  // pinned a spin (the "lamp" on a lamp-post, say) carries the assembly it
+  // is part of along with it, first one found winning since there is only
+  // the one speed to give.
+  let spinSpeed = dims.spinSpeed;
+  if (!Number.isFinite(spinSpeed)) {
+    for (const part of placed) {
+      if (Number.isFinite(part.params?.spinSpeed)) {
+        spinSpeed = part.params.spinSpeed;
+        break;
+      }
+    }
+  }
+
   return {
     id: doc.id,
     doc,
     bounds,
-    box,
+    box: scaleBox(box, scale),
     anchors: anchorsFor(bounds.w, bounds.h, bounds.d),
     tags,
-    params: dims,
+    params: Number.isFinite(spinSpeed) ? { ...dims, spinSpeed } : dims,
     parts: placed,
-    pieces,
+    pieces: rescaled,
     algorithm: doc.algorithm || DEFAULT_ALGORITHM,
+  };
+}
+
+// A non-uniform, axis-aligned rescale of one piece's baked geometry and
+// position. Everything downstream — `build.js`'s merge, the editor's
+// preview, thumbnails — goes on reading `geometry.pos`, `offset` and
+// `scale` exactly as before; this is where the stretch happens so nothing
+// else has to know one did.
+function scalePiece(piece, scale) {
+  const geo = piece.geometry;
+  let geometry = geo;
+  if (geo?.pos?.length) {
+    const pos = new Float32Array(geo.pos.length);
+    for (let i = 0; i < pos.length; i += 3) {
+      pos[i] = geo.pos[i] * scale.x;
+      pos[i + 1] = geo.pos[i + 1] * scale.y;
+      pos[i + 2] = geo.pos[i + 2] * scale.z;
+    }
+    // A non-uniform scale needs the inverse-transpose to keep a normal
+    // perpendicular to the surface it describes — for an axis-aligned
+    // diagonal scale that is just the reciprocal per axis, renormalised.
+    const nor = new Float32Array(geo.nor.length);
+    for (let i = 0; i < nor.length; i += 3) {
+      const nx = geo.nor[i] / (scale.x || 1);
+      const ny = geo.nor[i + 1] / (scale.y || 1);
+      const nz = geo.nor[i + 2] / (scale.z || 1);
+      const len = Math.hypot(nx, ny, nz) || 1;
+      nor[i] = nx / len;
+      nor[i + 1] = ny / len;
+      nor[i + 2] = nz / len;
+    }
+    geometry = { ...geo, pos, nor };
+  }
+  return {
+    ...piece,
+    geometry,
+    offset: [piece.offset[0] * scale.x, piece.offset[1] * scale.y, piece.offset[2] * scale.z],
+  };
+}
+
+function scaleBox(box, scale) {
+  return {
+    min: [box.min[0] * scale.x, box.min[1] * scale.y, box.min[2] * scale.z],
+    max: [box.max[0] * scale.x, box.max[1] * scale.y, box.max[2] * scale.z],
   };
 }
 

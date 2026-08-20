@@ -14,8 +14,10 @@
 import { Rng, hashId, hashIdModule } from './rng.js';
 import { getPalette } from './palettes.js';
 import { buildLayout } from './layout.js';
+import { defaultHalf } from './region.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 import { resolveParamsWith } from './constraints.js';
+import { resolveComponent } from './library.js';
 import { note } from './provenance.js';
 
 // The kind vocabulary and the role definitions live in roles.js; what a given
@@ -63,9 +65,47 @@ export const SURFACE_LABEL = {
 
 export const DEFAULTS = {
   seed: 8114,
+  // Terrain and the road pattern each draw from their own seed, so one can
+  // be locked and rerolled without the other two moving. `null` means
+  // "follow the city seed" and is the state every scene starts in and every
+  // scene saved before this existed loads into — a fixed literal default
+  // here would desync an old scene's terrain from its own `seed` the moment
+  // it loaded, which is worse than the field simply not existing. The
+  // fallback is resolved wherever the value is read, not normalised on load,
+  // so "following" is a live relationship and not a one-time copy: rerolling
+  // the city seed carries an unlocked terrain or road seed along with it
+  // right up until you give that seed a roll of its own.
+  terrainSeed: null,
+  roadSeed: null,
   cols: 10,
   rows: 10,
   cell: 6.4,
+  // The outline of the town, as a closed curve, or null for the square that
+  // cols and rows imply. A scene that never draws one saves nothing extra and
+  // generates exactly as it always did — see region.js. It lives in params
+  // rather than beside them because it is authoring, not view state: it
+  // saves, loads, undoes and exports with everything else that decides what
+  // the town is.
+  boundary: null,
+  // Roads you have taken hold of, by road id. A road in here is emitted every
+  // rebuild from the curve stored with it and the pattern never touches it
+  // again; everything not in here is proposed fresh each time. Empty in every
+  // scene that has never held one, which is why a town with no road edits
+  // generates exactly as it did before roads could be held. See `heldRoads`
+  // in layout.js for why the key is the road's original id.
+  roadEdits: {},
+  // Roads deleted outright, by id. Different from letting one go with `L`:
+  // releasing hands a road back to the pattern, deleting says you do not want
+  // that road at all. It persists across rebuilds the same way a hold does —
+  // by id — so it stays gone for as long as the pattern keeps proposing the
+  // same road in the same place, and lapses harmlessly the moment something
+  // upstream changes enough that it no longer would.
+  roadRemoved: {},
+  // Lots merged into one, as `{ plotId: howManyPlots }`. A building with a
+  // span of four stands on its own plot and the three after it along the same
+  // kerb — a department store rather than four shops. See `applySpans` in
+  // layout.js.
+  lotSpans: {},
   density: 0.86,
   lotFill: 0.72,
   lotJitter: 0.16,
@@ -281,6 +321,27 @@ function buildingScheme(rng, palette) {
 
 // --- modules ---------------------------------------------------------------
 
+// Which roof ids a building may draw from. The family rule — a round
+// building reaches for round caps — only ever governed the classic shapes it
+// was written about; a library component chosen for the roof role was
+// chosen deliberately and is allowed on any building regardless of family.
+//
+// One function rather than two copies of the same three lines: this used to
+// be computed twice, once here and once inside `makeModule`'s own `isRoof`
+// branch, and the two drifted — the copy inside `makeModule`, the one that
+// actually decides a roof module's `kind`, kept the older family-only
+// restriction and could never select anything outside the five shipped
+// roof shapes no matter how a scene's role list or mix weighted it. A
+// custom roof component was includable, weighted, even chosen by the outer
+// pick that only ever asked "is this building capped or flat" — and then
+// silently overruled by the inner one that actually mattered.
+function roofAllowFor(roofKeys, family) {
+  const classic = new Set(ROOF_KINDS);
+  const byFamily = ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy;
+  const allow = new Set(roofKeys.filter((k) => !classic.has(k) || byFamily.includes(k)));
+  return allow.size ? allow : null;
+}
+
 function makeModule(t, params, palette, ctx, index, id) {
   const { signature, family, scheme, collage, pickRange, isRoof, material, lib } = ctx;
   // What a component says about itself, or nothing when the library has not
@@ -297,11 +358,10 @@ function makeModule(t, params, palette, ctx, index, id) {
 
   let kind;
   if (isRoof) {
-    const byFamily = ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy;
-    const allow = new Set(byFamily.filter((k) => roofKeys.includes(k)));
     // A family with none of its roofs included falls back to the role's own
-    // list, so a round building still gets capped by something.
-    kind = pickWeighted(params.roofMix, roofKeys, t.roofKind, allow.size ? allow : null, 'the roof mix');
+    // list (`roofAllowFor` returns null when its filtered set is empty), so
+    // a round building still gets capped by something.
+    kind = pickWeighted(params.roofMix, roofKeys, t.roofKind, roofAllowFor(roofKeys, family), 'the roof mix');
     if (kind === 'flat') kind = 'box';
   } else if (t.kindRoll < params.cohesion && bodyKeys.includes(signature)) {
     kind = signature;
@@ -365,7 +425,11 @@ function makeModule(t, params, palette, ctx, index, id) {
     kind,
     slab: slabbed,
     rotY: t.rot < params.rotateChance ? Math.PI / 2 : 0,
-    blades: 1 + Math.floor(t.blades * 3),
+    // Blade count used to be set here, straight from a ticket. Now the spin
+    // component's own `radial` modifier decides it, resolved deterministically
+    // off (modSeed, modPath) same as any other authored parameter — see
+    // spin.json and modifiers.js. `t.blades` stays drawn above so nothing
+    // later in the ticket block shifts.
     spinSpeed: spins ? mix(0.18, 0.85, t.spinSpeed) * (t.spinDir < 0.5 ? 1 : -1) : 0,
     glowTicket: t.glow,
     glowColor: palette.glow[Math.floor(t.glowColour * palette.glow.length)],
@@ -401,15 +465,42 @@ function applyComponents(modules, params, library, seed, id) {
     if (!component) continue;
 
     const path = `lot:${id}/${m.id}`;
-    const dims = resolveParamsWith(
-      component.params,
-      { w: m.w, h: m.h, d: m.d },
-      seed,
-      path
-    );
-    if (Number.isFinite(dims.w)) m.w = dims.w;
-    if (Number.isFinite(dims.h)) m.h = dims.h;
-    if (Number.isFinite(dims.d)) m.d = dims.d;
+    // Turn and spin travel through the same proposal the town always sent —
+    // the ticket-rolled facing and speed — so a component that never
+    // mentions either keeps drawing exactly as it did before this existed.
+    // One that does gets the same priority any other authored param gets:
+    // fixed overrules the roll outright, range keeps it inside a leash, free
+    // just watches it go by.
+    const motion = { turn: m.rotY, spinSpeed: m.spinSpeed };
+
+    if (component.parts) {
+      // An assembly's height is not a knob the town gets to turn — it is
+      // whatever its parts, each pinned to its own proportion by whoever
+      // authored it, add up to once stacked. Only the footprint gets fit to
+      // the town's own proposal, the way "the scene scales it into place"
+      // has to mean for a spire or a lamp: narrow or widen it to sit on the
+      // lot it landed on, but do not flatten a signed tower to floor height
+      // because that is what a roof cap happens to need. Measured with the
+      // same (seed, path) `m.modSeed`/`m.modPath` are about to be set to, so
+      // the real resolve in `build.js` lands on this exact number and the
+      // assembly's own scale-to-fit leaves height untouched (a scale of 1).
+      const measured = resolveComponent(component, library, seed, path, { w: m.w, d: m.d, ...motion });
+      if (measured && Number.isFinite(measured.bounds?.h)) m.h = measured.bounds.h;
+      if (Number.isFinite(measured?.params?.turn)) m.rotY = measured.params.turn;
+      if (Number.isFinite(measured?.params?.spinSpeed)) m.spinSpeed = measured.params.spinSpeed;
+    } else {
+      const dims = resolveParamsWith(
+        component.params,
+        { w: m.w, h: m.h, d: m.d, ...motion },
+        seed,
+        path
+      );
+      if (Number.isFinite(dims.w)) m.w = dims.w;
+      if (Number.isFinite(dims.h)) m.h = dims.h;
+      if (Number.isFinite(dims.d)) m.d = dims.d;
+      if (Number.isFinite(dims.turn)) m.rotY = dims.turn;
+      if (Number.isFinite(dims.spinSpeed)) m.spinSpeed = dims.spinSpeed;
+    }
 
     // A sphere stays a sphere even after a component has had its say.
     if (m.kind === 'sphere') m.w = m.d = m.h = Math.min(m.w, m.d);
@@ -436,10 +527,20 @@ function applyComponents(modules, params, library, seed, id) {
 // to that pair of braces, and it earns its place on the cases ids cannot
 // cover: a scene saved before ids changed shape, a library or pattern that
 // moves a road without renaming it, and hand-edited scene files.
+// `w`, `d` and `angle` joined `x`/`z`/`road` for one reason: they are what
+// `anchorMissingClaims` in layout.js needs to rebuild a plot from nothing
+// when its road is gone and stay a footprint rather than a point. A scene
+// saved before they existed has a fingerprint short of them, and the anchor
+// pass skips those rather than guessing — the building goes back to being
+// reported unplaced, exactly as it always was, instead of appearing with an
+// invented size.
 export const fingerprint = (site) => ({
   x: Math.round(site.x * 100) / 100,
   z: Math.round(site.z * 100) / 100,
   road: site.roadId || null,
+  angle: Math.round(site.angle * 1000) / 1000,
+  w: Math.round(site.w * 100) / 100,
+  d: Math.round(site.d * 100) / 100,
 });
 
 // Tolerant of a shift, strict about a swap.
@@ -453,6 +554,13 @@ export function overrideMoved(over, site, params) {
   const at = over?.at;
   if (!at) return false;
   if (at.road && site.roadId && at.road !== site.roadId) return true;
+  // A plot on a street you are holding has a reference frame, and it is the
+  // street. Dragging a road three blocks moves every plot on it three blocks,
+  // and that is the whole point of dragging it — reading that as drift would
+  // throw away every edit on the road the moment you touched it, which is the
+  // exact failure this check exists to prevent. The road id still has to
+  // match, so an edit still cannot cross to a different street.
+  if (site.held) return false;
   return Math.hypot(site.x - at.x, site.z - at.z) > params.cell * 1.5;
 }
 
@@ -489,7 +597,11 @@ export function reconcileOverrides(overrides, city) {
 
 // --- lot -------------------------------------------------------------------
 
-export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, half, library = null) {
+// `region` is the shape the town occupies — see region.js. Two things here
+// need it: how far downtown a building is, which is a distance from the
+// middle of town measured against its size, and which chunk a building meshes
+// into, which is a grid laid from one corner of it.
+export function generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, region, library = null) {
   const palette = getPalette(params.palette);
   const id = site.id;
   const bOver = overrides[id] || {};
@@ -500,7 +612,8 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   // different building and applying it would be worse than dropping it — a
   // silently wrong town reads as the tool being unpredictable, where a
   // reported one reads as a thing that happened. See `overrideMoved`.
-  if (overrideMoved(bOver, site, params)) return generateLot(site, params, {}, imageCount, cutoutCount, materialCount, groundAt, half, library);
+  if (overrideMoved(bOver, site, params))
+    return generateLot(site, params, {}, imageCount, cutoutCount, materialCount, groundAt, region, library);
 
   const seed = (params.seed + (bOver.seedNudge || 0)) >>> 0;
   const brng = new Rng(hashId(seed, id));
@@ -545,7 +658,11 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
 
   // Distance from the middle of town, and a lift for anything on a main road,
   // which is how real height clusters: downtown and along the arterials.
-  const dist = clamp(Math.hypot(site.x, site.z) / Math.max(1, half), 0, 1);
+  const dist = clamp(
+    Math.hypot(site.x - region.center.x, site.z - region.center.z) / Math.max(1, region.half),
+    0,
+    1
+  );
   const pull = Math.pow(1 - dist, 1.6) * (site.main ? 1.15 : 0.85);
   const shape = clamp(mix(shapeRoll, clamp(pull, 0, 1), params.centerBias), 0, 1);
   const floors = Math.max(1, Math.round(mix(params.minFloors, params.maxFloors, shape)));
@@ -584,17 +701,11 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   // include list the roof module will draw from, or a town with roofs
   // switched off would still reserve a storey for one.
   const roofKeys = includedFor(params, 'roof');
-  // The family rule only governs the classic roof shapes, which are the only
-  // ones it was written about. A library component chosen for the roof role
-  // was chosen deliberately and is allowed on any building.
-  const classic = new Set(ROOF_KINDS);
-  const byFamily = ROOFS_BY_FAMILY[family] || ROOFS_BY_FAMILY.boxy;
-  const roofAllow = new Set(roofKeys.filter((k) => !classic.has(k) || byFamily.includes(k)));
   const roofKind = pickWeighted(
     params.roofMix,
     roofKeys,
     roofRoll,
-    roofAllow.size ? roofAllow : null,
+    roofAllowFor(roofKeys, family),
     'the roof mix'
   );
   if (roofKind !== 'flat') {
@@ -671,8 +782,20 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   );
   // Cell coordinates exist only so the renderer can group buildings into
   // chunks. Nothing about the layout depends on them any more.
-  const gx = Math.floor((x + half) / params.cell);
-  const gz = Math.floor((z + half) / params.cell);
+  //
+  // Anchored to the square cols/rows/cell imply, not to `region.bounds`. It
+  // was the region's own corner briefly, on the reasoning that a town sited
+  // far from the origin should not need a hundred empty chunk numbers to
+  // reach it — true, but `region.bounds` moves with every boundary edit,
+  // which meant nudging one corner reflowed the *entire* chunk grid a cell
+  // or two, one frame after the same edit already gave every touched road a
+  // fresh id. Buildings nowhere near the edit do not need a second reason to
+  // rebuild. The default square only moves when cols, rows or cell actually
+  // does, which is the one case a full reflow is genuinely warranted.
+  const originX = -defaultHalf(params);
+  const originZ = originX;
+  const gx = Math.floor((x - originX) / params.cell);
+  const gz = Math.floor((z - originZ) / params.cell);
 
   // Sit on the lowest corner of the footprint so nothing floats on a slope.
   let y = 0;
@@ -814,10 +937,51 @@ export function generateCity(
   groundAt = null,
   library = null
 ) {
-  const layout = buildLayout(params);
+  // Which plots carry a hand edit, so the layout can offer them their ground
+  // before it offers it to anything procedural. Module edits name their plot
+  // in their own id, so both kinds fold down to the same set.
+  const claims = new Set();
+  // Every override's fingerprint, by plot id. A module-level override (a
+  // single floor's height, most edits) never itself carries a key the
+  // building's own plot id would match, so this has to walk every override
+  // and derive the plot each belongs to, the same as `claims` does — a plot
+  // id computed once and then thrown away would have missed most edits.
+  const fingerprints = new Map();
+  for (const [key, over] of Object.entries(overrides)) {
+    const cut = key.lastIndexOf('_m');
+    const plotId = cut > 0 ? key.slice(0, cut) : key;
+    claims.add(plotId);
+    if (over?.at && !fingerprints.has(plotId)) fingerprints.set(plotId, over.at);
+  }
+  // A merged lot is authored too, and it has more to lose than an edit does:
+  // if the plot it is anchored to fails to place, the whole span goes with it.
+  for (const id of Object.keys(params.lotSpans || {})) claims.add(id);
+
+  // Which claimed plots can be rebuilt outright if the road they were on
+  // stops proposing them at all — see `anchorMissingClaims` in layout.js.
+  // Skips a plot whose own building-level override says it was deleted:
+  // resurrecting a plot just to immediately hide it again is wasted work for
+  // no visible difference from leaving it alone.
+  const anchors = new Map();
+  for (const [plotId, at] of fingerprints) {
+    if (overrides[plotId]?.deleted) continue;
+    anchors.set(plotId, at);
+  }
+
+  const layout = buildLayout(params, undefined, claims, anchors);
   const buildings = [];
   for (const site of layout.sites) {
-    const b = generateLot(site, params, overrides, imageCount, cutoutCount, materialCount, groundAt, layout.half, library);
+    const b = generateLot(
+      site,
+      params,
+      overrides,
+      imageCount,
+      cutoutCount,
+      materialCount,
+      groundAt,
+      layout.region,
+      library
+    );
     if (b) buildings.push(b);
   }
   return {

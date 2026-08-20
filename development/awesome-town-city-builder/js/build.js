@@ -12,9 +12,25 @@
 import * as THREE from 'three';
 import { buildShape, slotCount, slotLabels, cropFaces } from './geometry.js';
 import { applyModifiers } from './modifiers.js';
-import { isAssembly, resolveComponent, mergeResolved } from './library.js';
+import { resolveComponent, mergeResolved } from './library.js';
 
 const CHUNK = 4; // lots per side
+
+// What a chunk drew, cheaply enough to compute every rebuild without being
+// the thing that makes rebuilding slow.
+//
+// Every building here is already plain, JSON-safe data — nothing this
+// project's generator returns holds a function or a cycle — so stringifying
+// it is the correct answer to "did anything about this change", not an
+// approximation of one: it covers every field `makeMesh` reads without this
+// file having to know what all of them are or keep the list in sync by hand
+// as new ones are added. Sorted by id first, so two buildings arriving in a
+// different order — which the claims-priority pass in `placeSites` can
+// produce — reads as unchanged rather than as a false positive.
+function chunkSignature(list) {
+  const sorted = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return JSON.stringify(sorted);
+}
 
 export class CityBuilder {
   constructor(pool, cityMaterial) {
@@ -34,6 +50,10 @@ export class CityBuilder {
     this._ghosted = false;
     this.stats = { chunks: 0, modules: 0, triangles: 0 };
     this._color = new THREE.Color();
+    // A cheap fingerprint of what each chunk last drew, so `build()` can tell
+    // a chunk whose buildings resolved to the exact same data from one that
+    // genuinely changed. See the comment on `build()`.
+    this.signatures = new Map();
   }
 
   chunkKey(gx, gz) {
@@ -44,6 +64,7 @@ export class CityBuilder {
     for (const mesh of this.chunks.values()) this.drop(mesh);
     this.chunks.clear();
     this.groups.clear();
+    this.signatures.clear();
     this.pending.length = 0;
     if (this.solo) this.drop(this.solo);
     this.solo = null;
@@ -54,25 +75,59 @@ export class CityBuilder {
     mesh.removeFromParent();
   }
 
-  // Queue the whole city for remeshing rather than doing it in one go.
-  // Generating the data is cheap; turning it into buffers is not, so a global
-  // slider drag on a large city spreads that cost over a few frames and keeps
-  // the viewport interactive instead of locking up for a third of a second.
+  // Queue changed chunks for remeshing rather than doing it in one go, and —
+  // the point of this rewrite — rather than queuing *every* chunk regardless
+  // of whether anything in it actually changed.
+  //
+  // A full `generateCity()` runs every rebuild, and most of what it produces
+  // is the same data it produced last time: nudging a slider that never
+  // touches roads, editing one held road on the far side of town, toggling a
+  // layer — all of these leave the overwhelming majority of buildings
+  // byte-identical to before. Queuing every chunk anyway meant tearing down
+  // and rebuilding meshes that were already correct, which is wasted GPU
+  // work and, worse, a visible flash across the whole town for a change that
+  // touched one corner of it.
+  //
+  // So each chunk gets a cheap fingerprint of the data it last drew from, and
+  // only chunks whose fingerprint changed go in the queue. A chunk's mesh
+  // that is not queued is not touched at all — still the same three.js
+  // object, still on screen, because it is still correct.
+  //
+  // This does not manufacture stability that is not really there. Moving a
+  // boundary point reclips every road that crosses one of its two adjacent
+  // edges, which for a full-span pattern (grid, boulevard, radial) is
+  // typically every road in town — their ids change, their tickets change,
+  // and the fingerprint correctly says so. What this fixes is the case where
+  // the *data* did not change: it stops that case from paying the cost of
+  // the case where it did.
   build(city) {
     this.city = city;
-    this.groups = new Map();
+    const groups = new Map();
     for (const b of city.buildings) {
       const key = this.chunkKey(b.gx, b.gz);
-      if (!this.groups.has(key)) this.groups.set(key, []);
-      this.groups.get(key).push(b);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(b);
     }
-    for (const key of [...this.chunks.keys()]) {
-      if (!this.groups.has(key)) {
-        this.drop(this.chunks.get(key));
-        this.chunks.delete(key);
+
+    const changed = [];
+    for (const [key, list] of groups) {
+      const sig = chunkSignature(list);
+      if (this.signatures.get(key) !== sig) {
+        changed.push(key);
+        this.signatures.set(key, sig);
       }
     }
-    this.pending = [...this.groups.keys()];
+
+    for (const key of [...this.chunks.keys()]) {
+      if (!groups.has(key)) {
+        this.drop(this.chunks.get(key));
+        this.chunks.delete(key);
+        this.signatures.delete(key);
+      }
+    }
+
+    this.groups = groups;
+    this.pending = changed;
     this.sortPending();
     if (this.isolatedId) this.rebuildSolo();
     return this.root;
@@ -132,6 +187,11 @@ export class CityBuilder {
       : [];
     this.groups.set(key, list);
     this.setChunk(key, list);
+    // Recorded here too, or the next full `build()` would compare against a
+    // fingerprint taken before this targeted rebuild and queue this chunk
+    // again for no reason — not wrong, since redrawing it a second time still
+    // draws the right thing, just the exact waste this file exists to avoid.
+    this.signatures.set(key, chunkSignature(list));
     this.refreshStats();
   }
 
@@ -210,29 +270,56 @@ export class CityBuilder {
   // generator because geometry is this file's business, and because an
   // assembly resolved per module is what keeps every instance of a lamp post
   // different from the next.
+  // Every module resolves through the library now, leaf or assembly — a box
+  // is `box.json`, not a name a hardcoded switch happens to recognise. The
+  // fallback below, calling `buildShape` directly, exists only for a `kind`
+  // the library genuinely does not have: still loading, or a scene naming a
+  // component that was since renamed or removed. That is the one case
+  // nothing here can resolve honestly, so it draws the best guess it always
+  // drew rather than nothing.
+  //
+  // The library and the city disagree about where a component's own zero
+  // is, on purpose: a component previewed on its own sits with its base at
+  // the floor, which is what an editor or a thumbnail wants, while a module
+  // in a stack is positioned by its centre (`restack` in generate.js sets
+  // `m.y` to the middle of where it sits). Reconciling that here, once, is
+  // what makes the switch invisible everywhere else. For a single-piece
+  // result — every leaf, and it is what most modules are — the exact
+  // correction is the lift `resolveComponent` itself recorded when it stood
+  // the piece up: subtracting it exactly restores the geometry `buildShape`
+  // would have produced directly, provably so (`tools/geom-diff.mjs` checks
+  // this for every default shape). An assembly has no single piece to read a
+  // lift from — its composed result is already based at zero by
+  // construction, the way each of its own children already is — so it is
+  // recentred using its own resolved height instead, which is the same
+  // assumption `restack` already makes for everything else.
   shapeFor(m) {
     const doc = this.library?.components.get(m.kind);
-
-    if (doc && isAssembly(doc)) {
+    if (doc) {
       const resolved = resolveComponent(
         doc,
         this.library,
         m.modSeed ?? 0,
         m.modPath || `mod:${m.id}`,
-        { w: m.w, h: m.h, d: m.d }
+        { w: m.w, h: m.h, d: m.d, blades: m.blades }
       );
-      const shape = mergeResolved(resolved);
+      const drop = resolved.pieces.length === 1 ? resolved.pieces[0].offset[1] : resolved.bounds.h / 2;
+      const merged = mergeResolved(resolved);
+      if (drop) {
+        for (let i = 1; i < merged.pos.length; i += 3) merged.pos[i] -= drop;
+      }
       // How many slots this actually turned out to have. Nothing upstream can
       // know it — an assembly's slot count only exists once its parts have
       // been resolved and merged — so it is stamped back onto the module for
       // the inspector to read. Without it the panel offers a cube's six faces
       // for an object with fifty-six.
-      m.slotCount = shape.slots.length;
-      // An assembly has more slots than the module has faces, so the faces
-      // repeat across it. A cheap rule, and it keeps a stack of parts reading
-      // as one object rather than one painted part and the rest blank.
-      const faces = this.prepFaces(m, shape.slots.length);
-      return cropFaces(shape, faces, { tile: !!m.matKind });
+      m.slotCount = merged.slots.length;
+      // More slots than the module has faces repeats the faces across them,
+      // rather than one painted face and the rest blank — true for a
+      // primitive with several faces same as it is for a fifty-six-slot
+      // assembly.
+      const faces = this.prepFaces(m, merged.slots.length);
+      return cropFaces(merged, faces, { tile: !!m.matKind });
     }
 
     const shape = buildShape(m.kind, m.w, m.h, m.d, this.prepFaces(m), {

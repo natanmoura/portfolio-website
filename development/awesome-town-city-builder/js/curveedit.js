@@ -39,6 +39,15 @@ export class CurveEditor {
     // sliders already use.
     this.onLive = opts.onLive || (() => {});
     this.onSelect = opts.onSelect || (() => {});
+    // Called when a gesture picks a curve up, as against the owner re-pointing
+    // the selection at one after a rebuild.
+    this.onPick = opts.onPick || null;
+    // Called with the whole curve when it is deleted outright, as against
+    // `onChange`, which is a shape edit. Deleting a curve is not a shape —
+    // there is nothing left afterward for the owner to store a new version
+    // of, so it gets its own callback rather than being shoehorned through
+    // the one that hands back an edited curve.
+    this.onDelete = opts.onDelete || null;
 
     this.raycaster = new THREE.Raycaster();
     this.plane = new THREE.Plane();
@@ -70,6 +79,31 @@ export class CurveEditor {
     this.selectedPoints = new Set(pointIds);
     this.view.select(curveId, [...this.selectedPoints]);
     this.onSelect(curveId, [...this.selectedPoints]);
+  }
+
+  // The curve under the pointer, by its line rather than by its handles.
+  //
+  // Handles are only drawn for the selected curve, which leaves no way to
+  // select a different one — a real gap while the boundary was the only thing
+  // being edited, and a blocking one the moment there are forty roads. Lines
+  // are close to unhittable with a raycast at any sensible tolerance, so this
+  // drops to the ground plane and asks each curve how far away it is, which
+  // is the question `closestOn` already answers.
+  //
+  // `maxDistance` is in world units, so the caller passes something scaled to
+  // the town — a block, usually — rather than this file guessing.
+  pickCurve(e, maxDistance = Infinity) {
+    if (!this.enabled) return null;
+    this.castFrom(e);
+    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    if (!this.raycaster.ray.intersectPlane(ground, this.hitPoint)) return null;
+    let best = null;
+    for (const curve of this.curves) {
+      const near = closestOn(curve, this.hitPoint.x, this.hitPoint.z, 8);
+      if (near.distance > maxDistance) continue;
+      if (!best || near.distance < best.distance) best = { curve, distance: near.distance };
+    }
+    return best;
   }
 
   // Pointer position in normalised device coordinates, which is what the
@@ -111,6 +145,19 @@ export class CurveEditor {
 
     const curve = this.curveById(hit.curveId);
     if (!curve) return false;
+
+    // A grip stands for a whole curve rather than for a point on it. Taking
+    // it selects that curve and stops there: the control points it reveals
+    // are what you drag, and a grip that also dragged would move a point you
+    // could not see until you pressed on it.
+    if (hit.grip) {
+      this.select(hit.curveId, []);
+      // Fired only from a gesture, unlike onSelect, which also runs every
+      // time the town rebuilds and re-points the selection at the same curve.
+      // Anything that talks to the user belongs on this one.
+      this.onPick?.(curve);
+      return true;
+    }
 
     const index = curve.points.findIndex((p, i) => pointIdOf(p, i) === hit.pointId);
     if (index < 0) return false;
@@ -214,13 +261,19 @@ export class CurveEditor {
   // curve. Lands on the line rather than under the pointer, because a control
   // point that appears off the curve has changed its shape before you have
   // touched it.
-  addPointAt(e) {
+  //
+  // `maxDistance` is how close to the line the click has to land. Without it
+  // this steals every double-click in the viewport from whatever else wanted
+  // one, since a click anywhere at all has a nearest point on the curve.
+  addPointAt(e, opts = {}) {
+    if (!this.enabled) return false;
     const curve = this.curveById(this.selectedCurve);
     if (!curve) return false;
     this.castFrom(e);
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     if (!this.raycaster.ray.intersectPlane(ground, this.hitPoint)) return false;
     const near = closestOn(curve, this.hitPoint.x, this.hitPoint.z);
+    if (near.distance > (opts.maxDistance ?? Infinity)) return false;
     const next = insertAt(curve, near.segment, near.t);
     this.replace(next);
     this.onChange(next);
@@ -228,12 +281,32 @@ export class CurveEditor {
   }
 
   deleteSelected() {
-    let curve = this.curveById(this.selectedCurve);
-    if (!curve || !this.selectedPoints.size) return false;
+    const before = this.curveById(this.selectedCurve);
+    if (!before || !this.selectedPoints.size) return false;
+    let curve = before;
     for (const id of this.selectedPoints) curve = removePoint(curve, id);
     this.selectedPoints.clear();
     this.replace(curve);
-    this.onChange(curve);
+    // `removePoint` refuses to take a curve below two points and hands back
+    // the identical object rather than a copy, so a reference check is
+    // exactly the question "did this do anything". It has to be asked:
+    // `onChange` now means "hold this road", now that curves are consumed
+    // rather than only drawn, and firing it on a delete that was refused
+    // would silently promote an untouched road to held the moment you tried
+    // and failed to remove its last-but-one point.
+    if (curve !== before) this.onChange(curve);
+    return curve !== before;
+  }
+
+  // The whole curve, not a point on it. What that means is the owner's
+  // decision — the boundary going away is different from a road going away —
+  // which is exactly why this only reports the curve and does not touch
+  // `this.curves` itself. Whatever `onDelete` does will end in a fresh
+  // `setCurves` call once the state that produced this list has changed.
+  deleteCurve() {
+    const curve = this.curveById(this.selectedCurve);
+    if (!curve || !this.onDelete) return false;
+    this.onDelete(curve);
     return true;
   }
 

@@ -24,5 +24,12 @@
       "max": 2.4
     }
   },
-  "modifiers": []
+  "modifiers": [
+    {
+      "type": "radial",
+      "params": {
+        "count": { "mode": "range", "min": 1, "max": 4 }
+      }
+    }
+  ]
 }

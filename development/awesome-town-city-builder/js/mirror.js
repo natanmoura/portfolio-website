@@ -71,6 +71,28 @@ const FRAG = `
     }
 
     vec3 p = viewFromDepth(vUv);
+
+    // A silhouette edge — a mirror pixel sitting right where the surface
+    // gives way to whatever is behind it — is exactly where this screen-space
+    // derivative stops meaning "the surface tangent here" and starts meaning
+    // "the jump between two unrelated depths." A normal built from that jump
+    // points somewhere arbitrary, and the reflection it sends the ray on is
+    // arbitrary with it: a hit some frames, a miss others, flipping between
+    // whatever it happened to find and black wherever it did not, as the edge
+    // drifts by less than a pixel between frames. Thin geometry — a colonnade
+    // of pillars is mostly edge — sits in this trap constantly, which is what
+    // reads as flashing rather than a rare glitch. Falling back to sky the
+    // same way an off-screen ray already does turns that flicker into a
+    // steady, if slightly wrong, edge instead.
+    float edgeDx = abs(dFdx(p.z));
+    float edgeDy = abs(dFdy(p.z));
+    float edgeThreshold = max(0.08, -p.z * 0.04);
+    if (max(edgeDx, edgeDy) > edgeThreshold) {
+      vec3 worldDir = normalize((uViewInv * vec4(normalize(p), 0.0)).xyz);
+      gl_FragColor = vec4(skyColor(worldDir), 1.0);
+      return;
+    }
+
     // Normal off the depth gradient, same trick SSAO uses and for the same
     // reason: geometry here can have moved in the vertex shader, so this is
     // the only normal guaranteed to match what was actually drawn.

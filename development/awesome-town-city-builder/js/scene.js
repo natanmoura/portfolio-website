@@ -207,6 +207,19 @@ export class Stage {
     const pw = Math.round(w * ratio);
     const ph = Math.round(h * ratio);
     this.sceneTarget.setSize(pw, ph);
+    // `setSize` on the render target does not reach into a manually attached
+    // depth texture — its own `.image` dimensions are a separate piece of
+    // state that nothing else here was touching, so it stayed at whatever
+    // size the *first* resize ever set it to while the colour target kept
+    // right on tracking every later one. A render target whose colour and
+    // depth attachments disagree on size is incomplete by the WebGL spec,
+    // which does not fail loudly — it silently skips the draw, so whatever
+    // was already in the buffer (a stale frame, black) stays on screen until
+    // the next draw happens to land the same way. That is what read as
+    // flashing black boxes: not a broken shape, a framebuffer that stopped
+    // being written to.
+    this.depthTexture.image.width = pw;
+    this.depthTexture.image.height = ph;
     this.composer.setSize(w, h);
     this.bloom.setSize(w, h);
     this.ssao.setSize(pw, ph);
@@ -214,9 +227,9 @@ export class Stage {
     this.looks.setSize(w, h);
   }
 
-  setExtent(params) {
-    this.extent = Math.max(params.cols, params.rows) * params.cell;
-    this.ground.update(params);
+  setExtent(params, townSpan = 0) {
+    this.extent = Math.max(Math.max(params.cols, params.rows) * params.cell, townSpan);
+    this.ground.update(params, townSpan);
 
     this.shadowSpan = this.extent * 0.8 + 12 + (params.terrainHeight || 0) * 2;
     this.fitShadows();

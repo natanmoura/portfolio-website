@@ -153,5 +153,30 @@ export function createFootfall(skel) {
     return LIMBS.filter((l) => state[l].stance);
   }
 
-  return { state, update, totalDrift, supportSet, neutral };
+  // Mean ground height under the planted hooves, which is the height the body
+  // should actually ride on. Sampling the terrain under the body's centre instead
+  // is wrong the moment the ground is not flat, because the hooves are metres away
+  // and on a slope they sit well above or below that sample. Getting this wrong
+  // shows up as the legs failing to reach on rolling ground.
+  //
+  // Falls back to the swing hooves when nothing is planted, so a suspension phase
+  // does not lose the reference.
+  function supportHeight(fallback) {
+    let sum = 0;
+    let n = 0;
+    for (const l of LIMBS) {
+      if (!state[l].stance) continue;
+      sum += state[l].plant.y;
+      n++;
+    }
+    if (n === 0) {
+      for (const l of LIMBS) {
+        sum += state[l].target.y;
+        n++;
+      }
+    }
+    return n > 0 ? sum / n : fallback;
+  }
+
+  return { state, update, totalDrift, supportSet, supportHeight, neutral };
 }

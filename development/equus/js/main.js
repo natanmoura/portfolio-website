@@ -16,6 +16,8 @@ import { createTimingChart, createReadout, createTraces, createForceChart } from
 import { createFootfall } from './footfall.js';
 import { createLoad } from './load.js';
 import { createLimbSolver } from './limb.js';
+import { createBody, createInput } from './body.js';
+import { createSpine } from './spine.js';
 import { params } from './params.js';
 import { GAITS, LIMBS, withLead, cheapestGait, solveClock, maxStrideFrequency } from './gaits.js';
 
@@ -42,22 +44,17 @@ stage.scene.add(horse);
 const modes = createModes(stage, { terrain, labGround });
 const footfall = createFootfall(skel);
 const load = createLoad();
+const spine = createSpine(skel);
 const limbs = createLimbSolver(skel);
 const traces = createTraces(THREE, stage.scene, { limbs: LIMBS });
 
-// Body state. Phase 3 gives this real momentum. For now it is a position and a
-// heading that the camera can follow and the clock can drive.
-const body = {
-  position: new THREE.Vector3(0, 0, 0),
-  heading: 0,
-  speed: 0,
-  scale: params.scale,
-  // How far the body sits below its standing height. A horse standing square has
-  // its forelimbs almost fully extended, which leaves them no reach at all, so
-  // the body has to drop for a hoof to get out in front. Real horses do exactly
-  // this and run lower the faster they go.
-  crouch: 0,
-};
+// L0 body. Real momentum, with separate longitudinal and lateral grip limits, so
+// a galloping horse cannot pivot and stopping costs distance.
+const bodySim = createBody();
+const body = bodySim.state;
+const input = createInput(params);
+// null means the keyboard has the wheel.
+let steerOverride = null;
 
 // Solve the crouch from the reach the stride actually needs. Stance travel is
 // duty times stride length, and the hoof has to get half of that ahead of the
@@ -70,26 +67,26 @@ const body = {
 // the solver cannot deliver and the hoof slides to make up the difference.
 const USABLE = 0.955;
 // A real horse does not drop 30 cm to take a stride. Most of a forelimb's reach
-// comes from the scapula rotating on the ribcage, the thoracic sling, which
-// effectively raises the pivot and lengthens the arc without lowering the body at
-// all. That is Phase 3. Until then the honest trade is a correct posture with the
-// stride clamped to what the legs can actually cover, rather than a full stride
-// bought with a squat, so canter and gallop currently under stride.
-const MAX_CROUCH_FRACTION = 0.12;
+// comes from the scapula sliding on the ribcage, the thoracic sling, which moves
+// the pivot rather than shortening the leg. With the sling built, the body only
+// has to make up what the sling cannot, so this can stay modest.
+const MAX_CROUCH_FRACTION = 0.14;
 
 function legGeometry(key) {
   const s = params.scale;
   const r = limbs.rest[key];
-  // The hoof does not rest directly below its limb root. A forehoof sits ahead of
-  // the scapula and a hind hoof sits behind the hip, so the two ends of a stance
-  // are not symmetric about the root and the longer end is what has to fit.
-  const offset = r.u[r.u.length - 1] - r.u[0];
   return {
     // `rest.total` already carries the scale once the solver has run, so go back
     // to the unscaled lengths to stay independent of solve order.
     total: (r.lenBase ?? r.len).reduce((a, b) => a + b, 0) * s * USABLE,
     restH: (key[0] === 'F' ? skel.metrics.foreLegLength : skel.metrics.hindLegLength) * s,
-    offset: offset * s,
+    // The hoof does not rest directly below its limb root. A forehoof sits ahead
+    // of the scapula and a hind hoof sits behind the hip, so the two ends of a
+    // stance are not symmetric about the root and the longer end has to fit.
+    offset: r.hoofOffsetU * s,
+    // The sling adds its travel to the reach at both ends, because the root moves
+    // with the hoof rather than staying put.
+    slide: r.maxSlide * s,
   };
 }
 
@@ -100,10 +97,10 @@ function legGeometry(key) {
 function solveCrouch(halfTravel) {
   let worst = 0;
   for (const key of ['F.L', 'H.L']) {
-    const { total, restH, offset } = legGeometry(key);
+    const { total, restH, offset, slide } = legGeometry(key);
     // Whichever end of the stance sits further from the limb root is the one that
-    // has to fit.
-    const need = halfTravel + Math.abs(offset);
+    // has to fit, and the sling covers part of it before the body has to.
+    const need = Math.max(0, halfTravel + Math.abs(offset) - slide);
     if (need >= total) {
       worst = Math.max(worst, restH);
       continue;
@@ -122,12 +119,12 @@ function maxStanceTravel() {
   let limit = Infinity;
   const maxCrouch = skel.metrics.hindLegLength * params.scale * MAX_CROUCH_FRACTION;
   for (const key of ['F.L', 'H.L']) {
-    const { total, restH, offset } = legGeometry(key);
+    const { total, restH, offset, slide } = legGeometry(key);
     const H = Math.max(0.2, restH - maxCrouch);
     const reach = Math.sqrt(Math.max(0, total * total - H * H));
     // The offset eats into the reach on the far side, so it comes off the half
-    // travel, not off the whole.
-    limit = Math.min(limit, 2 * Math.max(0, reach - Math.abs(offset)));
+    // travel, not off the whole. The sling adds back to it.
+    limit = Math.min(limit, 2 * Math.max(0, reach - Math.abs(offset) + slide));
   }
   return limit;
 }
@@ -157,16 +154,17 @@ const statusEl = document.getElementById('status');
 const clockHint = document.getElementById('clock-hint');
 
 document.getElementById('phase-note').innerHTML = `
-  <b>Phases 0 to 2 are built.</b> Skeleton, terrain, lighting, cameras, the gait
-  table and the instruments. Footfall planning with world locked stance and limb
-  IK with the tendon couplings. Ground force per limb, with the fetlock driven as
-  a spring and the body sinking under load. Zero foot drift at every gait, and
-  peak forces land within 4 percent of the published measurements without being
-  told them.<br><br>
-  Still to come: momentum and turning, then the thoracic sling, which is what lets
-  a foreleg reach without the body dropping. Canter and gallop under stride until
-  it lands, and that is also why they currently show no suspension.
-  Greyed dials are stored but not yet read by any solver.
+  <b>Phases 0 to 3 are built.</b> Footfall with world locked stance, limb IK with
+  the tendon couplings, ground force per limb with the fetlock as a spring, the
+  thoracic sling, momentum with grip limited cornering, and spine posture.
+  Every gait now runs at full stride with its correct suspension, foot drift is
+  zero, and peak forces land within 4 percent of the published measurements
+  without being told them.<br><br>
+  <b>Drive it.</b> W and S for speed, A and D to steer, shift to pull up. Cornering
+  is grip limited, so the faster it goes the wider it has to turn.<br><br>
+  Still to come: the neck counterbalance and gaze, the maneuvers, then the style
+  system and the layered secondary motion. Greyed dials are stored but not yet
+  read by any solver.
 `;
 
 // Lab view buttons, built from the rig itself so the two cannot drift apart.
@@ -266,9 +264,18 @@ updateSun();
 // The frame.
 
 function step(dt) {
-  // L0 body. Phase 3 replaces this with real momentum and traction. For now the
-  // speed dial is followed directly so the clock has something to chew on.
-  body.speed = params.speed;
+  // L0 body. Intent, then momentum. The speed dial is the target rather than the
+  // speed itself, so the horse has to accelerate up to it, and the keyboard writes
+  // back into the same dial so panel and keys never disagree.
+  const intent = input.update(dt);
+  // A scripted steer, for headless verification and for later use by anything
+  // that drives the horse without a keyboard.
+  const turn = steerOverride ?? intent.turn;
+  bodySim.update(dt, { speed: params.speed, turn }, {
+    accelLimit: params.accelLimit,
+    lateralLimit: params.lateralGrip,
+  });
+  body.scale = params.scale;
 
   // L1 clock. Pick the gait, solve the stride, advance the phase.
   const hip = skel.metrics.hipHeight * params.scale;
@@ -298,27 +305,53 @@ function step(dt) {
     cadence: params.cadence,
   });
 
-  // Stance travel is what the legs have to cover, so clamp it to what they can
-  // actually reach rather than letting the hooves slide to make up the shortfall.
-  // This has to happen before the phase advances, since it changes the frequency.
-  const wantTravel = clock.solved.duty * clock.solved.strideLength;
+  // Stance travel is what the legs have to sweep along the ground, and it cannot
+  // exceed what they can reach or the hooves slide. This has to happen before the
+  // phase advances, since it changes the frequency.
+  //
+  // When it does not fit, the lever to pull is DUTY, not stride length. A horse
+  // that needs more ground speed than its legs can sweep does not take shorter
+  // steps, it spends more of the stride in the air. Shortening the stride instead
+  // caps top speed at whatever the legs can plant, which is exactly the scrabbling
+  // look the whole design is trying to avoid.
+  //
+  // Holding swing time fixed, the duty that makes the travel fit has a closed
+  // form. From travel = duty x stride and stride = speed x swing / (1 - duty):
+  //   duty = travel / (speed x swing + travel)
   const maxTravel = maxStanceTravel();
-  clock.travelClamped = wantTravel > maxTravel + 1e-6;
-  const travel = Math.min(wantTravel, maxTravel);
-  if (clock.travelClamped) {
-    // Shorten the stride to fit, and the clock speeds up to hold the same ground
-    // speed, which is what a horse does when it runs out of reach.
-    clock.solved.strideLength = travel / clock.solved.duty;
-    clock.solved.period = clock.solved.strideLength / Math.max(1e-3, body.speed);
-    clock.solved.frequency = 1 / clock.solved.period;
+  let travel = clock.solved.duty * clock.solved.strideLength;
+  clock.travelClamped = false;
+  clock.dutyRelieved = false;
+
+  if (travel > maxTravel + 1e-6) {
+    const swing = clock.solved.swing;
+    const wantDuty = maxTravel / (body.speed * swing + maxTravel);
+    // Below this a limb is barely touching down at all, which stops reading as a
+    // gait and starts reading as a glitch.
+    const HARD_DUTY_FLOOR = 0.1;
+
+    if (wantDuty >= HARD_DUTY_FLOOR) {
+      clock.dutyRelieved = true;
+      clock.solved.duty = wantDuty;
+      clock.solved.period = swing / (1 - wantDuty);
+      clock.solved.frequency = 1 / clock.solved.period;
+      clock.solved.strideLength = body.speed * clock.solved.period;
+      travel = clock.solved.duty * clock.solved.strideLength;
+    } else {
+      // Even flat out in the air it does not fit, so the stride finally gives.
+      clock.travelClamped = true;
+      travel = maxTravel;
+      clock.solved.duty = HARD_DUTY_FLOOR;
+      clock.solved.strideLength = travel / HARD_DUTY_FLOOR;
+      clock.solved.period = clock.solved.strideLength / Math.max(1e-3, body.speed);
+      clock.solved.frequency = 1 / clock.solved.period;
+    }
   }
 
   clock.stridePhase = (clock.stridePhase + clock.solved.frequency * dt) % 1;
 
-  // The horse genuinely travels, in the lab exactly as in the field. Nothing
-  // below here may ever ask which mode it is in.
-  const fwd = new THREE.Vector3(Math.cos(body.heading), 0, -Math.sin(body.heading));
-  body.position.addScaledVector(fwd, body.speed * dt);
+  // The horse genuinely travels, in the lab exactly as in the field, and L0 has
+  // already moved it. Nothing below here may ever ask which mode it is in.
   const g = modes.ground();
 
   // Reach needed at the extremes of this stance, with a margin so the solver is
@@ -328,7 +361,7 @@ function step(dt) {
   body.position.y = g.heightAt(body.position.x, body.position.z) - body.crouch;
 
   horse.position.copy(body.position);
-  horse.rotation.y = body.heading;
+  horse.rotation.set(spine.state.pitch, body.heading, spine.state.roll, 'YXZ');
   horse.scale.setScalar(params.scale);
   horse.updateMatrixWorld(true);
 
@@ -357,12 +390,41 @@ function step(dt) {
     scale: params.scale,
   });
 
+  // Settle the body onto its feet rather than onto the ground beneath its centre.
+  // On a slope the hooves are a metre or more away and sit well above or below
+  // that centre sample, and riding the wrong reference is what makes the legs fail
+  // to reach on rolling ground. Smoothed, because the support set changes in
+  // discrete jumps and the trunk should not.
+  const supportY = footfall.supportHeight(g.heightAt(body.position.x, body.position.z));
+  body.groundRef = body.groundRef ?? supportY;
+  body.groundRef += (supportY - body.groundRef) * (1 - Math.exp(-14 * dt));
+
   // The body sinks by however far the loaded legs have compressed, which is where
   // the vertical bob comes from. It is a consequence of the springs rather than an
   // animated curve, so it changes correctly with mass, speed and stiffness.
   body.sink = load.bodySink();
-  body.position.y -= body.sink;
+  body.position.y = body.groundRef - body.crouch - body.sink;
+
+  // L5 spine. Pitch and roll onto the ground, and bend into the turn. This runs
+  // BEFORE the limbs, because the legs hang off the trunk: solve it first and the
+  // limb roots are already where they belong, solve it after and every leg is
+  // answering to a body that has since moved.
+  spine.update({
+    ground: g,
+    position: body.position,
+    heading: body.heading,
+    turnRate: body.turnRate,
+    speed: body.speed,
+    bendGain: params.bendGain,
+    metrics: skel.metrics,
+    scale: params.scale,
+    dt,
+  });
+
   horse.position.copy(body.position);
+  // Yaw first, then pitch, then roll, so pitch and roll are read in the horse's
+  // own frame rather than the world's.
+  horse.rotation.set(spine.state.pitch, body.heading, spine.state.roll, 'YXZ');
   // The limb solver reads limb root positions off the live world matrices, so the
   // body transform has to be committed before L4 runs.
   horse.updateMatrixWorld(true);
@@ -375,8 +437,8 @@ function step(dt) {
 
   if (params.showTraces && body.speed > 0.01) traces.push(feet);
 
-  // L3 load, L5 spine, L6 neck, L7 gaze, L8 passive, L9 breath, L10 character.
-  // All Phase 2 and later, and they slot in here in this order.
+  // L6 neck, L7 gaze, L8 passive, L9 breath, L10 character all slot in here, in
+  // that order.
 
   modes.update(dt, {
     position: body.position,
@@ -423,8 +485,17 @@ function drawInstruments() {
     `support     ${footfall.supportSet().join(' ') || 'none, airborne'}`,
     `crouch      ${(body.crouch * 100).toFixed(1)} cm below standing`,
     `spring sink ${((body.sink ?? 0) * 100).toFixed(1)} cm from limb compression`,
+    `sling       ${LIMBS.map((l) => ((limbs.rest[l].slide ?? 0) * 100).toFixed(0)).join(' ')} cm root slide`,
+    ``,
+    `accel       ${body.accel.toFixed(2)} m/s²  lateral ${body.lateralAccel.toFixed(2)}${body.slipping ? '  SLIPPING' : ''}`,
+    `turn        ${body.turnRate.toFixed(3)} rad/s  radius ${body.turnRate !== 0 ? (body.speed / Math.abs(body.turnRate)).toFixed(1) : '∞'} m`,
+    `posture     pitch ${((spine.state.pitch * 180) / Math.PI).toFixed(1)}°  roll ${((spine.state.roll * 180) / Math.PI).toFixed(1)}°`,
+    `bend        neck ${spine.state.neckBendDeg.toFixed(1)}°  back ${spine.state.backBendDeg.toFixed(1)}°`,
     `peak force  ${LIMBS.map((l) => (clock.load?.[l]?.peak ?? 0).toFixed(1)).join('  ')} N/kg`,
     `limb use    ${LIMBS.map((l) => `${l} ${(clock.limbInfo?.[l]?.load ?? 0).toFixed(2)}`).join('  ')}`,
+    // The real one. `err` is what the 2D solver believes, this is where the hoof
+    // actually is, and they are allowed to disagree.
+    `hoof error  ${LIMBS.map((l) => ((clock.limbInfo?.[l]?.worldErr ?? 0) * 1000).toFixed(0)).join('  ')} mm in world`,
     `unreached   ${LIMBS.filter((l) => clock.limbInfo?.[l] && !clock.limbInfo[l].reached).join(' ') || 'none'}`,
     ``,
     // A hand is four inches, so 0.1016 m.
@@ -489,6 +560,14 @@ window.eq = {
   load,
   limbs,
   traces,
+  bodySim,
+  input,
+  spine,
+  // Steer without a keyboard. Pass a value in [-1, 1], positive left, or null to
+  // hand control back.
+  steer(v) {
+    steerOverride = v;
+  },
   flush(n = 1, dt = 1 / 60) {
     for (let i = 0; i < n; i++) step(dt);
     drawInstruments();

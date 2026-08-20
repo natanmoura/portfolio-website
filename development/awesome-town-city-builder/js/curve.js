@@ -281,6 +281,113 @@ export function closestOn(curve, x, z, perSegment = 12) {
   return best;
 }
 
+// --- ribbons ----------------------------------------------------------------
+
+// The two edges of a mitred ribbon around a 2D polyline — every place that
+// needs to turn a path into something with width reaches for this. The road
+// tarmac in terrain.js was the first customer and had it written inline; the
+// curve highlight in curveview.js is the second, which is the usual sign a
+// thing belongs in the shared file rather than staying private to whichever
+// caller needed it first.
+//
+// The mitre is the standard one. A point's offset runs along the bisector of
+// its two segments, lengthened by 1/cos(half the turn) so the outer edge
+// stays parallel to both — a single unbroken line through a corner rather
+// than two lines that happen to arrive near each other, which is what a
+// naive per-segment offset produces and what road tarmac looked like before
+// this existed.
+//
+// Sharp turns need a limit: as a turn approaches a hairpin the bisector
+// length goes to infinity and an unclamped mitre fires a spike across the
+// map. Past `miterLimit` the point falls back to the plain perpendicular,
+// leaving a small notch on the outside of a very sharp corner rather than a
+// spike — the right trade, since nothing here should ever draw off to
+// infinity for the sake of one corner.
+//
+// `pts` is `[x, z]` pairs. `closed` treats it as a loop, joining the last
+// point back to the first without a seam at the arbitrary place the loop
+// happened to start.
+export function ribbonEdges(pts, halfWidth, closed = false, miterLimit = 4) {
+  const ring = closed && pts.length > 1 ? dedupeClosed(pts) : pts;
+  const n = ring.length;
+  if (n < 2) return { left: ring.slice(), right: ring.slice() };
+
+  const dirAt = (i) => {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    if (!closed && i >= n - 1) return null;
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-9) return null;
+    return [dx / len, dz / len];
+  };
+
+  const left = [];
+  const right = [];
+  for (let i = 0; i < n; i++) {
+    const into = closed || i > 0 ? dirAt((i - 1 + n) % n) : null;
+    const outOf = dirAt(i);
+    const a = into || outOf;
+    const b = outOf || into;
+    if (!a || !b) {
+      left.push(ring[i]);
+      right.push(ring[i]);
+      continue;
+    }
+    let mx = -(a[1] + b[1]);
+    let mz = a[0] + b[0];
+    const mlen = Math.hypot(mx, mz);
+    let scale = halfWidth;
+    if (mlen < 1e-9) {
+      // A hairpin: the two segments are exactly opposed and there is no
+      // bisector to speak of. Fall back to the incoming perpendicular.
+      mx = -a[1];
+      mz = a[0];
+    } else {
+      mx /= mlen;
+      mz /= mlen;
+      const cos = mx * -a[1] + mz * a[0];
+      scale = Math.abs(cos) < 1e-6 ? halfWidth * miterLimit : halfWidth / cos;
+      if (Math.abs(scale) > halfWidth * miterLimit) {
+        mx = -a[1];
+        mz = a[0];
+        scale = halfWidth;
+      }
+    }
+    left.push([ring[i][0] - mx * scale, ring[i][1] - mz * scale]);
+    right.push([ring[i][0] + mx * scale, ring[i][1] + mz * scale]);
+  }
+  return { left, right, closed, n };
+}
+
+function dedupeClosed(pts) {
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  return Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6 ? pts.slice(0, -1) : pts;
+}
+
+// Triangle indices for a ribbon's edges, wound counter-clockwise seen from
+// above — the winding every ground-facing surface in this project uses, and
+// the one that gets culled if it is backwards. `y(point)` decides height per
+// vertex, so a ribbon can drape on terrain or sit at a flat lift depending on
+// what the caller passes.
+export function ribbonTriangles({ left, right, closed, n }, y) {
+  const pos = [];
+  const nor = [];
+  const tri = (a, b, c) => {
+    pos.push(a[0], y(a), a[1], b[0], y(b), b[1], c[0], y(c), c[1]);
+    nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+  };
+  const last = closed ? n : n - 1;
+  for (let i = 0; i < last; i++) {
+    const j = (i + 1) % n;
+    tri(left[i], right[j], left[j]);
+    tri(left[i], right[i], right[j]);
+  }
+  return { pos, nor };
+}
+
 // The box a curve occupies in plan, for culling and for framing the camera.
 export function bounds(curve, perSegment = 12) {
   const pts = flatten(curve, perSegment);

@@ -576,7 +576,9 @@ export function buildShape(kind, w, h, d, faces, opts = {}) {
       sphere(r, w, h, d);
       break;
     case 'spin':
-      spinCards(r, w, h, d, opts.blades);
+      // One card. How many turn together is a `radial` modifier's call now,
+      // not this shape's — see spin.json and modifiers.js.
+      spinCards(r, w, h, d, 1);
       break;
     case 'pyramid':
       pyramid(r, w, h, d);

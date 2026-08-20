@@ -80,6 +80,13 @@ export function isRoleDefault(params, role) {
 export function toggleInRole(params, role, id) {
   const current = includedFor(params, role);
   const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-  const ordered = ROLES[role].defaults.filter((x) => next.includes(x));
+  // The shipped kinds keep their usual order; anything else — a custom leaf,
+  // an assembly — goes after them in whatever order it was added. Sorting
+  // *against* `defaults` here, the way an earlier version of this did, threw
+  // away every non-default id it was ever asked to keep: a role can hold any
+  // component the library has, per the whole point of the roles refactor
+  // (see the top of this file), and a component not in the shipped table is
+  // not a component to silently drop.
+  const ordered = [...ROLES[role].defaults.filter((x) => next.includes(x)), ...next.filter((x) => !ROLES[role].defaults.includes(x))];
   return { ...(params.roles || {}), [role]: ordered.length ? ordered : ROLES[role].defaults };
 }

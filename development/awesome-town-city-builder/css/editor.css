@@ -313,8 +313,12 @@ input.chip-w {
 .pm-row {
   display: grid;
   /* Wider label column than the keys needed, because the names are words
-     now rather than single letters. */
-  grid-template-columns: 84px 50px 1fr 64px;
+     now rather than single letters. `minmax(56px, 1fr)` on the control
+     column is what stops the panel's own minimum width from being the only
+     thing standing between a slider and an unusable 29px sliver — see the
+     comment on the editor panel's resize config for the width that number
+     came from. */
+  grid-template-columns: 84px 50px minmax(56px, 1fr) 64px;
   align-items: center;
   gap: 4px;
   padding: 3px 0;
@@ -394,6 +398,10 @@ input.pm-num::-webkit-inner-spin-button,
 input.pm-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 .pm-free { font-size: 10px; opacity: 0.4; font-style: italic; }
+/* The drawn value on a parameter nobody has pinned. Dimmer than an authored
+   number, because it is a sample rather than a setting, and reading as one
+   would be worse than showing nothing. */
+.pm-sample { opacity: 0.45; font-variant-numeric: tabular-nums; }
 
 .pm-ctl { position: relative; display: flex; align-items: center; height: 16px; }
 .pm-ctl input[type='range'] { width: 100%; margin: 0; }

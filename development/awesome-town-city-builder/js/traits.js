@@ -156,13 +156,21 @@ export function slotsOf(module, doc) {
 }
 
 export function slotNamesOf(module, doc) {
+  const n = slotsOf(module, doc);
   if (isAssemblyDoc(doc)) {
     // An assembly's slots belong to its parts, not to a cube's compass.
     // Numbering them at least says what they are — many, and in order —
     // rather than claiming a lamp post has a front and a back.
-    return Array.from({ length: slotsOf(module, doc) }, (_, i) => `face ${i + 1}`);
+    return Array.from({ length: n }, (_, i) => `face ${i + 1}`);
   }
-  return slotLabels(module?.kind, module?.blades);
+  const labels = slotLabels(module?.kind, module?.blades);
+  // A `radial` modifier can hand back more copies than the shipped table
+  // for this kind was ever sized for — `module.slotCount` (stamped once the
+  // module has actually been built) is the true count. Numbering the
+  // overflow the same way an assembly's slots are is more honest than a
+  // blank chip.
+  if (n <= labels.length) return labels;
+  return Array.from({ length: n }, (_, i) => labels[i] || `face ${i + 1}`);
 }
 
 const isAssemblyDoc = (doc) => Boolean(doc && Array.isArray(doc.parts));

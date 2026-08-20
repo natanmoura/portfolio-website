@@ -5,14 +5,21 @@
 // axis. That removes a whole class of IK failure and makes the anatomy cheap to
 // enforce.
 //
-// The method is FABRIK over the real bone chain, six links in front and five
-// behind, rather than a lumped three link approximation. That matters more than
-// it sounds. Lumping the scapula and the humerus into one rigid link leaves the
-// foreleg 99.8 percent extended at rest, which gives it almost no reach at all,
-// and every hoof then slides because it cannot get where it was asked to go. A
-// real forelimb gets its reach from the shoulder and the elbow flexing together.
+// The method is cyclic coordinate descent over the real bone chain, six links in
+// front and five behind, rather than a lumped three link approximation. That
+// matters more than it sounds. Lumping the scapula and the humerus into one rigid
+// link leaves the foreleg 99.8 percent extended at rest, which gives it almost no
+// reach at all, and every hoof then slides because it cannot get where it was
+// asked to go. A real forelimb gets its reach from the shoulder and the elbow
+// flexing together.
 //
-// Two anatomical constraints ride on top of the solve.
+// Three anatomical constraints ride on top of the solve.
+//
+// The forelimb has no bony attachment to the trunk at all. There is no clavicle,
+// so the whole ribcage hangs in a muscular sling between the two scapulae and the
+// scapula slides and rotates across the ribs. That is modelled here as a limb
+// root that can translate fore and aft, and it is what lets a foreleg reach
+// without the body having to drop to buy the reach.
 //
 // The hind leg's stifle and hock can only flex or extend together, because the
 // peroneus tertius on the front of the tibia and the superficial digital flexor
@@ -160,6 +167,19 @@ export function createLimbSolver(skel) {
         const i = CHAINS[kind].indexOf(`fetlock.${kind}`);
         return Math.atan2(u[u.length - 1] - u[i], -(v[v.length - 1] - v[i]));
       })(),
+      // The sling. How far this limb's root may translate fore and aft, in metres
+      // at unit scale, and the rest local offset it translates away from.
+      //
+      // The forelimb gets the most because it has no bony attachment to the trunk
+      // at all: no clavicle, so the ribcage hangs in muscle between the scapulae
+      // and the scapula slides across the ribs. The hind gets less, and what it
+      // gets stands in for lumbosacral flexion and pelvic rotation rather than for
+      // any joint sliding, since the hip genuinely is bolted to the pelvis.
+      maxSlide: kind === 'F' ? 0.1 : 0.06,
+      restLocal: skel.bones.get(names[0]).position.clone(),
+      hoofOffsetU: u[u.length - 1] - u[0],
+      slide: 0,
+
       // Live solve state, kept between frames so the chain starts from where it
       // was. That gives temporal coherence for free and, more importantly, keeps
       // each joint bending the way it was already bending instead of flipping.
@@ -175,6 +195,7 @@ export function createLimbSolver(skel) {
   const _rt = new THREE.Vector3();
   const _dir = new THREE.Vector3();
   const _dd = new THREE.Vector3();
+  const _hoof = new THREE.Vector3();
   const _q = new THREE.Quaternion();
   const _pq = new THREE.Quaternion();
 
@@ -339,13 +360,57 @@ export function createLimbSolver(skel) {
   function solveOne(key, target, heading, scale, opts) {
     const r = rest[key];
     const rootBone = skel.bones.get(r.names[0]);
-    rootBone.getWorldPosition(_rp);
 
-    // Sagittal plane for this limb.
-    const c = Math.cos(heading);
-    const s = Math.sin(heading);
-    _fwd.set(c, 0, -s);
+    // Sagittal plane for this limb, taken from the vertebra the limb hangs off
+    // rather than from the body's heading.
+    //
+    // This is what makes the legs follow the spine. A forelimb hangs off the
+    // thorax and a hind off the pelvis, and when the trunk bends into a turn those
+    // two rotate by different amounts, so each limb's plane of travel rotates with
+    // its own attachment. Driving every limb off one body heading leaves the legs
+    // swinging in a plane the body has left, which reads as the legs being bolted
+    // to the world instead of to the horse.
+    if (rootBone.parent) {
+      rootBone.parent.getWorldQuaternion(_pq);
+      _fwd.set(1, 0, 0).applyQuaternion(_pq);
+      _fwd.y = 0;
+      if (_fwd.lengthSq() < 1e-8) _fwd.set(Math.cos(heading), 0, -Math.sin(heading));
+      _fwd.normalize();
+    } else {
+      _fwd.set(Math.cos(heading), 0, -Math.sin(heading));
+    }
     _nrm.crossVectors(UP, _fwd).normalize();
+
+    // The sling. Put the root back where it rests, measure how far ahead or
+    // behind the hoof is asking it to be, then let it slide part of the way.
+    //
+    // This is the single mechanism that unlocks stride length. A standing horse's
+    // foreleg is a near straight column whose length is its own shoulder height,
+    // so rotating it about a fixed pivot reaches the ground only directly below.
+    // Any forward reach has to come from either shortening the column, which means
+    // the body drops, or moving the pivot, which is what the sling does. Real
+    // horses use the sling, which is why they reach without squatting.
+    rootBone.position.copy(r.restLocal);
+    if (r.maxSlide > 0) {
+      rootBone.updateMatrixWorld(true);
+      rootBone.getWorldPosition(_rp);
+      const ahead = _fwd.dot(_dir.subVectors(target, _rp)) - r.hoofOffsetU * scale;
+      // Gain chosen so the slide reaches its limit at the ends of a full stance
+      // and stays proportional in between. Higher and it pins for most of the
+      // cycle, which turns a moving joint into a constant offset.
+      const slide = THREE.MathUtils.clamp(
+        ahead * (opts.slingGain ?? 0.16),
+        -r.maxSlide * scale,
+        r.maxSlide * scale
+      );
+      // The root's local X is horse forward, so the slide goes straight in.
+      rootBone.position.x += slide;
+      r.slide = slide;
+    } else {
+      r.slide = 0;
+    }
+    rootBone.updateMatrixWorld(true);
+    rootBone.getWorldPosition(_rp);
 
     // Project the target into the plane through the limb root, so a target that
     // has drifted sideways cannot pull the leg out of its plane.
@@ -405,40 +470,59 @@ export function createLimbSolver(skel) {
       }
     }
 
-    // Back to world, then to bone rotations. Each bone is aimed at the next
-    // solved point, which leaves twist free, and twist does not matter on a limb
-    // that lives in one plane.
+    // Back from the 2D solve to bone rotations.
+    //
+    // A bone's local rotation is what orients its children, so what we need is:
+    //   localQuat x restOffsetToChild = inverse(parentWorldQuat) x desiredWorldDir
+    //
+    // Doing it this way, entirely against the parent's live world rotation, is the
+    // only version that survives the body being rotated. An earlier version built
+    // a world rotation from a rest direction pre-rotated by the heading, which
+    // quietly dropped the body's own rotation out of the result: the 2D solver
+    // reported half a millimetre while the rendered hoof was 350 mm from its
+    // target with the horse facing the other way. It agreed only at heading zero,
+    // which is exactly where every test happened to sit.
+    //
+    // Taking the offset straight off the child bone also means the parent chain's
+    // orientation, including the spine bend, is accounted for without this code
+    // having to know anything about it.
     const n = r.su.length;
     for (let i = 0; i < n - 1; i++) {
       const bone = skel.bones.get(r.names[i]);
+      const child = skel.bones.get(r.names[i + 1]);
       const du = r.su[i + 1] - r.su[i];
       const dv = r.sv[i + 1] - r.sv[i];
       _dir.copy(_fwd).multiplyScalar(du).addScaledVector(UP, dv).normalize();
 
-      // Rest direction of this bone, carried into world by the heading.
-      _dd
-        .set(r.u[i + 1] - r.u[i], r.v[i + 1] - r.v[i], 0)
-        .normalize()
-        .applyAxisAngle(UP, heading);
-
-      _q.setFromUnitVectors(_dd, _dir);
       if (bone.parent) {
         bone.parent.getWorldQuaternion(_pq);
-        bone.quaternion.copy(_pq.invert()).multiply(_q);
-      } else {
-        bone.quaternion.copy(_q);
+        _dir.applyQuaternion(_pq.invert());
       }
+      _dd.copy(child.position).normalize();
+      bone.quaternion.setFromUnitVectors(_dd, _dir);
       bone.updateMatrixWorld(true);
     }
 
+    // Where the hoof ACTUALLY ended up, in the world, after the rotations were
+    // written. This is the number that matters and the one worth watching.
+    //
+    // `err` below is what the 2D solver believes it achieved, and the two can
+    // disagree badly if anything between the solve and the bones is wrong. They
+    // did: the solver read half a millimetre while the real hoof sat 350 mm away.
+    // A solver grading its own homework is not verification.
+    skel.bones.get(r.names[r.names.length - 1]).getWorldPosition(_hoof);
+    const worldErr = _hoof.distanceTo(target);
+
     return {
-      reached: !res.tooFar && res.err < 0.02 * scale,
+      reached: !res.tooFar && worldErr < 0.02 * scale,
       tooFar: res.tooFar,
       // Fraction of the leg's length the target is asking for. Past 1 it is out
       // of reach and the hoof will slide, which is the failure to watch.
       load: res.dist / r.total,
-      // How far the hoof ended up from where it was asked to be.
+      // What the 2D solver thinks it achieved.
       err: res.err,
+      // What actually happened.
+      worldErr,
     };
   }
 

@@ -41,6 +41,7 @@ import { ALGORITHMS, DEFAULT_ALGORITHM, algorithmOf } from './algorithms.js';
 import { MODIFIERS } from './modifiers.js';
 import { renderThumb } from './thumbs.js';
 import { paramRow } from './paramrow.js';
+import { resolveParams, resolveParamsWith } from './constraints.js';
 import { h, setChildren } from './ui.js';
 import { confirmDialog, promptDialog } from './dialog.js';
 import { History } from './history.js';
@@ -173,6 +174,27 @@ function clearShown() {
   }
 }
 
+// Scrubbing the seed is meant to answer "what does this component's own
+// randomness look like" — which candidate a slot picks, how a modifier's
+// noise falls, how many blades a radial array lands on. A component's own
+// declared w/h/d is a different question: it is how big the *scene* is
+// allowed to make this, once placed, and letting the preview resample that
+// too meant every scrub also reshuffled the outer footprint, drowning the
+// local variation you were actually trying to see under proportions that
+// have nothing to do with this component's own composition. Pinning it to
+// the midpoint of whatever range was declared holds the footprint still so
+// the scrub reads as local variance, the way it is meant to.
+function canonicalSize(doc) {
+  const out = {};
+  for (const [key, value] of Object.entries(doc.params || {})) {
+    if (value?.mode === 'fixed') continue;
+    const min = value?.min ?? 0;
+    const max = value?.max ?? 1;
+    out[key] = (min + max) / 2;
+  }
+  return out;
+}
+
 function refreshViewport() {
   const doc = current();
   clearShown();
@@ -181,7 +203,7 @@ function refreshViewport() {
     return;
   }
 
-  const r = resolveComponent(doc, library, seed, `editor:${doc.id}`);
+  const r = resolveComponent(doc, library, seed, `editor:${doc.id}`, canonicalSize(doc));
   if (!r) return;
 
   for (const piece of r.pieces) {
@@ -741,12 +763,30 @@ function slotBlock(doc, part, i) {
     paramRow(key, value, (next, o) => replace({ params: { ...pins, [key]: next } }, { ...o, key: `${doc.id}:pin${i}:${key}` }))
   );
 
+  // Turn and spin pin the same way a size does — this part of this assembly
+  // facing a fixed way, or carrying the whole rigid mesh's spin along with
+  // it (see the note in `resolveAssembly` on why spin can only ever be one
+  // speed for the lot) — without needing the picked component to have
+  // declared either on its own.
+  const pinButtons = h('div', { class: 'chips' });
+  if (!('turn' in schema)) {
+    const addTurn = h('button', { class: 'chip sm' }, '+ turn');
+    addTurn.addEventListener('click', () => replace({ params: { ...pins, turn: { mode: 'fixed', value: 0 } } }));
+    pinButtons.appendChild(addTurn);
+  }
+  if (!('spinSpeed' in schema)) {
+    const addSpin = h('button', { class: 'chip sm' }, '+ spin');
+    addSpin.addEventListener('click', () => replace({ params: { ...pins, spinSpeed: { mode: 'fixed', value: 0.4 } } }));
+    pinButtons.appendChild(addSpin);
+  }
+
   const box = h(
     'div',
     { class: `part${selectedPart === i ? ' on' : ''}` },
     head,
     cands,
-    rows.length ? h('div', { class: 'part-body' }, ...rows) : null
+    rows.length ? h('div', { class: 'part-body' }, ...rows) : null,
+    h('div', { class: 'part-body' }, pinButtons)
   );
 
   // The whole box selects, not just the name. It is drawn as one object and
@@ -899,8 +939,19 @@ function variantSection() {
 }
 
 function paramsSection(doc) {
+  // The numbers the preview is drawing right now, so a parameter nobody has
+  // pinned can still show what it came out as. Same proposals, same seed and
+  // same path the viewport resolves against — including the canonical
+  // midpoint standing in for the scene's own size proposal, so what the row
+  // says is what is on screen rather than a second opinion about it.
+  const sample = resolveParamsWith(doc.params || {}, canonicalSize(doc), seed, `editor:${doc.id}.dims`);
   const rows = Object.entries(doc.params || {}).map(([name, value]) =>
-    paramRow(name, value, (next, o) => mutate({ params: { ...(doc.params || {}), [name]: next } }, { ...o, key: `${doc.id}:param:${name}` }))
+    paramRow(
+      name,
+      value,
+      (next, o) => mutate({ params: { ...(doc.params || {}), [name]: next } }, { ...o, key: `${doc.id}:param:${name}` }),
+      { sample: sample[name] }
+    )
   );
   const add = h('button', { class: 'btn small' }, '+ size params');
   add.addEventListener('click', () =>
@@ -913,10 +964,35 @@ function paramsSection(doc) {
       },
     })
   );
+
+  // Turn and spin used to live only on the module in the city — a fact the
+  // scene rolled and the inspector could nudge afterward, with no way for a
+  // component to say up front "I always turn like this" or "I am one that
+  // spins." Added the same way as any other param, one at a time, so a
+  // component that has no business moving never grows the option at all.
+  const addTurn = h('button', { class: 'btn small' }, '+ turn');
+  addTurn.addEventListener('click', () =>
+    mutate({ params: { ...(doc.params || {}), turn: { mode: 'range', min: 0, max: Math.PI * 2 } } })
+  );
+  // Named `spinSpeed`, not `spin` — an arrangement algorithm already has its
+  // own unrelated `spin` param (how much random rotation a scattered
+  // instance gets), and the two would otherwise share a label and a slider
+  // range that mean completely different things.
+  const addSpin = h('button', { class: 'btn small' }, '+ spin');
+  addSpin.addEventListener('click', () =>
+    mutate({ params: { ...(doc.params || {}), spinSpeed: { mode: 'range', min: -3, max: 3 } } })
+  );
+
   return section(
     'Parameters',
     rows.length ? h('div', {}, ...rows) : h('p', { class: 'hint' }, 'Size follows the parts.'),
-    rows.length ? null : add
+    h(
+      'div',
+      { class: 'chips' },
+      rows.length ? null : add,
+      'turn' in (doc.params || {}) ? null : addTurn,
+      'spinSpeed' in (doc.params || {}) ? null : addSpin
+    )
   );
 }
 
@@ -944,7 +1020,7 @@ function renderPanel() {
     variantSection(),
     isAssembly(doc) ? algorithmSection(doc) : null,
     isAssembly(doc) ? partsSection(doc) : null,
-    paramsSection(doc),
+    isAssembly(doc) ? null : paramsSection(doc),
     isAssembly(doc) ? null : modifierSection(doc)
   );
 }
@@ -998,7 +1074,14 @@ export async function mount() {
   initPanelResize({
     main: viewEl,
     left: { key: 'shelf', side: 'left', var: '--pw-l', min: 170, max: 520, def: 236 },
-    right: { key: 'edit', side: 'right', var: '--pw-r', min: 260, max: 620, def: 340 },
+    // A parameter row's label, mode and value columns are ~198px of fixed
+    // width before the slider gets whatever is left of `1fr`. At the old
+    // floor of 260 that left the slider about 29px wide — technically
+    // draggable, practically not: a real mouse drag on a track that thin
+    // reads as "nothing happened" more often than it reads as a resize.
+    // 320 keeps the slider a little under 100px at minimum, which is the
+    // narrowest that still feels like a control rather than a sliver.
+    right: { key: 'edit', side: 'right', var: '--pw-r', min: 320, max: 620, def: 340 },
     storeKey: 'awesome-town:editor-panels',
   });
 

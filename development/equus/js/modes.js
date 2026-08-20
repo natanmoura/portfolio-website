@@ -13,6 +13,8 @@
 
 import * as THREE from 'three';
 
+const UP = new THREE.Vector3(0, 1, 0);
+
 // Lab camera placements, in horse local space. Offsets are scaled by body size
 // at use, so a pony and a warmblood frame the same way.
 //
@@ -118,6 +120,9 @@ export function createModes(stage, { terrain, labGround }) {
     if (state.mode === 'lab') {
       const view = LAB_VIEWS[state.labView];
       _o.fromArray(view.offset).multiplyScalar(scale);
+      // Into the horse's own frame. The lab views are named for the horse, not for
+      // the world, so "side" has to stay the horse's side once it has turned.
+      _o.applyAxisAngle(UP, hd);
       // Welded, with no smoothing. In the lab you want a rock steady frame so
       // that any movement you see belongs to the horse.
       stage.ortho.position.copy(_t).add(_o);

@@ -132,6 +132,66 @@ Note that trot and canter currently show no suspension, because the Phase 1
 stride clamp raises their duty factor above the point where a suspension exists.
 That is another thing the thoracic sling fixes, not a separate bug.
 
+**Phase 3 landed.** The thoracic sling, momentum and turning, spine posture, and
+the body riding on its feet. The strides are full length and every gait has its
+correct suspension.
+
+12. **The sling is a translating limb root, and it is the keystone of the whole
+    thing.** A standing horse's foreleg is a near straight column whose length is
+    its own shoulder height, so rotating it about a fixed pivot reaches the ground
+    only directly below. Any forward reach has to come from either shortening the
+    column, which means the body drops, or moving the pivot. Real horses move the
+    pivot, which is why they reach without squatting.
+
+    Letting the root slide 10 cm fore and aft in front and 6 cm behind took walk
+    from 1.50 m of stride to its full 1.70, canter from 2.91 to 3.50 and gallop
+    from 3.43 to 4.75, with the body crouch actually going DOWN. Gain matters: at
+    0.42 the slide pinned at its limit for most of the cycle, which turns a moving
+    joint into a constant offset. At 0.16 it reaches the limit exactly at the ends
+    of the stance and sweeps proportionally in between.
+
+13. **When the stance does not fit, lower duty, never stride length.** A horse
+    that needs more ground speed than its legs can sweep does not take shorter
+    steps, it spends more of the stride in the air. Shortening the stride caps top
+    speed at whatever the legs can plant, which is exactly the scrabbling look the
+    whole design exists to avoid.
+
+    Holding swing time fixed there is a closed form for the duty that makes the
+    travel fit: duty = travel / (speed x swing + travel). With that in, pushing
+    past real speed does what the research said it should. Stride grows 4.75 to
+    8.21 m, duty falls 0.27 to 0.16, suspension grows to 40 percent of the stride,
+    and stride frequency barely moves, 1.89 to 2.19 Hz. The horse floats further
+    rather than cycling faster.
+
+14. **Evenly spaced canter beats can never produce a suspension.** Offsets at 0,
+    one third and two thirds tile the stride exactly at duty one third, so the
+    footfalls butt against each other and no gap opens however low the duty goes.
+    Canter showed zero airborne time for this reason alone. The beats have to sit
+    slightly early, 0.32 and 0.63, and then the suspension appears. Worth checking
+    any gait table for this: a tiling coincidence is invisible until you measure
+    airborne fraction.
+
+15. **Bend scales with curvature, not with turn rate.** A horse on a 10 m circle
+    bends the same amount whether it walks or trots around it, because bend is
+    about how tightly the body must conform to the arc. Scaling by turn rate made
+    a fast horse bend absurdly on a wide gentle curve. With curvature, a gallop on
+    a 29 m arc bends 1.8 degrees and a tight slow turn reaches the physiological
+    cap, which is correct and subtle.
+
+16. **The body rides on its feet, not on the ground beneath its centre.** Sampling
+    terrain height under the body is fine on the flat and wrong everywhere else,
+    because the hooves are a metre or more away and on a slope they sit well above
+    or below that sample. Averaging the planted hoof heights instead took stance
+    error on rolling ground from 177 mm down to about 10.
+
+17. **Lab camera offsets belong in the horse's frame.** The views are named for
+    the animal, so "side" has to stay the horse's side once it has turned. A world
+    space offset silently stops being a side view the moment the heading changes.
+
+Frame order note: L5 spine runs BEFORE L4 limb, despite the numbering. The legs
+hang off the trunk, so the trunk has to be posed first or every leg is answering
+to a body that has since moved.
+
 **Known gap at the end of Phase 1.** The body currently drops a fixed crouch to
 buy the legs their reach, capped at 12 percent of leg length. Most of a real
 forelimb's reach comes from the scapula rotating on the ribcage, the thoracic
@@ -238,8 +298,8 @@ Fixed evaluation order. Each entry lists its single driver.
 | L1 Clock | stride phase, per limb phase offsets, duty factor | speed and the invariant swing law |
 | L2 Contact | plans and world locks each hoof, raycast to terrain | L1 phase plus predicted body path |
 | L3 Load | per limb ground reaction force from the support set | COM acceleration distributed over contacts |
+| L5 Spine | lateral bend, pitch, roll, thoracic sling, bascule | ground under the feet plus curvature |
 | L4 Limb | IK to hoof, reciprocal coupling, spring compression | L2 target plus L3 force |
-| L5 Spine | lateral bend, pitch, roll, thoracic sling, bascule | support polygon plus turn rate |
 | L6 Neck | cervical chain, counterbalance | COM offset plus L1 phase |
 | L7 Gaze | binocular cone aim, ears, rear blind spot checks | object of interest |
 | L8 Passive | mane, tail, jiggle, soft tissue | linear and angular acceleration |

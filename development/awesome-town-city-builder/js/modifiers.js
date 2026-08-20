@@ -170,6 +170,74 @@ function applyLattice(geo, p, seed, path) {
   return geo;
 }
 
+// --- radial array -----------------------------------------------------------
+
+// Copies the shape around the vertical axis, evenly spaced across `sweep`
+// degrees. This is what a spinner's blade count, a fence's pickets or a
+// wheel's spokes all turn out to be: not a special shape of their own, but
+// one part repeated and turned — which is why this belongs here as a
+// modifier rather than as another hardcoded case in `geometry.js`'s shape
+// switch. A component authors `count` the same way it authors any other
+// parameter — free, ranged, or pinned — rather than a town-level ticket
+// deciding on its behalf how many copies it gets.
+//
+// Unlike noise or the lattice warp, this changes how much geometry there
+// is, not just where it sits, so it cannot deform `pos` in place — it
+// rebuilds every array at `count` times the length, one rotated copy after
+// another, slots included so each copy still paints as its own face.
+function applyRadialArray(geo, p, seed, path) {
+  const count = Math.max(1, Math.round(p.count));
+  if (count === 1) return geo;
+  const sweep = ((p.sweep ?? 180) * Math.PI) / 180;
+
+  const srcLen = geo.pos.length;
+  const vertCount = srcLen / 3;
+  const pos = new Float32Array(srcLen * count);
+  const nor = new Float32Array(srcLen * count);
+  const uv = new Float32Array(geo.uv.length * count);
+  const wind = new Float32Array(vertCount * count);
+  const slots = [];
+
+  for (let c = 0; c < count; c++) {
+    // Evenly spaced starting at zero, the copy never doubling back onto the
+    // one before it — the same spacing spinning cards already used, just
+    // read off a parameter instead of a hardcoded card count.
+    const a = (c * sweep) / count;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const pOff = c * srcLen;
+    const wOff = c * vertCount;
+    for (let i = 0; i < srcLen; i += 3) {
+      const x = geo.pos[i];
+      const z = geo.pos[i + 2];
+      pos[pOff + i] = ca * x + sa * z;
+      pos[pOff + i + 1] = geo.pos[i + 1];
+      pos[pOff + i + 2] = -sa * x + ca * z;
+      const nx = geo.nor[i];
+      const nz = geo.nor[i + 2];
+      nor[pOff + i] = ca * nx + sa * nz;
+      nor[pOff + i + 1] = geo.nor[i + 1];
+      nor[pOff + i + 2] = -sa * nx + ca * nz;
+    }
+    uv.set(geo.uv, c * geo.uv.length);
+    if (geo.wind) for (let i = 0; i < vertCount; i++) wind[wOff + i] = geo.wind[i];
+    for (const slot of geo.slots) {
+      // Each copy's own faces, distinguishable from the ones before it —
+      // `finish`'s per-slot cropping (`cropFaces`) addresses these by
+      // index, and a face painted on copy 2 should not silently repaint
+      // copy 0's.
+      slots.push({ ...slot, start: slot.start + c * vertCount, name: count > 1 ? `${slot.name}${c}` : slot.name });
+    }
+  }
+
+  geo.pos = pos;
+  geo.nor = nor;
+  geo.uv = uv;
+  geo.wind = wind;
+  geo.slots = slots;
+  return geo;
+}
+
 // --- stack -----------------------------------------------------------------
 
 export const MODIFIERS = {
@@ -190,6 +258,12 @@ export const MODIFIERS = {
       jitter: range(0, 0.15),
     },
     help: 'A cage around the shape whose corners get pushed about, warping everything inside. Keeps edges straight, so it reads as a bent object rather than a lumpy one.',
+  },
+  radial: {
+    label: 'Radial array',
+    apply: applyRadialArray,
+    defaults: { count: range(1, 4), sweep: fixed(180) },
+    help: 'Repeats the shape around the vertical axis, evenly spaced across the sweep. A spinner’s blade count is just this: one card, arrayed.',
   },
 };
 

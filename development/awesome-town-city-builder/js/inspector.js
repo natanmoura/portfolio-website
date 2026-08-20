@@ -11,7 +11,8 @@
 import { h, rangeRow, setChildren } from './ui.js';
 import { withHelp } from './tooltip.js';
 import { slotCount, slotLabels } from './geometry.js';
-import { MODULE_KINDS, BODY_KINDS, KIND_LABEL } from './generate.js';
+import { KIND_LABEL } from './generate.js';
+import { includedFor } from './roles.js';
 // What this component is like, asked of the component rather than looked up
 // in a list of primitive names. An assembly in a role is a component this
 // panel had never heard of, and used to get a cube's answers to every
@@ -42,7 +43,6 @@ const HELP = {
   depth: 'Footprint front to back.',
   turn: 'Spins the module on its own axis, which changes which face points at the street.',
   speed: 'How fast the module turns, and which way. Zero parks it. The turn happens on the GPU, so a city full of them costs nothing extra.',
-  cards: 'How many cards share the axle, spread evenly around it. Each card gets its own face slot.',
   glow: 'Lights this module from within. The image itself does the glowing, so a lit face reads like a lightbox rather than a lamp. Setting it here pins the module lit or unlit regardless of where the global lit-modules slider sits.',
   glowColour: 'Base colour of the light. How much of it survives depends on the glow-takes-image-colour slider, since a lit picture mostly glows with its own colours.',
   strength: 'How hard this one module pushes, on top of the global glow strength.',
@@ -196,23 +196,35 @@ export class Inspector {
 
     const doc = this.library?.components?.get(module.kind) || null;
     const isRoof = isRoofKind(module.kind, doc);
+    // What you can switch to has to be the same list the role toggle on the
+    // left actually turned on — the shipped kinds were a fixed shelf every
+    // module could reach regardless of what a scene chose to build from,
+    // which meant a component switched off there could still be dialled
+    // back in here, and a custom or assembly component added there never
+    // showed up here at all. `flat` is the role's own way of saying "no
+    // roof module," not a component this module could become, so it is
+    // left out the same way it always was.
+    const roleKind = isRoof ? 'roof' : 'body';
+    const kindIds = includedFor(params, roleKind).filter((k) => k !== 'flat');
     const kindRow = h(
       'div',
       { class: 'chips' },
-      MODULE_KINDS.map((k) =>
-        withHelp(
+      kindIds.map((k) => {
+        const kDoc = this.library?.components?.get(k);
+        const label = kDoc?.label || KIND_LABEL[k] || k;
+        return withHelp(
           h(
             'button',
             {
-              class: `chip sm${module.kind === k ? ' on' : ''}${BODY_KINDS.includes(k) ? '' : ' roof'}`,
+              class: `chip sm${module.kind === k ? ' on' : ''}${isRoof ? ' roof' : ''}`,
               onclick: () => actions.setModule(id, { kind: k }),
             },
-            KIND_LABEL[k]
+            label
           ),
-          KIND_HELP[k],
-          KIND_LABEL[k]
-        )
-      )
+          KIND_HELP[k] || label,
+          label
+        );
+      })
     );
 
     const size = (key, label, min, max, help) =>
@@ -436,8 +448,6 @@ export class Inspector {
       size('d', 'Depth', 0.2, 20, HELP.depth),
       this.slider('Turn', module.rotY || 0, 0, Math.PI * 2, 0.01, (v) => actions.setModule(id, { rotY: v }), HELP.turn),
       this.slider('Spin', module.spinSpeed || 0, -3, 3, 0.01, (v) => actions.setModule(id, { spinSpeed: v }), HELP.speed),
-      module.kind === 'spin' &&
-        this.slider('Cards', module.blades || 1, 1, 4, 1, (v) => actions.setModule(id, { blades: Math.round(v) }), HELP.cards),
       label('Colour'),
       schemeRow,
       patternRow,

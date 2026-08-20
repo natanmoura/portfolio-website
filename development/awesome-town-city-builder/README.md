@@ -70,6 +70,8 @@ Nothing else is stored, which is why a saved scene is a few kilobytes.
 | `js/rng.js` | Seeded randomness, and the hashes that give each lot and each module a stable identity |
 | `js/noise.js` | Value noise and fbm for the terrain |
 | `js/generate.js` | Params, seed and overrides in, city data out. No three.js |
+| `js/region.js` | Where the town is: contains, clip, extent. The square is the default one |
+| `js/curve.js` | The curve primitive: sampling, resampling, editing, queries |
 | `js/geometry.js` | The ten module shapes, and the per-face UV cropping |
 | `js/build.js` | City data to merged chunk buffers, plus the pick tables |
 | `js/material.js` | The one material every module shares |
@@ -136,6 +138,248 @@ Bodies: cube, octagon, hollow cylinder, corner pillars, sphere, spinning cards.
 Roofs: pyramid, gable, cone, gazebo dome. Cornice slabs are just modules with a
 small height. Cylinders and cards can turn.
 
+### Every system has its own seed
+
+Terrain and the road pattern each draw from `terrainSeed` and `roadSeed`
+rather than the one `seed` everything used to share. Both default to `null`,
+meaning "follow the city seed", which is why a scene saved before either
+existed still generates exactly as it did and why a fresh town's three seeds
+start out equal without anywhere actually copying a number between fields.
+
+Reroll one, or type a number into it, and it decouples from the city seed for
+good -- rerolling the city seed after that leaves the terrain or the streets
+exactly where they are. A small `↺` puts it back to following. Locking a seed
+disables the field itself, not only its reroll button, since a seed is the
+one control in the whole panel where typing a number by hand changes it as
+much as randomness does. "Randomise everything" rolls all three when none are
+locked, the same as pressing each one's own reroll button in turn would.
+
+### The town has an outline
+
+The extent used to be one number: `max(cols, rows) * cell / 2`, threaded
+through every road pattern as an axis-aligned square. It is now a region that
+answers three questions -- is this spot in town, which parts of this line are,
+and how big is the whole thing -- and the square is simply the default answer.
+
+So a scene that never draws a boundary generates exactly as it always did,
+down to the last float. `tools/digest.mjs` is the check: it hashes every road,
+lot and module across all four patterns, and this whole change had to leave it
+untouched.
+
+Draw one from the Size panel -- square, round or blob -- and the roads are cut
+to it, the lots outside it go, the ground grows to cover it, and the outline
+appears in the Curves layer with a handle on every point. Drag one and the
+town is rebuilt around it. Square is deliberately a no-op: it is the extent
+cols and rows already implied, now with handles on it, so adopting a boundary
+never costs you the town you had.
+
+A boundary is a closed curve stored in `params`, so it saves, loads, undoes and
+exports with everything else, and a scene file with one is still a few
+kilobytes.
+
+The point is not the shape. It is that the boundary is the first link in the
+generation chain you can hold: **each link is generated from the one above it,
+and editing one regenerates what is below and leaves what is above alone.**
+Roads and lots are the links still to come.
+
+Choosing a shape twice used to be indistinguishable from choosing it once --
+every click regenerated a fresh, pristine version, so a stray second click
+silently wiped out however long you had spent dragging its points. Now the
+active shape button shows which one the current boundary still matches
+*exactly*, and it goes dark the moment you touch a point: clicking a shape
+while pristine is free, whichever one you pick, because there is nothing
+authored yet to lose, and clicking one once the boundary has been edited
+asks first. Deterministic shapes make the free case exact rather than
+approximate -- square and round never carry randomness, and blob's only
+depends on the seed, so reclicking the one already showing regenerates
+something bit-for-bit identical rather than merely similar.
+
+### Holding things still
+
+The tool's whole reason to exist is that **authored decisions survive
+procedural change**. Roads are where that used to break: they were emitted
+wholesale every rebuild and nothing could be said about them.
+
+Now a road is either *proposed* or *held*. Click near one to pick it up. Drag
+a handle and it is held where you put it; press `L` and it is held exactly
+where the pattern left it, which is the weaker and more useful statement --
+keep this street, reroll everything else. Held roads draw orange, proposed
+ones blue. `L` again lets it go.
+
+Picking one up is the harder half in a town with any density, since the thin
+line runs under the buildings standing on it and a click on the line itself
+rarely lands. Every curve carries one small **grip** at its midpoint for
+exactly that -- drawn over everything, the same pick path a control point
+uses -- and the selected curve draws with a wide translucent **halo** under
+its line: a real ribbon of geometry, not a thicker `linewidth` (browsers
+ignore that on a plain line, which is why every curve used to look the same
+width regardless of what was selected).
+
+Moving the mouse gets the same halo, dimmer and without handles, over
+whichever curve a click would land on right now -- built from the exact same
+test the click itself uses, so the preview is never wrong about what it is
+previewing. That answers "which one am I about to click" before you commit
+to clicking it, which matters more than it sounds: a thin line under a dense
+town is genuinely hard to aim at, and a highlight that only appears after
+the click is too late to help you aim. Move off every curve and both halos
+go with it; click on empty ground, or on a building, and the selection goes
+too -- a curve stays picked up only until something else is.
+
+The pattern that drives which roads are proposed can itself be set to
+**None**, in the Streets panel -- no streets proposed at all, so a town built
+entirely from roads you have held. Anything already held stays exactly as it
+is either way; a pattern only ever governs what is *proposed*, and held roads
+were never that.
+
+That is `free` and `fixed` from `constraints.js`, applied to geometry instead
+of to a number: the system proposes, the author disposes.
+
+**Holding a road freezes its name, and that is the mechanism.** A road's id is
+a hash of where it is, and a building's id is that road's id plus which kerb
+and how far along -- so a building is *addressed relative to its road*. Drag a
+road whose name comes from its position and every building on it is renamed,
+which loses every edit ever made to them. Drag a road whose name was frozen
+when you took hold of it and the buildings keep their names, keep their edits,
+and travel with the street.
+
+#### What happens when they disagree
+
+Locking some things and generating the rest does create contradictions. These
+are the answers, and each is a rule rather than a special case:
+
+| Situation | What happens |
+| --- | --- |
+| Hold a road and change nothing else | Nothing moves. Holding in place is a no-op on the whole town, or "keep this and reroll the rest" would not mean anything |
+| Hold a road, then reroll the seed or switch pattern | Held roads come through untouched. Everything else is new around them |
+| Move a held road | Its buildings move with it, keeping their ids and their edits. It also claims its ground first, so procedural plots give way to it rather than the other way round |
+| Grow footprints -- lot fill, frontage, depth -- with edits in the scene | Edited plots are offered their ground before untouched ones, so a building you spent an hour on is not evicted by one nobody has looked at. It is a no-op on a town that has not otherwise moved |
+| Move the boundary with a road held | The road stays whole. The boundary decides where the *town* is, not where your road is -- `fixed` means the proposal is ignored, and that includes the boundary's. Plots outside the boundary go, and come back when it grows again |
+| A plot ends up inside another street | It cannot be built, and priority is the wrong tool for it -- a building in the middle of a road is worse than a missing one. The edit is reported as unplaced, never discarded, and the building returns when the road moves clear. This is the usual reason a held road loses a plot when you nudge it |
+| Release a road the pattern no longer proposes | It disappears, because there was nothing underneath it. One undo away |
+| Delete a curve outright | Different from releasing: release hands a road back to the pattern and it comes straight back, delete says there should be no road there at all. Its buildings go, any hold on it goes, and the pattern's next proposal in the same place is refused until you undo it. Select the curve with no points picked and press delete; on the boundary the same key clears it |
+
+One narrower case still has no answer: "Nudge X" and "Nudge Z" are read
+relative to the road a building fronts, not to the world, which is why they
+ride along when a held road moves rather than staying at a fixed offset from
+the origin. That is a coordinate-interpretation question, and it is
+different from *whether an edit survives at all* -- which the next section
+is about, and which no longer has this gap.
+
+#### An edited building survives its road disappearing
+
+Holding a road freezes its name so its buildings keep theirs. That was never
+available to a building on a road you had *not* held -- so a hand edit
+survived a slider, but not a boundary drag, a seed reroll, or anything else
+that reshuffled the procedural network under it. The plot the edit named
+simply stopped existing, and the edit sat in the scene file unreachable,
+reported as "nowhere to go" and drawn nowhere.
+
+Every override now carries enough of a fingerprint -- position, size, angle,
+not just which road -- to rebuild its plot outright if the normal walk never
+produces it. **Editing a building is what holds it in place**, the same
+relationship editing a road already has to holding it: you do not press a
+button first, the act of authoring something is what promotes it out of the
+generated set. The plot becomes, in effect, a held road of one -- it wins
+its ground against anything procedural that would otherwise stand there, the
+same way a held road's plots already do, and it stays exactly where it was
+for as long as the edit exists, independent of whatever the road network
+around it is doing.
+
+Two things follow from "the edit is what holds it":
+
+- **Clearing every edit on a building releases it.** The plot goes back to
+  being whatever the road says it should be, which may be nothing at all if
+  there genuinely is no road there any more -- the same honest outcome an
+  unheld road disappearing already gives you.
+- **Rerolling a building is not clearing it.** The dice give it a new seed
+  and a fresh style while leaving its position exactly where the edit put
+  it, because reroll has always meant "surprise me here", not "let this
+  location go".
+
+A building explicitly deleted stays deleted through all of this -- there is
+nothing to rebuild a plot for when the point of the edit was for nothing to
+stand there.
+
+#### Why moving the boundary still rebuilds the whole town
+
+The renderer no longer rebuilds a chunk whose buildings resolved to the same
+data as last time -- see "Only what changed redraws" below -- so a lot of
+what used to look like a full regeneration is now free: an unrelated slider,
+a no-op rebuild, editing one held road while others sit elsewhere all touch
+only the chunks that actually changed.
+
+Dragging the boundary itself is the one edit that does not benefit, and it is
+worth knowing why rather than wondering whether it is a bug. Grid, boulevard
+and radial roads are full-span lines, cut down to size by the boundary --
+which means every one of them touches both edges the moved point belongs to,
+somewhere along its length, and a boundary vertex always has exactly two.
+Nudge one corner and there is no line left in a typical grid that does not
+cross one of those two edges eventually, so every road's clipped endpoint
+moves a little, every road gets a new position-derived id, and every
+building on every road does too. Verified directly: a 0.5-unit nudge on a
+24x24 town left 0 of nearly 300 buildings with the id they had a moment
+before, on every pattern including Old town, whose wandering start angle
+also reads the boundary's own centre.
+
+That is not a rendering inefficiency to optimise away -- the data really did
+change nearly everywhere, and a diff can only skip work where nothing did.
+Two tools already built keep something still while you reshape the edge
+around it, at two different grains: **hold a road** you want the whole
+street kept exactly where it is, and **edit a building** for one you want
+kept regardless of what its road does -- see "An edited building survives
+its road disappearing" above. Both are `fixed`, in the same sense a
+parameter is: untouched by anything the boundary proposes, including where
+the boundary itself proposes they should end. One caveat the chunk system
+adds: a held road's or an anchored building's own geometry is stable, but
+the mesh it shares a chunk with is not necessarily private to it, since a
+chunk is four lots on a side and a busy grid usually has something unheld
+passing through the same one. That chunk still redraws -- correctly, since
+something in it changed -- even though the thing you kept still inside it
+did not move a pixel.
+
+A real fix for full locality exists and is not small: teach grid, boulevard
+and radial to propose their lines against the town's stable default extent
+rather than the boundary's own current bounds -- using the boundary only to
+clip, the way it already does, but no longer to decide how far a line
+reaches before clipping -- and give roads an identity that survives a
+reclip, the way Tier 0.1 gave buildings one that survives a road move. That
+is real design work across four pattern functions and the identity scheme
+both, not a patch, and it is written up as its own item in `NEXT.md` rather
+than attempted here.
+
+### Only what changed redraws
+
+`CityBuilder.build()` used to queue every chunk for remeshing on every
+rebuild, because that was the simplest thing that worked before there was
+any reason to ask whether a chunk's data had actually changed. It kept a
+fingerprint of what each chunk last drew and compares before queuing
+anything: a chunk whose buildings resolve to the exact same data is left
+completely alone, still the same three.js mesh it was a moment ago.
+
+Measured directly: editing one held road while another sits on the far side
+of a 5x5-chunk town touches 3 chunks, not 25. A change that does not touch
+roads at all -- glow, palette, a slider with nothing to do with layout --
+still touches every chunk whose buildings it actually altered, correctly,
+since that data really is different; what it no longer touches is chunks it
+never should have in the first place.
+
+### Merging lots
+
+A building stands on one lot, which is why the town reads as one texture
+however much the modules vary -- everything is the same footprint scale.
+Select a building and press `+` to grow it across the plots next to it along
+its own street; `-` shrinks it back. That is the one control that changes the
+town's *massing* rather than its surface: a shop becomes a department store,
+four plots of housing become a market hall.
+
+A merge is a **span** -- `{ plotId: howManyLots }` in `params.lotSpans` --
+naming a plot and how many more plots after it along the same kerb are one
+building. It runs after placement, so nothing else has to move: the ground a
+merged lot covers is exactly its members' ground plus the empty gaps between
+them. It stops at the first gap it meets -- a street's end, a plot the density
+roll removed -- silently, because reporting every slider nudge as a problem is
+worse than a span that took what was there.
+
 ### Why overrides are sparse
 
 Each lot's identity comes from `hash(seed, gx, gz)`, and each module id is
@@ -166,6 +410,17 @@ Click a module, shift-click a building. Double-click drops a fresh image on the
 face you hit. Keyboard: `I` image, `shift+I` all faces, `M` shape, `G` glow,
 `[` `]` height, `,` `.` width, `R` reroll building, `B` switch between module
 and building, `1`-`9` pick a face, `del` remove, `F` frame, `esc` deselect.
+
+With the Curves layer on: click near a road or the boundary to pick it up --
+every curve carries a small grip at its midpoint for exactly this, since the
+line itself is almost always hidden behind a building. Drag a handle to move
+it, double-click the line to add a point, `del` to remove the picked ones, `C`
+to make a point a corner or let it curve again, `L` to hold a road or let it
+go. Control points answer `del` before the selected module does, since the
+handle you just grabbed is the more specific intent.
+
+`+` and `-` on a selected building merge it across its neighbouring lots or
+split it back apart -- see "Merging lots" above.
 
 ### Scenes
 

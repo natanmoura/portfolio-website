@@ -130,12 +130,18 @@ export const CONTROL_DEFS = [
         key: 'seed',
         label: 'Seed',
         type: 'seed',
-        help: 'Every random choice grows from this. Same seed, same town.',
+        help: 'What building placement, colour and style grow from. Terrain and the road pattern follow it too, until you give either one its own seed below.',
       },
       R('cols', 'Columns', 1, 40, 1, 'How many lots wide. Resizing leaves the lots you already have alone.', { live: false, hard: [1, 100] }),
       R('rows', 'Rows', 1, 40, 1, 'How many lots deep the grid runs.', { live: false, hard: [1, 100] }),
       R('cell', 'Block size', 3, 16, 0.1, 'Distance between lot centres. Up widens the streets, down packs the blocks.'),
       R('density', 'Lots built', 0, 1, 0.01, 'Odds a lot gets a building. Lower it for gaps and plazas.', { hard: [0, 1] }),
+      {
+        key: 'boundaryTools',
+        label: 'Boundary',
+        type: 'mount',
+        help: 'The outline the town fills. Without one it fills the square that columns and rows imply. Draw one and the roads are cut to it, the lots outside it go, and dragging a corner moves the edge of town.',
+      },
     ],
   },
   {
@@ -147,7 +153,15 @@ export const CONTROL_DEFS = [
         label: 'Pattern',
         type: 'select',
         options: [],
-        help: 'Which real street plan the town is cut from. Grid is Manhattan, Boulevards drives diagonals through a grid, Radial is spokes and rings, Old town wanders.',
+        help: 'Which real street plan the town is cut from. Grid is Manhattan, Boulevards drives diagonals through a grid, Radial is spokes and rings, Old town wanders. None proposes no streets at all -- roads you have already held stay exactly as they are, and nothing new appears until you hold one yourself.',
+      },
+      {
+        key: 'roadSeed',
+        label: 'Road seed',
+        type: 'seed',
+        fallbackKey: 'seed',
+        fallbackLabel: 'city',
+        help: 'What the street pattern grows from. Follows the city seed until you give it a number of its own, and from then on rerolling the city seed leaves the streets exactly where they are.',
       },
       R('roadSkew', 'Skew', 0, 1, 0.01, 'How far roads drift off parallel. Zero is a clean grid, high gives the triangular blocks you get where avenues cut across.', { live: false, hard: [0, 1] }),
       R('blockWidth', 'Block width', 0.6, 6, 0.05, 'Spacing of the streets running one way, in block sizes.', { live: false }),
@@ -267,6 +281,14 @@ export const CONTROL_DEFS = [
     section: 'Terrain',
     tab: 'world',
     items: [
+      {
+        key: 'terrainSeed',
+        label: 'Terrain seed',
+        type: 'seed',
+        fallbackKey: 'seed',
+        fallbackLabel: 'city',
+        help: 'What the hills grow from. Follows the city seed until you give it a number of its own, and from then on rerolling the city seed leaves the ground exactly where it is.',
+      },
       R('terrainHeight', 'Hill height', 0, 20, 0.1, 'How far the ground rises and falls. Buildings stay planted on a slope.', { live: false, hard: [0, 300] }),
       R('terrainScale', 'Hill size', 0.1, 4, 0.01, 'How wide the bumps are. Large gives a few broad hills the town drapes over.', { live: false, hard: [0.02, 40] }),
       R('terrainDetail', 'Roughness', 1, 5, 1, 'Layers of noise. One is smooth swells, five adds fine crumple on top.', { live: false, hard: [1, 8] }),
@@ -461,7 +483,12 @@ export class Controls {
     this.lockPainters = new Map();
     // Reroll buttons, so a locked seed can visibly refuse to roll.
     this.rerollButtons = new Map();
+    this.relinkButtons = new Map();
     this.inputs = new Map();
+    // `fallbackKey` for a 'seed' row: which other parameter to show while
+    // this one is unset. Kept here rather than read off `def` at sync time,
+    // since sync only has the def's key, not the def itself.
+    this.fallbacks = new Map();
     this.ranges = new Map();
     this.mounts = new Map();
     this.pages = new Map();
@@ -697,11 +724,29 @@ export class Controls {
       lock.textContent = on ? '\u{1F512}' : '\u{1F513}';
       lock.classList.toggle('on', on);
       row.classList.toggle('locked', on);
+      // A seed is the one control where typing straight into the box is as
+      // much a way of changing it as the dice are — nothing else here has a
+      // number you would type by hand instead of dragging. So a lock on a
+      // seed disables the field itself, not only the reroll button next to
+      // it: otherwise "locked" meant "the dice can't touch it" while your own
+      // keyboard still could, which is not what locking a number means to
+      // anyone.
+      const isSeed = def.type === 'seed';
       lock.title = on
-        ? 'Locked. Nothing random will change this: not the dice, not reroll.'
-        : 'Lock this so nothing random changes it.';
+        ? isSeed
+          ? 'Locked. Nothing random will change this, and the field itself is closed to typing too.'
+          : 'Locked. Nothing random will change this: not the dice, not reroll.'
+        : isSeed
+          ? 'Lock this so nothing — random or typed — changes it.'
+          : 'Lock this so nothing random changes it.';
       const reroll = this.rerollButtons.get(def.key);
       if (reroll) reroll.disabled = on;
+      if (isSeed) {
+        const input = this.inputs.get(def.key);
+        if (input) input.disabled = on;
+        const relink = this.relinkButtons.get(def.key);
+        if (relink) relink.disabled = on;
+      }
     };
     lock.addEventListener('click', (e) => {
       e.preventDefault();
@@ -853,7 +898,14 @@ export class Controls {
     }
 
     if (def.type === 'seed') {
-      const input = h('input', { type: 'number', value, class: 'seed-input' });
+      // A seed that has never been touched shows the one it is following —
+      // City by default — rather than a blank box, which is what makes
+      // "every system has its own seed, and they start out the same one"
+      // legible instead of a field that looks broken until you notice the
+      // reroll button works.
+      if (def.fallbackKey) this.fallbacks.set(def.key, def.fallbackKey);
+      const resolved = value ?? (def.fallbackKey ? this.values[def.fallbackKey] : value);
+      const input = h('input', { type: 'number', value: resolved, class: 'seed-input' });
       input.addEventListener('change', () => this.onChange(def.key, Number(input.value) | 0, def));
       const dice = h(
         'button',
@@ -873,7 +925,27 @@ export class Controls {
       );
       this.inputs.set(def.key, input);
       this.rerollButtons.set(def.key, dice);
-      return h('label', { class: 'row' }, h('span', { class: 'lbl' }, def.label), input, dice);
+      const kids = [h('span', { class: 'lbl' }, def.label), input, dice];
+      // Only a seed that can drift from another one needs a way back. The
+      // city seed has nothing to follow, so it gets no such button.
+      if (def.fallbackKey) {
+        const relink = h(
+          'button',
+          {
+            class: 'mini',
+            title: `Follow the ${def.fallbackLabel || 'city'} seed again, instead of a number of its own.`,
+            onclick: () => {
+              if (this.locks?.[def.key]) return;
+              input.value = this.values[def.fallbackKey];
+              this.onChange(def.key, null, def);
+            },
+          },
+          '↺'
+        );
+        this.relinkButtons.set(def.key, relink);
+        kids.push(relink);
+      }
+      return h('label', { class: 'row' }, ...kids);
     }
 
     const control = rangeRow({
@@ -899,7 +971,10 @@ export class Controls {
       const v = values[key];
       if (v === undefined) continue;
       if (input.type === 'checkbox') input.checked = !!v;
-      else input.value = v;
+      else {
+        const fallbackKey = this.fallbacks.get(key);
+        input.value = v ?? (fallbackKey ? values[fallbackKey] : v);
+      }
     }
   }
 }

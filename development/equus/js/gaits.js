@@ -72,7 +72,13 @@ export const GAITS = {
     beats: 3,
     structure: 'couplet',
     // Left lead. Trailing hind, then the diagonal, then the leading fore.
-    offsets: { 'H.R': 0.0, 'H.L': 0.33, 'F.R': 0.33, 'F.L': 0.67 },
+    //
+    // Note the numbers are 0.32 and 0.63 rather than an even 0.33 and 0.67. Evenly
+    // spaced thirds tile the stride exactly at duty one third, so the footfalls
+    // butt up against each other and no suspension can ever open however low the
+    // duty goes. A real canter is a three beat gait WITH a moment of suspension
+    // after the leading foreleg, so the beats have to sit slightly early.
+    offsets: { 'H.R': 0.0, 'H.L': 0.32, 'F.R': 0.32, 'F.L': 0.63 },
     duty: 0.33,
     suspension: 0.12,
     froude: [fr(4.0), fr(8.9)],

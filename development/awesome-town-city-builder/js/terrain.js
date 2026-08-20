@@ -10,6 +10,7 @@ import { fbm2D } from './noise.js';
 import { shared } from './material.js';
 import { WAVE_GLSL } from './wave.js';
 import { shaderVersion } from './pcss.js';
+import { ribbonEdges, ribbonTriangles } from './curve.js';
 
 // The ground rides the same water as the buildings, using the same uniforms.
 function patchWaves(material, withNormals) {
@@ -86,13 +87,18 @@ export class Ground {
     return fbm2D(this.seed, x * this.frequency, z * this.frequency, this.octaves) * this.amplitude;
   }
 
-  update(params) {
-    this.seed = params.seed >>> 0;
+  // `townSpan` is how far the town actually reaches, which is the square cols
+  // and rows imply until a boundary is drawn and then whatever that boundary
+  // covers. The ground takes the larger of the two, so dragging the edge of
+  // town outward does not walk it off the end of the world.
+  update(params, townSpan = 0) {
+    // Its own seed, or the city's until it has one. See generate.js.
+    this.seed = (params.terrainSeed ?? params.seed) >>> 0;
     this.amplitude = params.terrainHeight || 0;
     this.frequency = 0.02 / Math.max(0.08, params.terrainScale || 1);
     this.octaves = Math.max(1, Math.round(params.terrainDetail || 3));
 
-    const span = Math.max(params.cols, params.rows) * params.cell;
+    const span = Math.max(Math.max(params.cols, params.rows) * params.cell, townSpan);
     const size = span * 2.6;
     // Waves need enough vertices to bend smoothly, not just enough for hills.
     const detail = params.waveHeight > 0 ? 1.1 : 1.6;
@@ -148,9 +154,17 @@ export class Ground {
     this.grid.geometry = geo;
   }
 
-  // Roads are ribbons laid over the ground, one quad per segment, mitred badly
-  // but close enough at these widths. They ride the same wave as everything
-  // else, so the tarmac stays on the water with the town.
+  // Roads are ribbons laid over the ground. They ride the same wave as
+  // everything else, so the tarmac stays on the water with the town.
+  //
+  // One continuous strip per road, mitred at every point via `ribbonEdges` in
+  // curve.js — shared with the curve highlight in curveview.js, which is the
+  // second customer that made pulling the mitre math out of here worthwhile.
+  // Before it existed this was one free-standing quad per segment, each
+  // offset along its own perpendicular, and it read exactly as what it was:
+  // at every bend the two quads met at their end edges pointing different
+  // ways, leaving a wedge missing from the outside of the turn and a doubled
+  // overlap on the inside.
   setRoads(roads, params) {
     this.roads.geometry.dispose();
     const pos = [];
@@ -158,33 +172,17 @@ export class Ground {
     const lift = 0.06 + this.amplitude * 0.004;
 
     for (const road of roads || []) {
-      const half = road.width / 2;
-      for (let i = 0; i < road.pts.length - 1; i++) {
-        const [ax, az] = road.pts[i];
-        const [bx, bz] = road.pts[i + 1];
-        const dx = bx - ax;
-        const dz = bz - az;
-        const len = Math.hypot(dx, dz) || 1;
-        const nx = (-dz / len) * half;
-        const nz = (dx / len) * half;
-        const corners = [
-          [ax - nx, az - nz],
-          [bx - nx, bz - nz],
-          [bx + nx, bz + nz],
-          [ax + nx, az + nz],
-        ];
-        const y = (x, z) => this.heightAt(x, z) + lift;
-        const [p0, p1, p2, p3] = corners;
-        // Counter-clockwise seen from above. The other way round and the
-        // tarmac faces the earth and gets culled.
-        for (const [a, b, c] of [
-          [p0, p2, p1],
-          [p0, p3, p2],
-        ]) {
-          pos.push(a[0], y(a[0], a[1]), a[1], b[0], y(b[0], b[1]), b[1], c[0], y(c[0], c[1]), c[1]);
-          nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
-        }
-      }
+      const pts = road.pts;
+      if (!pts || pts.length < 2) continue;
+      // A ring road arrives with its last point on top of its first, which
+      // `ribbonEdges` closes into a loop with no seam at the arbitrary place
+      // it happened to start.
+      const closed =
+        pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-6;
+      const edges = ribbonEdges(pts, road.width / 2, closed);
+      const { pos: p2, nor: n2 } = ribbonTriangles(edges, (p) => this.heightAt(p[0], p[1]) + lift);
+      pos.push(...p2);
+      nor.push(...n2);
     }
 
     const geo = new THREE.BufferGeometry();

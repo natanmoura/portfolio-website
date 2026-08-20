@@ -32,17 +32,22 @@ export class Flyby {
 
   // Stitch a loop out of the road network. Falls back to a circle over the
   // town when there are not enough roads to walk.
-  build(roads, params) {
+  // `region` is the shape the town occupies, which the fallback circle is
+  // drawn against. Taken from the layout rather than worked out again from
+  // cols and rows, so a tour of a town with a drawn boundary circles the town
+  // rather than the square it would have filled.
+  build(roads, params, region = null) {
     const usable = (roads || []).filter((r) => r.pts.length > 1);
     const mains = usable.filter((r) => r.main);
     const pool = mains.length >= 2 ? mains : usable;
-    const half = (Math.max(params.cols, params.rows) * params.cell) / 2;
+    const half = region ? region.half : (Math.max(params.cols, params.rows) * params.cell) / 2;
+    const centre = region ? region.center : { x: 0, z: 0 };
 
     if (pool.length < 2) {
       const pts = [];
       for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2;
-        pts.push(new THREE.Vector3(Math.cos(a) * half * 0.6, 0, Math.sin(a) * half * 0.6));
+        pts.push(new THREE.Vector3(centre.x + Math.cos(a) * half * 0.6, 0, centre.z + Math.sin(a) * half * 0.6));
       }
       this.setCurve(pts);
       return;

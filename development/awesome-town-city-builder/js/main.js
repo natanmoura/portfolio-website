@@ -30,7 +30,7 @@ import {
 } from './generate.js';
 import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
-import { ROAD_PATTERNS, PATTERN_LABEL } from './layout.js';
+import { ROAD_PATTERNS, PATTERN_LABEL, NONE_PATTERN } from './layout.js';
 import { Traffic } from './traffic.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
@@ -50,6 +50,7 @@ import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './
 import { CurveView } from './curveview.js';
 import { CurveEditor } from './curveedit.js';
 import { curveFromPolyline } from './curve.js';
+import { BOUNDARY_ID, BOUNDARY_SHAPES, BOUNDARY_LABEL, boundaryShape, defaultHalf, regionFor } from './region.js';
 
 const APP_NAME = 'City Builder';
 
@@ -126,7 +127,14 @@ const SHORTCUTS = [
   ['1 - 9', 'pick a face'],
   ['B', 'switch module and building'],
   ['R', 'reroll the building'],
-  ['delete', 'remove it'],
+  ['+  -', 'grow or shrink the lot along its street'],
+  ['delete', 'remove it, or the picked control points'],
+  ['click near a road', 'pick that road up'],
+  ['drag a handle', 'move it, and hold it there'],
+  ['L', 'hold this road as it is, or let it go'],
+  ['delete, no points picked', 'delete the whole curve'],
+  ['double click a picked curve', 'add a control point'],
+  ['C', 'corner or curve, on the picked points'],
   ['F', 'frame the whole town'],
   ['T', 'start or stop the tour'],
   ['ctrl + Z', 'undo'],
@@ -150,13 +158,28 @@ const WHEEL_COLORS = {
   cone: '#3f6f6a',
   dome: '#5a3f7a',
 };
+// A stable hash straight to a hue, so a component id always lands on the
+// same slice colour without a table entry for it — every id the library
+// might ever hold, not just the dozen shipped ones `WHEEL_COLORS` names by
+// hand. Golden-angle spacing on top keeps ids that hash close together from
+// landing on close hues too.
+function hashColor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const hue = (h * 137.508) % 360;
+  return `hsl(${hue.toFixed(1)}, 62%, 52%)`;
+}
+
 // The wheel names its slices from the library when it can, so a component
-// renamed in the editor renames its slice here too.
+// renamed in the editor renames its slice here too. Colour the same way —
+// the shipped table first, a hash-derived hue for anything the table has
+// never heard of, so a role full of custom or assembly components never
+// shows an untinted slice.
 const wheelMeta = (keys) =>
   Object.fromEntries(
     keys.map((k) => [
       k,
-      { label: library?.components.get(k)?.label || KIND_LABEL[k] || k, color: WHEEL_COLORS[k] },
+      { label: library?.components.get(k)?.label || KIND_LABEL[k] || k, color: WHEEL_COLORS[k] || hashColor(k) },
     ])
   );
 
@@ -223,9 +246,10 @@ const roleRedraws = [];
 let rebuildMixWheels = null;
 // Layer visibility. Purely a view concern, kept out of params on purpose.
 let layers = null;
-// The curve layer. Nothing authors into it yet — it currently mirrors the
-// roads so the primitive can be seen against something real — but it is the
-// store the boundary, the roads and every other linear thing will share.
+// The curve layer. The boundary is the first curve the town actually reads
+// back — drag it and the streets are recut to it. The roads are still
+// mirrored into the same store read-only, so the primitive can be seen
+// against something real until they become curves in their own right.
 let curveView = null;
 let curveEditor = null;
 let curves = [];
@@ -299,9 +323,40 @@ async function boot() {
     // anything that consumes it waits for the gesture to finish — the same
     // split the component editor's sliders already use.
     onLive: () => stage.render(),
-    onChange: () => {
-      noteStatus('Curve edited');
-      updateStatus();
+    onPick: (curve) => {
+      // Not `deselect()`: the curve half of that would undo the very
+      // selection this callback exists to report, since it fires after
+      // `pointerDown` has already set it.
+      deselectBuilding();
+      noteStatus(describeCurve(curve));
+      stage.render();
+    },
+    onDelete: (curve) => {
+      if (curve.id === BOUNDARY_ID) return setBoundary(null);
+      removeRoad(curve.id);
+    },
+    // Editing a curve is editing the town. Which curve decides what that
+    // means, and there are only two answers: the boundary is one artifact the
+    // scene already owns, and everything else is a road, which the act of
+    // editing hands over to the scene.
+    onChange: (curve) => {
+      if (!curve) return;
+      if (curve.id === BOUNDARY_ID) {
+        // `source` names which shape button minted this boundary, and it
+        // rides along through every generic curve edit unchanged — `movePoint`
+        // and friends all spread `{ ...curve }`, so nothing about a drag would
+        // ever clear it on its own. It has to be cleared here, the one place
+        // every real edit to the boundary passes through, or the shape
+        // buttons would have no way to tell a boundary you have shaped by
+        // hand from one still exactly as they left it.
+        state.params.boundary = { ...structuredClone(curve), source: null };
+        history?.record('boundary');
+        markAll();
+        syncBoundaryTools();
+        noteStatus('Boundary edited');
+        return;
+      }
+      holdRoad(curve, 'moved');
     },
   });
   flyby = new Flyby(stage);
@@ -374,6 +429,15 @@ function markLot(id) {
   dirtyLots.add(id);
   queue();
 }
+// Whether a plot exists only because an edit anchored it there — see
+// `anchorMissingClaims` in layout.js. Clearing that edit is the one case
+// where the targeted single-lot rebuild is not enough, since the plot
+// itself, not only what is drawn on it, was the thing the override was
+// holding up.
+function wasAnchored(plotId) {
+  return Boolean(state.city?.layout?.sites?.find((s) => s.id === plotId)?.anchored);
+}
+
 function markLotOfModule(moduleId) {
   const entry = byModule.get(moduleId);
   if (entry) markLot(entry.building.id);
@@ -403,10 +467,30 @@ function flush() {
 let extentKey = '';
 function rebuildAll() {
   const p = state.params;
-  const key = [p.cols, p.rows, p.cell, p.terrainHeight, p.terrainScale, p.terrainDetail, p.seed].join('|');
+  // The ground has to reach at least as far as the town does, so a boundary
+  // dragged out past the square is standing on something. Its span is part of
+  // the key for the same reason every other extent input is: the terrain mesh
+  // is expensive and must not be rebuilt for anything that did not move it.
+  const region = regionFor(p);
+  const span = Math.max(region.bounds.maxX - region.bounds.minX, region.bounds.maxZ - region.bounds.minZ);
+  const key = [
+    p.cols,
+    p.rows,
+    p.cell,
+    p.terrainHeight,
+    p.terrainScale,
+    p.terrainDetail,
+    p.seed,
+    // Its own field even though `terrain.js` already falls back to `seed`:
+    // that fallback is exactly why a terrain seed changing while the city
+    // seed does not would otherwise leave this key unchanged and the ground
+    // never rebuilt.
+    p.terrainSeed,
+    Math.ceil(span),
+  ].join('|');
   if (key !== extentKey) {
     extentKey = key;
-    stage.setExtent(p);
+    stage.setExtent(p, span);
   }
   // Cleared at the top of the rebuild, read once the geometry is up. Anything
   // still true reports itself again on the way through, so this is a fresh
@@ -417,13 +501,37 @@ function rebuildAll() {
   // Roads mirrored as curves, which is the adoption path proving itself in
   // place: a polyline becomes a curve with no geometric change at all, so the
   // day roads genuinely become curves the town does not move.
-  curves = state.city.layout.roads.map((road) =>
-    curveFromPolyline(road.pts, { id: road.id, label: road.main ? 'Highway' : 'Street', kind: 'road' })
-  );
+  // A held road is drawn from the curve the scene stored, not from the
+  // polyline the layout produced out of it. Same geometry either way, but the
+  // stored curve carries the control points' own ids, so a selection survives
+  // the rebuild that a drag causes and a second nudge does not need re-aiming.
+  curves = state.city.layout.roads.map((road) => {
+    const held = state.params.roadEdits?.[road.id];
+    if (held?.curve) return { ...held.curve, held: true };
+    return curveFromPolyline(road.pts, {
+      id: road.id,
+      label: road.main ? 'Highway' : 'Street',
+      kind: 'road',
+    });
+  });
+  // The boundary goes in last so it draws over the roads, and it is the one
+  // curve in the list that came from the scene rather than from a generator.
+  if (state.params.boundary) curves.push(state.params.boundary);
   curveView?.set(curves);
   curveEditor?.setCurves(curves);
+  // Handles are drawn for the selected curve only, and the boundary is the
+  // one curve here that an edit reaches, so it holds the selection. Which
+  // points were picked survives the rebuild: dragging one commits, which
+  // rebuilds, and losing the selection every time would make a second nudge
+  // impossible without re-aiming.
+  const wanted = curveEditor?.selectedCurve || (state.params.boundary ? BOUNDARY_ID : null);
+  const stillThere = curves.some((c) => c.id === wanted);
+  curveEditor?.select(
+    stillThere ? wanted : state.params.boundary ? BOUNDARY_ID : null,
+    stillThere ? [...curveEditor.selectedPoints] : []
+  );
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
-  flyby.build(state.city.layout.roads, p);
+  flyby.build(state.city.layout.roads, p, state.city.layout.region);
   builder.build(state.city);
   if (stage) builder.sortPending(stage.camera);
   reindex();
@@ -510,7 +618,7 @@ function rebuildLot(id) {
     pool.cutoutCount,
     matPool.length,
     groundAt,
-    layout.half,
+    layout.region,
     library
   );
 
@@ -614,6 +722,7 @@ function updateLayerCounts() {
     buildings: state.city.buildings.length,
     roads: state.city.layout.roads.length,
     traffic: Math.round(state.params.carCount + state.params.flyerCount),
+    curves: curves.length,
   });
 }
 
@@ -646,6 +755,8 @@ function updateStatus() {
   statusEl.classList.toggle('on', Boolean(note));
 
   const edits = Object.keys(state.overrides).length;
+  const heldRoads = Object.keys(state.params.roadEdits || {}).length;
+  const merged = Object.keys(state.params.lotSpans || {}).length;
   // Read here rather than cached at rebuild time. Geometry is built in chunks
   // across several frames, so a note raised while drawing lands well after the
   // rebuild that caused it has returned.
@@ -654,6 +765,11 @@ function updateStatus() {
     sceneNameEl.textContent = [
       state.sceneName || 'Unsaved',
       edits ? `${edits} edit${edits === 1 ? '' : 's'}` : null,
+      // Counted apart from the edits, because holding a road is a different
+      // kind of authoring: an edit says what one building looks like, a hold
+      // says where a street is and moves everything standing on it.
+      heldRoads ? `${heldRoads} road${heldRoads === 1 ? '' : 's'} held` : null,
+      merged ? `${merged} merged lot${merged === 1 ? '' : 's'}` : null,
       // Worth its own word rather than folding into the count, because an
       // edit that is not on screen is the one you want to be told about.
       unplaced.length ? `${unplaced.length} unplaced` : null,
@@ -762,7 +878,9 @@ const actions = {
 
   clearModule(id) {
     delete state.overrides[id];
-    markLotOfModule(id);
+    const entry = byModule.get(id);
+    if (entry && !wasAnchored(entry.building.id)) markLot(entry.building.id);
+    else markAll();
   },
 
   setBuilding(id, patch) {
@@ -802,9 +920,17 @@ const actions = {
   },
 
   clearBuilding(id) {
+    const anchored = wasAnchored(id);
     clearModuleOverrides(id);
     delete state.overrides[id];
-    markLot(id);
+    // The fast path — rebuild this one lot against the site list already on
+    // hand — assumes clearing an override never changes whether the site
+    // itself should exist, which is true for every ordinary edit. It stops
+    // being true for a plot the override was the only reason a road-less
+    // road still had. Full rebuild, so `buildLayout` gets to decide fresh
+    // whether anything belongs there now that nothing is claiming it.
+    if (anchored) markAll();
+    else markLot(id);
   },
 };
 
@@ -857,11 +983,33 @@ function clearModuleOverrides(buildingId) {
   }
 }
 
-function deselect() {
+// The building half of deselection, kept apart from the curve half. A curve
+// pick needs exactly this — clear whatever module or building was selected,
+// leave the curve it just picked alone — and calling the combined `deselect`
+// from inside `onPick` clears the curve `pointerDown` had only just set,
+// since that call lands after the selection it is reporting on rather than
+// before it.
+function deselectBuilding() {
   state.selection = null;
   builder.isolate(null);
   picker.clear();
   inspector.hide();
+}
+
+function deselect() {
+  deselectBuilding();
+  deselectCurve();
+}
+
+// Puts the curve selection back to its resting state — the boundary if the
+// scene has one, otherwise nothing — without touching whatever building
+// selection exists. The two are independent state and every place that picks
+// one now clears the other, so Delete and every curve shortcut always act on
+// whichever was picked most recently rather than on whichever happens to
+// still be sitting there from an earlier click.
+function deselectCurve() {
+  if (!curveEditor?.selectedCurve) return;
+  curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
 }
 
 function refreshHighlight() {
@@ -908,7 +1056,23 @@ function bindPointer() {
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (curveEditor?.pointerMove(e)) e.preventDefault();
+    if (curveEditor?.pointerMove(e)) {
+      e.preventDefault();
+      return;
+    }
+    // Not dragging, so the same move is a hover: which curve a click would
+    // land on right now, found the same way the click itself would find it.
+    // Sharing `pickCurve` with the actual pick is what keeps the preview
+    // honest — a highlight built from a different test than the click uses
+    // would eventually show a curve as reachable that a click then misses.
+    const near = curveEditor?.pickCurve(e, state.params.cell);
+    curveView?.hover(near?.curve.id ?? null);
+    canvas.style.cursor = near ? 'pointer' : '';
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    curveView?.hover(null);
+    canvas.style.cursor = '';
   });
 
   const endCurveDrag = (e) => {
@@ -927,7 +1091,29 @@ function bindPointer() {
     if (moved > 5) return;
 
     const hit = picker.pick(e);
-    if (!hit) return deselect();
+    if (!hit) {
+      // Nothing built under the pointer. Before giving up, ask the curves:
+      // clicking beside a street is how you pick that street up, and a click
+      // on empty tarmac is otherwise the one gesture in this tool that could
+      // only ever mean "deselect".
+      const near = curveEditor?.pickCurve(e, state.params.cell);
+      if (near) {
+        deselect();
+        curveEditor.select(near.curve.id, []);
+        noteStatus(describeCurve(near.curve));
+        stage.render();
+        return;
+      }
+      return deselect();
+    }
+
+    // A curve stays picked up until you put it down, and clicking a building
+    // was never a way of doing that — so without this, picking a road and
+    // then clicking a building leaves both selected at once, and Delete a
+    // moment later hits the road instead of the building the click just
+    // chose. Picking a building is exactly as clear a "not this curve
+    // any more" as clicking empty ground is.
+    deselectCurve();
 
     state.selection = {
       mode: e.shiftKey ? 'building' : 'module',
@@ -960,6 +1146,10 @@ function bindPointer() {
 
   // Double-click drops a new image straight onto the face you hit.
   canvas.addEventListener('dblclick', (e) => {
+    // Unless it landed on the curve you are editing, in which case it adds a
+    // control point there. Near the line only, so double-clicking a building
+    // still does what it always did.
+    if (curveEditor?.addPointAt(e, { maxDistance: state.params.cell })) return;
     const hit = picker.pick(e);
     if (!hit || !pool.length) return;
     const entry = byModule.get(hit.moduleId);
@@ -986,11 +1176,42 @@ function bindKeys() {
       history?.redo();
       return;
     }
-    if (e.target.matches('input, select, textarea')) return;
+    // Optional call, because this is the one listener whose throwing would
+    // take every shortcut in the tool down with it, and a keydown whose
+    // target is not an element is one focus quirk away.
+    if (e.target.matches?.('input, select, textarea')) return;
     const sel = state.selection;
     const entry = sel && byModule.get(sel.moduleId);
 
-    if (e.key === 'Escape') return deselect();
+    // Curves answer Delete before a selected building does, and in one of
+    // two ways depending on what is actually picked: control points first,
+    // since a handle you just grabbed is the more specific target, and the
+    // whole curve only once none are. A building can be selected at the same
+    // time as a curve — they are independent pieces of state — but a curve
+    // being current at all is a strong enough signal that Delete means the
+    // curve, not whatever module happened to be clicked earlier.
+    if (curveEditor?.enabled && curveEditor.selectedCurve) {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (curveEditor.selectedPoints.size) return void curveEditor.deleteSelected();
+        return void curveEditor.deleteCurve();
+      }
+      if (curveEditor.selectedPoints.size && (e.key === 'c' || e.key === 'C')) return void curveEditor.toggleCorner();
+      if (e.key === 'l' || e.key === 'L') return void toggleHold();
+    }
+
+    if (e.key === 'Escape') {
+      if (curveEditor?.selectedCurve && !state.selection) {
+        curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
+        return stage.render();
+      }
+      return deselect();
+    }
+    // Growing a building across its neighbours' plots. On the selection
+    // rather than on the module, because it is the lot that changes, and it
+    // works in either mode for the same reason.
+    if (sel && (e.key === '+' || e.key === '=')) return void spanLot(sel.buildingId, 1);
+    if (sel && (e.key === '-' || e.key === '_')) return void spanLot(sel.buildingId, -1);
+
     if (e.key === 'f' || e.key === 'F') return frameCity();
     if (e.key === 't' || e.key === 'T') {
       const on = flyby.toggle();
@@ -1080,7 +1301,10 @@ function bindDropZone() {
 function buildUI() {
   const defs = CONTROL_DEFS.flatMap((s) => s.items);
   defs.find((i) => i.key === 'palette').options = PALETTE_KEYS.map((k) => [k, PALETTES[k].label]);
-  defs.find((i) => i.key === 'roadPattern').options = ROAD_PATTERNS.map((k) => [k, PATTERN_LABEL[k]]);
+  // `NONE_PATTERN` tacked on after the real patterns rather than folded into
+  // `ROAD_PATTERNS` itself — see the comment on it in layout.js for why the
+  // dice must never be able to land on it.
+  defs.find((i) => i.key === 'roadPattern').options = [...ROAD_PATTERNS, NONE_PATTERN].map((k) => [k, PATTERN_LABEL[k]]);
 
   controls = new Controls(
     document.getElementById('controls-body'),
@@ -1098,6 +1322,11 @@ function buildUI() {
       }
       markAll();
       history?.record(`param:${key}`);
+      // A seed that follows another one has nothing of its own to show but
+      // whatever that one currently is, so changing the city seed has to
+      // repaint the road and terrain rows too, not just the one that was
+      // touched.
+      if (def.type === 'seed') controls.sync(state.params);
     },
     state.paramLocks,
     (key, on) => {
@@ -1166,7 +1395,25 @@ function buildUI() {
           selected: includedFor(state.params, role),
           library,
           onCommit: (ids) => {
+            const before = includedFor(state.params, role);
             state.params.roles = { ...(state.params.roles || {}), [role]: ids };
+            // A component newly let into a role has no reason to already
+            // have a share of the wheel — nobody has said how much of the
+            // roof it should be yet. Left at that, it is included and
+            // invisible: `pickWeighted` reads a missing weight as zero, the
+            // wedge is too thin to draw, and the only way to notice is
+            // spotting a legend row reading "0%" for something that should
+            // be showing up. Starting it at the average of what is already
+            // there is a real share without silently outweighing choices
+            // someone already made.
+            const added = ids.filter((id) => !before.includes(id));
+            if (added.length) {
+              const mix = { ...(state.params[wheelKey] || {}) };
+              const weights = before.map((id) => Math.max(0, mix[id] || 0)).filter((w) => w > 0);
+              const avg = weights.length ? weights.reduce((a, b) => a + b, 0) / weights.length : 20;
+              for (const id of added) if (!(id in mix)) mix[id] = Math.round(avg);
+              state.params[wheelKey] = mix;
+            }
             draw();
             buildMixWheel(wheelKey, role);
             markAll();
@@ -1244,9 +1491,215 @@ function buildUI() {
   applyLayerVisibility();
 
   buildSceneTools();
+  buildBoundaryTools();
   buildTourTools();
   refreshSceneMenu();
   updateStatus();
+}
+
+// The town's outline, as something you can pick up.
+//
+// Three shapes and a way back to none, which is the whole control. The
+// alternative — an empty canvas and a note telling you to start clicking — is
+// how a boundary tool goes unused: the useful gesture is nudging an outline
+// that is already roughly right, not drawing one from nothing.
+//
+// Choosing Square is deliberately a no-op on the town. It is the extent cols
+// and rows already implied, now with handles on it, so adopting a boundary
+// never costs you the town you had.
+let boundaryLabel = null;
+let boundaryChips = {};
+
+function buildBoundaryTools() {
+  const mount = controls.mounts.get('boundaryTools');
+  if (!mount) return;
+
+  boundaryChips = {};
+  const chips = BOUNDARY_SHAPES.map((shape) => {
+    const chip = h('button', { class: 'chip' }, BOUNDARY_LABEL[shape].toLowerCase());
+    chip.addEventListener('click', () => pickBoundaryShape(shape));
+    boundaryChips[shape] = chip;
+    return withHelp(
+      chip,
+      shape === 'square'
+        ? 'The extent columns and rows already give you, with handles on its corners. Choosing it changes nothing until you drag one.'
+        : shape === 'round'
+          ? 'Twelve points on a circle. Pull it into an ellipse, a lozenge or a horseshoe.'
+          : 'A circle with its radius pushed about, from the seed. A town that grew rather than one that was planned.',
+      BOUNDARY_LABEL[shape]
+    );
+  });
+
+  const clear = withHelp(
+    h('button', {
+      class: 'chip',
+      onclick: () => {
+        if (state.params.boundary && !confirm('Drop the boundary?\n\nAny points you moved go with it. Undo brings it back.')) return;
+        setBoundary(null);
+      },
+    }, 'none'),
+    'Back to the square columns and rows imply. The outline is discarded, so this is one to undo rather than redraw.',
+    'No boundary'
+  );
+
+  boundaryLabel = h('div', { class: 'hint' });
+  setChildren(mount, h('div', { class: 'chips' }, ...chips, clear), boundaryLabel);
+  syncBoundaryTools();
+}
+
+// A shape chip has three things it can mean, and only one of them is worth
+// protecting: re-clicking the shape a pristine boundary already is regens
+// nothing (every shape here is deterministic in the current seed, so it
+// would be bit-for-bit the same curve anyway); picking a different shape
+// while pristine loses nothing since there is nothing authored yet to lose;
+// picking any shape once the boundary has actually been dragged is the one
+// case that erases real work, and is the only one that asks first.
+//
+// This is the direct answer to a boundary that turned out to be too easy to
+// wipe by a stray click on a button that looks identical whether there is
+// something to lose or not: the active shape now shows which one you are
+// looking at, so a second click on it reads as "again", not "nothing".
+function pickBoundaryShape(shape) {
+  const current = state.params.boundary;
+  if (current?.source === shape) return;
+  // Only a boundary with nothing authored on it needs no protecting. A
+  // pristine one — `source` still names a shape, whichever it is — has
+  // nothing to lose by switching, so square to round to blob is free for as
+  // long as none of them has been touched. The moment one has, `source` is
+  // `null` (see the boundary `onChange` handler) and every shape click from
+  // there on asks first, including the shape it already resembles.
+  const pristine = current && current.source != null;
+  if (current && !pristine && !confirm(`Replace the boundary with a fresh ${shape}?\n\nAny points you moved go with it. Undo brings them back.`)) {
+    return;
+  }
+  const curve = boundaryShape(shape, defaultHalf(state.params), state.params.seed);
+  setBoundary({ ...curve, source: shape });
+}
+
+function syncBoundaryTools() {
+  if (!boundaryLabel) return;
+  const drawn = state.params.boundary;
+  boundaryLabel.textContent = drawn
+    ? `${drawn.points.length} points. Show the Curves layer to drag them.`
+    : 'No outline. The town fills the square columns and rows imply.';
+  for (const [shape, chip] of Object.entries(boundaryChips)) {
+    chip.classList.toggle('on', drawn?.source === shape);
+  }
+}
+
+// What picking a curve up should tell you, which is always the same two
+// things: what you have got, and what the next gesture does.
+function describeCurve(curve) {
+  if (!curve) return '';
+  if (curve.id === BOUNDARY_ID) return 'Boundary. Drag a handle to move the edge of town';
+  const label = curve.label || 'Road';
+  return state.params.roadEdits[curve.id]
+    ? `${label}, held. Drag a handle to reshape it, or L to let it go`
+    : `${label}. Drag a handle to hold it there, or L to hold it as it is`;
+}
+
+// --- merged lots -----------------------------------------------------------
+
+// Grow or shrink a building across the plots next to it along its street.
+//
+// The whole town is built at one footprint scale, which is why it reads as a
+// texture however much the modules vary. This is the control that breaks
+// that: a shop becomes a department store, four plots of housing become a
+// market hall, and the skyline finally has something in it that is not
+// lot-sized. See `applySpans` in layout.js for what a span is and why it is
+// stored as a count rather than a set.
+function spanLot(plotId, delta) {
+  if (!plotId) return;
+  const spans = state.params.lotSpans;
+  const now = spans[plotId] || 1;
+  // Six is arbitrary and generous: past that a building is longer than most
+  // blocks and the span runs off the end of its street anyway.
+  const next = Math.max(1, Math.min(6, now + delta));
+  if (next === now) return;
+  if (next === 1) delete spans[plotId];
+  else spans[plotId] = next;
+
+  // The lot list itself changes, so this is a whole-town rebuild rather than
+  // the one-building path an ordinary edit takes.
+  markAll();
+  history?.record(`span:${plotId}`);
+  noteStatus(next === 1 ? 'Back to one lot' : `Standing on ${next} lots`);
+}
+
+// --- holding roads ---------------------------------------------------------
+
+// Take hold of a road, or record a change to one already held.
+//
+// Two gestures reach this. Dragging a control point calls it with the moved
+// curve, because moving something is the clearest possible statement that you
+// want it where you put it. Pressing L calls it with the road exactly as the
+// pattern proposed it, which says the weaker and often more useful thing:
+// keep this street, and reroll everything else around it.
+//
+// Both store the same record, and neither mints a new name. The road keeps
+// the id it had, so every building on it keeps the id built from that, keeps
+// its edits, and travels with the street. See `heldRoads` in layout.js.
+function holdRoad(curve, reason = 'held') {
+  const road = state.city?.layout?.roads?.find((r) => r.id === curve.id);
+  const existing = state.params.roadEdits[curve.id];
+  state.params.roadEdits[curve.id] = {
+    curve: structuredClone(curve),
+    // Width and kind come from the proposal the first time and are then the
+    // scene's, since the road no longer has a proposal to read them off once
+    // the pattern moves on.
+    main: existing?.main ?? Boolean(road?.main),
+    width: existing?.width ?? road?.width ?? state.params.streetWidth,
+  };
+  history?.record(reason === 'moved' ? `road:${curve.id}` : null);
+  markAll();
+  noteStatus(reason === 'moved' ? 'Road held where you put it' : 'Road held');
+}
+
+// Delete a road outright, distinct from releasing it. Release hands a road
+// back to the pattern and it comes straight back, shaped however the pattern
+// currently shapes it. Delete says there should be no road there at all —
+// its buildings go with it, any hold on it goes with it, and the pattern's
+// next proposal in the same place is refused rather than accepted.
+function removeRoad(id) {
+  delete state.params.roadEdits[id];
+  state.params.roadRemoved[id] = true;
+  if (curveEditor?.selectedCurve === id) curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
+  markAll();
+  history?.record(null);
+  noteStatus('Road deleted');
+}
+
+function releaseRoad(id) {
+  if (!state.params.roadEdits[id]) return false;
+  delete state.params.roadEdits[id];
+  history?.record(null);
+  markAll();
+  noteStatus('Road released, and back to the pattern');
+  return true;
+}
+
+// L, on whichever curve is selected. A road the pattern is still proposing
+// comes back the moment it is released; a road that has no proposal behind it
+// any more — because the seed or the pattern moved on since you took hold of
+// it — disappears, which is the honest outcome and is one undo away.
+function toggleHold() {
+  const id = curveEditor?.selectedCurve;
+  if (!id || id === BOUNDARY_ID) return false;
+  const curve = curveEditor.curveById(id);
+  if (!curve) return false;
+  if (state.params.roadEdits[id]) return releaseRoad(id);
+  holdRoad(curve);
+  return true;
+}
+
+function setBoundary(curve) {
+  state.params.boundary = curve ? structuredClone(curve) : null;
+  // The extent key holds the boundary's span, so a shape that happens to
+  // cover the same ground reuses the terrain it is standing on.
+  markAll();
+  history?.record(null);
+  syncBoundaryTools();
+  noteStatus(curve ? 'Boundary drawn' : 'Boundary cleared');
 }
 
 // Undo and redo are primary actions and now live in the header rather than
@@ -1410,6 +1863,24 @@ function buildSceneTools() {
         }, 'clear edits'),
         'Drops every hand edit and leaves the sliders alone.',
         'Clear edits'
+      ),
+      // Separate from clearing edits, because they are separate kinds of
+      // authoring and losing one while meaning to lose the other is exactly
+      // the sort of thing a single "start over" button causes.
+      withHelp(
+        h('button', {
+          class: 'chip',
+          onclick: () => {
+            const n = Object.keys(state.params.roadEdits || {}).length;
+            if (!n) return noteStatus('No roads are being held');
+            state.params.roadEdits = {};
+            markAll();
+            history?.record(null);
+            noteStatus(`Released ${n} road${n === 1 ? '' : 's'}`);
+          },
+        }, 'release roads'),
+        'Hands every held road back to the pattern. The streets you drew are discarded and the town regenerates around none of them. Undo brings them back.',
+        'Release roads'
       )
     ),
     withHelp(
@@ -1485,6 +1956,7 @@ function syncPanels() {
   wheels.moduleMix.set(state.params.moduleMix);
   wheels.roofMix.set(state.params.roofMix);
   wheels.surfaceMix.set(state.params.surfaceMix);
+  syncBoundaryTools();
 }
 
 // --- scenes ----------------------------------------------------------------
@@ -1535,6 +2007,13 @@ function applyScene(scene, name, isPreset = false) {
   // A scene saved before roles existed has none, and gets the full lists,
   // so it generates exactly as it did when it was saved.
   state.params.roles = { ...DEFAULTS.roles, ...(scene.params?.roles || {}) };
+  // Copied rather than shared. DEFAULTS is a module constant and a spread
+  // hands out the same object every time, so a scene that has never held a
+  // road would otherwise be writing its first one straight into the defaults
+  // and into every other scene loaded after it.
+  state.params.roadEdits = { ...(scene.params?.roadEdits || {}) };
+  state.params.roadRemoved = { ...(scene.params?.roadRemoved || {}) };
+  state.params.lotSpans = { ...(scene.params?.lotSpans || {}) };
   // Locks ride inside params so they survive every path a scene takes, but
   // they are not parameters and must not reach the generator.
   state.paramLocks = { ...(scene.params?.__locks || {}) };
@@ -1619,6 +2098,9 @@ function restore() {
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(saved.params?.surfaceMix || {}) };
   state.params.roles = { ...DEFAULTS.roles, ...(saved.params?.roles || {}) };
+  state.params.roadEdits = { ...(saved.params?.roadEdits || {}) };
+  state.params.roadRemoved = { ...(saved.params?.roadRemoved || {}) };
+  state.params.lotSpans = { ...(saved.params?.lotSpans || {}) };
   state.paramLocks = { ...(saved.params?.__locks || {}) };
   delete state.params.__locks;
   state.overrides = saved.overrides || {};

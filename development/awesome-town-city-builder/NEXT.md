@@ -60,13 +60,18 @@ that can be started independently. That reframing moves it up hard.
 
 ## Status
 
-**Tier 0 is done. Tier 1 is done except 1.2.** Seven commits, each verified
-against a digest of every building and module in the town, hashed across all
-four road patterns — every one of them byte-identical to the town before the
-change, which is the bar this work had to clear.
+**Tiers 0 and 1 are done. Tier 4 is started: 4.1 and 4.2 are done.** Every
+structural commit is verified against a digest of every road, lot and module
+in the town, hashed across all four road patterns — byte-identical to the town
+before the change, which is the bar this work has to clear. That digest is now
+a committed tool rather than something rebuilt each time:
 
-Two things came out different from what was written here, both recorded in
-their commits and worth knowing before reading the plan below:
+```bash
+node development/awesome-town-city-builder/tools/digest.mjs
+```
+
+Three things came out different from what was written here, each recorded in
+its commit and worth knowing before reading the plan below:
 
 - **1.1 kept the field name `kind`.** The plan said rename it to
   `componentId`. The audit's finding was about the *trait lookups* being
@@ -80,10 +85,307 @@ their commits and worth knowing before reading the plan below:
   worthless without it — a stable id on a building that moves anyway is
   bookkeeping, not a guarantee. Each candidate now draws its own block of
   tickets, the same discipline `tickets()` already applied to modules.
+- **4.2 kept a specialised box.** The plan said one region interface, and
+  there is one — but the axis-aligned box has its own clip rather than
+  running through the general polygon path. Not premature: the same box
+  clipped as a four-sided polygon gives answers that differ in the last bits
+  of a float, and that is enough to renumber a road id and move an override
+  onto a different building. The specialisation *is* the compatibility
+  guarantee, and it is why adopting the region changed nothing.
 
-**1.2, the single-page shell, is deliberately unstarted.** It restructures
-how the whole app boots and is the one item here that cannot be left half
-done, so it wants someone watching. It is otherwise ready to go.
+**4.3 and 5.1/5.2 followed immediately**, because 4.2 shipped a boundary you
+could drag next to roads you could not, which is a worse tool than one where
+neither could be touched — it teaches the wrong thing about what the tool is.
+A road is now either proposed or held, held roads are stored as curves in
+`params.roadEdits`, and holding one freezes its name so every building on it
+keeps its id, keeps its edits, and travels with the street. The conflict
+rules that fall out of that are in `README.md` under "Holding things still",
+and they are the deliverable as much as the dragging is.
+
+**Three things that were not on this list landed alongside the road work,
+each because using it surfaced something that made it unusable rather than
+merely imperfect.**
+
+- **Road ribbons were rendering broken.** One free-standing quad per segment,
+  each offset along its own perpendicular, so every bend left a gap on the
+  outside of the turn and an overlap on the inside — the "broken pieces, not
+  connected" a curved or radial town showed on sight. Rewritten as one mitred
+  strip per road, closing properly on a ring. Not scheduled anywhere, because
+  nobody had looked at a bent road closely enough to notice until roads
+  became something you drag into a bend.
+- **A road under a building could not be selected**, which is most roads in
+  a town with any density: the line is drawn under the geometry, so a click
+  landed on whatever building was in front of it. Every curve now carries one
+  small grip at its midpoint, drawn over everything the way a handle already
+  is — a legible number of dots, and the same pick path a control point uses.
+- **Merged lots — `+`/`-` on a selected building, `params.lotSpans`.** Not
+  from this list at all: asked for directly, on the reasoning that the town
+  reads as one texture because every footprint is lot-sized, and nothing
+  short of Tier 3's claims could change that honestly. A span turned out to
+  need none of that machinery — it runs after placement, costs the
+  eviction-priority pass its second real customer, and is small enough that
+  withholding it until claims arrive would have been the wrong call.
+
+**The gap the merge exposed**: a four-lot footprint still gets a generic
+module mix stacked on it, so the massing changes and the surface does not.
+The town needs a handful of components that are obviously *institutional* —
+long runs, deep cornices, ground-floor arcades — for a merge to read as a
+department store rather than four shops wearing a trenchcoat. That is a
+component-authoring task, not a systems one, and it is the actual next step
+now that there is a footprint worth authoring one for.
+
+**Four more things landed straight after, all asked for directly rather than
+found on this list.**
+
+- **Terrain and the road pattern each have their own seed.** `terrainSeed`
+  and `roadSeed` in `params`, `null` by default, meaning "follow the city
+  seed" — which is why a scene saved before this existed loads and generates
+  exactly as it did, and why a fresh town's three seeds start out equal
+  without anywhere actually copying a number into two other fields. Reroll
+  either one, or type a value in, and it decouples permanently; a small
+  `↺` next to it links it back to following the city seed. Locking a seed now
+  disables the field itself, not only its reroll button — the one place in
+  the panel where typing a number by hand is as much "rolling the dice" as
+  the dice are, so the old lock (reroll only) was locking half the door.
+  "Randomise everything" rolls all three when none are locked, the same
+  as pressing each one's own reroll button would.
+- **A curve can be deleted outright**, distinct from releasing a held road.
+  Release hands a road back to the pattern and it reappears, shaped however
+  the pattern currently shapes it; delete says there should be no road there,
+  full stop — its buildings go, any hold on it goes, and the pattern's next
+  proposal in the same place is refused. Stored as `params.roadRemoved`, an
+  id set in the same spirit as `roadEdits`: it stays deleted for as long as
+  the pattern keeps proposing that road in that place, and lapses quietly the
+  moment something upstream changes enough that it would not. Selecting a
+  curve with no points picked and pressing delete removes the whole thing;
+  the boundary answers the same key by clearing itself.
+- **Fixing that surfaced a real bug in the pick/select split from the road
+  work.** `onPick` called the general `deselect()` to clear a stale building
+  selection, and `deselect()` had just been taught to also clear the curve
+  selection — so picking a road cleared its own selection one line after
+  setting it, silently, and only Delete-with-nothing-selected made it
+  visible. Split into `deselectBuilding()` and `deselectCurve()`; `onPick`
+  wants only the first. The other latent one in the same family: a *refused*
+  point delete (a curve does not go below two points) still called `onChange`
+  unconditionally, so trying and failing to remove a point silently held the
+  road anyway. Both are two-line fixes and neither would have been found
+  without driving the real keyboard-and-click path end to end rather than
+  calling the underlying methods directly.
+- **Curves were hard to see and hard to pick.** Every line drew at the same
+  weight regardless of whether it was selected, because `LineBasicMaterial`'s
+  `linewidth` does nothing in any browser that matters — a known WebGL
+  limitation, not a bug to fix in this project. The mitred-ribbon math
+  written for road tarmac was the answer already sitting in the codebase:
+  pulled out of `terrain.js` into `ribbonEdges`/`ribbonTriangles` in
+  `curve.js`, and the selected curve alone now draws a wide translucent halo
+  under its thin line, built from the same geometry. Picking one up in a
+  dense town had the harder problem — the line runs under the buildings
+  standing on it, so a click on the line rarely lands — which is what the
+  grip already solved; this was purely about being able to see which curve
+  you had.
+- **A boundary shape button regenerated on every click with no memory of
+  whether there was anything to lose.** Clicking Square twice looked
+  identical whether the first click was the only thing that had ever
+  happened to the boundary or you had spent ten minutes shaping it — both
+  silently produced a pristine square. Fixed with a `source` field that
+  names which shape a boundary was minted from and clears the moment it is
+  actually edited: switching between pristine shapes stays free, since
+  there is nothing authored yet to lose, and any shape click once `source`
+  is `null` confirms first. The active shape button now shows which one you
+  are looking at, which is most of the fix by itself — the destructive click
+  was never really "accidental", it was invisible.
+- **The street pattern can be set to None.** Not a fifth entry in
+  `ROAD_PATTERNS` — that list is also what the dice roll a pattern from, and
+  landing on a roadless town one time in five would be a bad random outcome
+  rather than a fun one — but a separate value the dropdown offers, handled
+  as its own case in `buildLayout` that proposes nothing. Anything already
+  held is unaffected either way, which follows directly from what holding
+  already meant: a pattern only ever governs what is *proposed*.
+- **The renderer rebuilt every chunk on every rebuild, regardless of whether
+  a chunk's data had changed.** `CityBuilder.build()` now keeps a fingerprint
+  of what each chunk last drew and only queues a chunk whose fingerprint
+  differs; a chunk not queued is not touched, still the same mesh it was.
+  Measured: editing one held road on one side of a 25-chunk town now touches
+  3 chunks, not 25; a change unrelated to layout (glow, palette) touches
+  exactly the chunks whose buildings it altered and nothing standing next to
+  them; a no-op rebuild touches nothing at all. Paired with a smaller fix in
+  the same investigation — `gx`/`gz` were anchored to `region.bounds`, which
+  moves with every boundary edit even for buildings nowhere near it, so a
+  drag could re-index the entire chunk grid on top of whatever else changed.
+  Anchored to the stable square `cols`/`rows`/`cell` imply instead, which
+  only moves on an actual resize.
+- **This did not fix what it looks like it should have.** Dragging the
+  boundary itself still rebuilds nearly everything, and it earned a real
+  investigation rather than a guess: verified directly that a 0.5-unit nudge
+  on a 24×24 town left 0 of ~300 buildings holding the id they had a moment
+  before, on *every* pattern. The cause is structural, not a missed
+  optimisation — grid, boulevard and radial draw full-span lines cut down by
+  the boundary, and a moved vertex belongs to two edges that between them
+  cross essentially every line in a typical grid, so essentially every road
+  gets a new position-derived id and therefore does every building on it.
+  Old town is worse: its wandering start angle reads the boundary's own
+  centre directly, so even its *proposal*, not just its clip, moves. No
+  diff can recover stability the data does not have. The tool's actual
+  answer is the one already built: hold what you want to keep still before
+  you touch the boundary, which the chunk fix above makes visibly cheap for
+  the first time — held roads were always immune, but until now watching
+  the rest of the town regenerate around them still repainted their own
+  chunk too, everywhere they happened to share one with an unheld road.
+  Full write-up, including the one remaining caveat about shared chunks, is
+  in `README.md` under "Why moving the boundary still rebuilds the whole
+  town".
+- **The real fix for that is scoped but not attempted here.** Grid,
+  boulevard and radial would need to propose their lines against the town's
+  stable default extent — the way `gx`/`gz` now do — using the boundary only
+  to clip rather than to decide how far a line reaches before clipping; Old
+  town would need its wander decoupled from the boundary's live centre the
+  same way. Paired with giving a road an identity that survives a reclip
+  (Tier 0.1 gave buildings exactly this relative to a road; roads themselves
+  have no equivalent relative to a pattern), a boundary edit could
+  eventually touch only the roads that actually cross the moved point. That
+  is design and verification work across four pattern functions and an
+  identity scheme, not a patch — a real next tier, not a bug fix owed on
+  this one.
+- **A hand edit did not survive its road disappearing, and now it does.**
+  Holding a road already meant a building on it kept its id and its edit
+  through anything that happened elsewhere; nothing gave the same guarantee
+  to a building on a road you had *not* held, so a boundary drag or a seed
+  reroll could orphan an edit exactly as easily as it reshuffled the
+  procedural network around it. `fingerprint()` in generate.js now carries
+  `w`/`d`/`angle` alongside the position and road it already recorded, and
+  `anchorMissingClaims` in layout.js rebuilds a plot outright from that
+  fingerprint whenever the normal walk never produces it — a building
+  becomes, in effect, a held road of one, evicting whatever procedural site
+  now overlaps it the same way a held road's own plots already do. Old
+  scenes degrade gracefully: their fingerprints predate the extra fields, so
+  anchoring skips them and they fall back to exactly today's behaviour
+  (reported unplaced) rather than being resurrected with an invented size.
+  Verified: 15 edited buildings scattered through a town, then a boundary
+  shrunk hard enough to reshuffle the whole procedural network — all 15 kept
+  their exact position and their edit, 0 missing.
+- **This is what "editing holds it" turned out to require making true
+  everywhere, not just in the common case.** `clearBuilding` and
+  `clearModule` used to always take the fast single-lot rebuild path, which
+  assumes clearing an override can never change whether the plot itself
+  should exist — true for every ordinary edit, false the moment the override
+  being cleared was the only thing anchoring a road-less plot. Both now check
+  whether the plot they are about to touch is anchored and fall back to a
+  full rebuild only then, so the common case keeps its fast path and the one
+  case that needed correcting gets it. Reroll needed no equivalent fix: it
+  clears style overrides but re-stamps the building-level one with a fresh
+  seed nudge, so the fingerprint — and the anchor — travels through a reroll
+  the same way a held road's shape survives one.
+- **The halo now answers "which one am I about to click", not only "which
+  one did I click".** Moving the pointer over a curve shows the same halo
+  the selected one gets, dimmer and without handles, built from the exact
+  distance test `pickCurve` already used for the click itself — so the
+  preview is never wrong about what a click would do, which is the property
+  that makes it worth trusting enough to aim by. Deselecting on a click away
+  was already correct going into this (verified directly, not assumed) — the
+  actual gap was that there was no way to see where a curve was *before*
+  committing to the click that would tell you.
+- **An assembly resolved a requested size and then ignored it.** Asked for
+  directly, after a lamp post placed as a city module rendered at its native
+  ~2m regardless of how big the floor it was meant to fill was. Two separate
+  bugs, both in `library.js`: `resolveParamsWith` only ever resolves a key a
+  component's own `params` lists, so a proposal for `w`/`h`/`d` was silently
+  dropped by any component — almost every assembly — that never declared
+  them; and even a component that did declare them only got the request
+  recorded in `bounds` for the inspector, never applied to the geometry
+  `resolveAssembly` had already built from its parts' own native sizes. Fixed
+  both: missing dims now read as free rather than unset, and the requested
+  size is baked into every piece's position and vertex data as a genuine
+  per-axis rescale, once, after placement — proportioning the whole composed
+  result to the request while leaving each part's own internal proportions
+  alone. Verified against the shipped, unedited `lamp-post` (empty `params`):
+  a proposed 6.2 × 2.8 × 5.7 now measures exactly that in the merged mesh,
+  not the native ~0.3 × 2 × 0.3. Full write-up in `COMPONENTS.md`.
+- **Every module resolves through the library now, not just assemblies.**
+  `build.js`'s `shapeFor` used to call `resolveComponent` only when
+  `library.components.get(m.kind)` was an assembly; every leaf — box,
+  octagon, cylinder, everything the default town is built from — still
+  called `buildShape(m.kind, ...)` directly, the hardcoded path that
+  predates the component system. Sizing and modifiers already reached it
+  (`applyComponents` in generate.js constrains every module's `w`/`h`/`d`
+  against its component's own params regardless of which render path it
+  took), but `doc.shape`, `doc.faces` and `doc.shapeOpts` did not — editing
+  those on `box.json` changed nothing about what the city drew. Both paths
+  now go through the same `resolveComponent` → `mergeResolved` → `cropFaces`
+  pipeline; the direct call survives only as the fallback for a `kind` the
+  library genuinely does not have.
+- **The two conventions the two paths used could not just be connected —
+  reconciling them was the actual work, and it surfaced a bug older than
+  this change.** A component previewed on its own sits with its base at the
+  floor; a module in a stack is positioned by its centre (`restack` sets
+  `m.y` to the middle of wherever it sits). Wired together naively, every
+  module would have floated half its own height above where it belongs —
+  which turned out to already be true of any assembly used as a module,
+  independent of anything here, since assemblies had always resolved
+  through the library and nothing before this corrected for it. Fixed once,
+  where `shapeFor` hands geometry back to the mesh builder: for a
+  single-piece result (every leaf) the correction is exact, subtracting the
+  lift `resolveComponent` itself recorded when it stood the piece up —
+  proven exact rather than assumed, since a first attempt using half the
+  *measured* height was subtly wrong the moment `dome` turned out not to sit
+  symmetrically in its own box. An assembly has no single piece to read a
+  lift from, so it recentres on its own resolved height instead, the same
+  assumption `restack` already makes everywhere else.
+- **None of this shows up in `digest.mjs`**, which hashes generated data,
+  never triangles. `tools/geom-diff.mjs` is new and is the check that
+  actually matters here: every default shape, built both the old way and
+  the new, across a spread of sizes, face patterns and blade counts, every
+  position/normal/UV value diffed. 60/60 matched — after two real findings
+  on the first pass, not zero: `spin`'s blade count needed threading through
+  `resolveComponent` as a per-instance proposal (`shapeOpts` is otherwise a
+  fixed per-document setting, and a ticket-rolled blade count is neither),
+  and `dome` is what proved the lift-based correction above has to be exact.
+  Full write-up in `COMPONENTS.md`.
+- **A custom roof component could be included, weighted, even chosen by the
+  right calculation, and still never appear on a single building.** Found by
+  actually trying it, not by inspection — which is worth remembering, since
+  the code that decided whether a building got capped at all
+  (`generateLot`'s own `roofKind` pick) was computing the include set
+  correctly the whole time. What decided the module's actual `kind` was a
+  *second*, independent pick inside `makeModule`'s `isRoof` branch, against
+  its own separately-computed `allow` set — the older version, intersecting
+  the family list directly against the role's includes, which can never
+  contain anything outside the five shipped roof shapes because the family
+  list itself never does. Two copies of the same three lines, and they had
+  already drifted; pulled into one `roofAllowFor(roofKeys, family)` both
+  call sites now share, which is also what stops them drifting apart a
+  second time. Paired with a smaller, real gap in the same investigation: a
+  component newly added to a role got no weight in its mix wheel at all —
+  `pickWeighted` reads a missing weight as zero, and the wheel's own wedge
+  for a true zero is too thin to draw — so even a correctly-included
+  component defaulted to invisible until someone found the one legend row
+  that said "0%" and clicked it. Now starts at the average of what is
+  already there. Verified: a component weighted at 1000 against four
+  classic roofs at 1 each was chosen for 112 of 113 buildings, correctly
+  scaled and correctly seated on top of each one. Full write-up in
+  `COMPONENTS.md`.
+- **A component's free parameters showed nothing to look at**, which reads
+  as a control that does not work rather than one with nothing set. Box's
+  width, height and depth all default to `free`, and every one of them
+  rendered as the words "set by the scene" with no slider and no number —
+  correct, since there is nothing to author, but no way to see what it drew
+  or that pressing the `=` mode button was the way in. The row now shows the
+  sample it actually resolved to, dimmed, next to a hint that `=` pins it —
+  and pinning holds that sample rather than jumping to the middle of the
+  track, so taking control of a parameter never moves the model out from
+  under you. Alongside it, a real layout bug: the editor's right panel could
+  resize down to 260px, and a parameter row's three fixed-width columns left
+  the slider about 29px wide at that size — technically there, practically
+  ungrabbable. Panel minimum raised to 320, and the row's control column
+  given its own `minmax` floor so a panel narrower than intended degrades
+  rather than disappearing.
+
+**Next: the missing anchor.** Every building edit is road-relative today,
+including "Nudge X", which is why they ride a road that moves — the right
+default, and the only one available, since a plot's whole identity is its
+address on a street. What has no answer is a building pinned to the *world*:
+"this one stays here even if that street walks away." That is Tier 2's
+reference frames and Tier 3's claims, and it is now the largest hole in the
+locking story.
 
 ---
 
@@ -166,7 +468,7 @@ ids, so the breakage compounds.
 **Done when:** a lamp post in the body role reports its own family, its own
 material eligibility, and its own slots in the inspector.
 
-### 1.2 Single-page shell ← next
+### 1.2 Single-page shell ✅
 *Agreed in conversation, never scheduled.*
 
 City Builder and Components are two documents, so crossing between them
@@ -299,8 +601,8 @@ Four links, each one generated from the one above it:
 
 | Link | What it is today | Where it becomes editable |
 | --- | --- | --- |
-| **Boundary** | `half`, one scalar from cols × rows × cell | 4.2 |
-| **Roads** | `{ pts, main, width }` in a local array | 5.2 |
+| **Boundary** | a closed curve in `params`, or the square by default | 4.2 ✅ |
+| **Roads** | proposed by a pattern, or held as a curve in `params` | 5.2 ✅ |
 | **Lots** | `{ id, x, z, angle, w, d }` from `placeSites` | Tier 3, as claims |
 | **Buildings** | modules with sparse overrides | already editable |
 
@@ -311,7 +613,7 @@ editing low down regenerates almost nothing — which is exactly what you want
 from an art-direction tool and exactly what a single `buildLayout` call
 cannot offer.
 
-### 4.1 Curve primitive
+### 4.1 Curve primitive ✅
 One type, serving every linear thing in the world: roads, rivers, walls,
 fences, pipes, cables, powerlines, hedgerows, balustrades — and boundaries,
 which are the same object closed.
@@ -319,31 +621,51 @@ which are the same object closed.
 Editable control points, a length parameterisation, sampling by t, and the
 lock states above.
 
-### 4.2 The town boundary becomes a shape
-The extent is currently `half`, one scalar, computed as
-`Math.max(cols, rows) * cell / 2` (`layout.js:307`) and threaded through
-every pattern function as an axis-aligned square. `clipLine` tests against
-it, `placeSites` rejects against it.
+### 4.2 The town boundary becomes a shape ✅
+The extent was `half`, one scalar, `Math.max(cols, rows) * cell / 2`,
+threaded through every pattern function as an axis-aligned square.
+`clipLine` tested against it, `placeSites` rejected against it, and the
+generator divided by it to decide how far downtown a building was.
 
-Replace the scalar with a region that answers `contains(x, z)` and clips a
-line. A square derived from cols and rows is then just the default region,
-so nothing changes for a scene that never draws one — and the moment you
-want a town that follows a coastline, sits in a valley, or fills a shape you
-drew, that is the same interface.
+It is now a region — `region.js` — answering `contains(x, z)`, clipping a
+line, and reporting its own extent and centre. The square derived from cols
+and rows is the default one, so a scene that never draws a boundary is
+unchanged down to the last float, which the digest holds it to.
 
-This is the smallest change in the tier and the one that most changes what
-the tool feels like, because it is the difference between "a town, sized"
-and "a town, sited."
+Three things came with it that the plan did not name:
 
-### 4.3 Generators produce curves rather than being the only source
-The four road patterns stop being the way roads exist and become one way
-roads are *proposed*. Same for whatever proposes a boundary. A generator's
-output is a set of curves you can then move, split, delete, extend or leave
-alone — and re-running the generator preserves everything you authored.
+- **Clipping returns a list, not a span.** A line crossing a square enters
+  once and leaves once; the same line across a crescent is inside, outside
+  and inside again, and a road that jumps its own gap is not a road. Each
+  span becomes a road with its own id and its own kerbs.
+- **A polyline clip, for generators that wander.** Old town walks its lanes
+  rather than drawing them, so it needs the inside *runs* of a walk. Written
+  against `contains` and a bisection, so it works for any region — including
+  whatever replaces a polygon later.
+- **On the outline counts as in town.** Ray casting cannot answer for a
+  point exactly on the edge, and old town starts every lane on the edge of
+  the extent, so half of them would have begun one step outside the shape
+  they were filling.
 
-This is the step that makes 4.2 and the whole roads tier possible, and it is
-mostly bookkeeping: the pattern functions already produce polylines, they
-just produce them into a local array that nobody can reach.
+The boundary itself is a closed curve in `params`: it saves, loads, undoes
+and exports with everything else, three starting shapes are one click away in
+the Size panel, and choosing Square is a deliberate no-op so adopting a
+boundary never costs you the town you had.
+
+### 4.3 Generators produce curves rather than being the only source ✅
+The four road patterns stopped being the way roads exist and became one way
+roads are *proposed*. A proposal you take hold of is stored as a curve in
+`params.roadEdits` and emitted every rebuild whether or not the pattern would
+still produce it; re-running the generator preserves it exactly.
+
+Mostly bookkeeping, as predicted, with one thing that was not: **merge order
+is load-bearing.** `placeSites` walks the road list once and first claim wins
+the ground, so a held road that has not moved has to sit in its proposal's
+place — otherwise holding a road silently rearranges which procedural plots
+survive, which is the precise behaviour holding exists to stop. A held road
+that *has* moved goes to the front instead and claims first, or you drag a
+street into a gap and its buildings lose the ground to plots that were
+generated earlier. The test between the two is the geometry, not a flag.
 
 ### 4.4 Distribute-along-curve
 Slots into `algorithms.js` beside the nine arrangements already there, and
@@ -378,21 +700,53 @@ segment, mitred badly by its own admission (`terrain.js:151`), with no
 junctions, no kerbs, no markings and no width variation along a road. That is
 fine for judging massing and not what a film pipeline wants from a street.
 
-### 5.1 Roads become curve consumers
-A road is a curve from Tier 4, plus a width profile, plus a road type. The
-four patterns become the generators described in 4.3 — one way roads are
+### 5.1 Roads become curve consumers ✅
+A held road is a curve, carrying its own width and whether it is a main road.
+The four patterns are now generators in the 4.3 sense — one way roads are
 proposed, not the only way they can exist.
 
-### 5.2 Hand-editable roads
-The point of the whole tier. Draw a road. Drag a control point and watch the
-buildings re-front onto it. Split, join, delete, reroute. Widen one road
-without touching the parameter that widens all of them.
+Width *profiles* and road *types* are still 5.4 and 5.5. A held road carries
+one width, taken from its proposal the first time and owned by the scene
+after that, because once the pattern has moved on there is nothing left to
+read a width off.
 
-No new concept, because Tier 4 already established it: an untouched road is
-`free` and regenerates from the pattern, an edited road is `fixed` and the
-pattern does not touch it, and the middle case is a road that may reroute but
-has to keep meeting the roads it currently meets. Editing a road *is* locking
-it, the same way editing a building is.
+### 5.2 Hand-editable roads — moving ✅, the rest to come
+Drag a control point and the buildings re-front onto it, keeping their ids
+and their edits. Add a point, delete one, make it a corner or let it curve.
+Hold a road as it is with `L`, release it with `L`.
+
+No new concept, exactly as predicted: an untouched road is `free` and
+regenerates from the pattern, a held road is `fixed` and the pattern does not
+touch it. Editing a road *is* locking it, the same way editing a building is.
+
+**What the doing of it added to the plan**, and neither was foreseen here:
+
+- **Holding freezes the road's name.** A building's id is its road's id plus
+  its address along it, so a road named after its own position renames every
+  building on it the moment it moves — losing every edit. Freezing the name
+  on hold is what makes "the buildings travel with the street" work at all,
+  and it is one line in `heldRoads`.
+- **Edited plots claim their ground first**, which is the smallest useful
+  piece of Tier 3's claims arriving early. It was written to stop a moved
+  road evicting an edited building and it does not do that — that loss is
+  the kerb test, a plot landing inside another street, which no priority
+  should fix. What it does do, measured rather than assumed, is stop *lot
+  fill* evicting them: 96 of 592 edited plots survive a range of footprint
+  settings with it and not without, and none go the other way. Worth keeping
+  for the reason it turned out to have rather than the one it was written
+  for.
+- **An override's reference frame follows from that.** `overrideMoved`
+  rejects an edit whose plot has drifted more than a cell and a half, which
+  is right for a plot that drifted and catastrophic for a plot on a road you
+  deliberately dragged twenty metres. A plot on a held road is anchored to
+  the road, so the road id still has to match and the distance no longer
+  does. That is Tier 2's reference frames arriving early, in the one place
+  that could not proceed without them.
+
+**Still to come:** drawing a new road from nothing, splitting, joining,
+deleting a proposed road outright, and widening one road on its own. The
+middle constraint state — a road that may reroute but must keep meeting the
+roads it currently meets — is still unbuilt, and is the interesting one.
 
 ### 5.3 Junctions as generated components
 Where two curves meet, resolve a junction from the library — a crossroads, a
@@ -521,18 +875,28 @@ rather than matching its operator count.
 
 ## If you only do one thing
 
-Tiers 0.1 and 0.2 together — road identity, then override fingerprints. They
-are the smallest items on the list and the only ones where every day of delay
-is edits quietly landing on the wrong buildings. They have to go together:
-fingerprinting an override against a road index that itself renumbers fixes
-nothing.
+*Was Tiers 0.1 and 0.2, then 4.3. All done, and each was the right one: the
+first two were losing work while they waited, and the third was the gesture
+the whole tool is pointed at.*
+
+Now: **the world anchor.** A lock currently means "this thing keeps its
+address", and every address in the town is relative to a street. That is the
+right default and it is not sufficient: there is no way to say "this building
+stays exactly here" and have it mean anything once the street moves. Until
+that exists, every lock in the tool is a lock with one silent exception in
+it, and the tool cannot honestly claim the invariant it is built on.
 
 ## If you do one week
 
-Tier 0 entire, then 1.1. That stops the loss, makes component edits
-survivable across updates, and untangles the field that every later system
-reads — which is also the first two fields of the placement record, so the
-week ends with Tier 3 already started.
+The world anchor, then Tier 3's placement record, which is the structure it
+wants to live in: `{ id, componentId, transform, seed, tags, source, lock }`,
+where the lock names what the transform is measured against — world, a curve
+at t, another component's anchor, terrain at XZ.
+
+Take the roads work as the pattern for all of it: an artifact stored in
+`params`, generated first and edited second, a frozen name at the moment of
+authoring, an explicit rule for every way it can contradict what is generated
+around it, and a digest run to prove the untouched case did not move.
 
 ## The one to be impatient about
 
@@ -541,8 +905,12 @@ instead of setting rows and columns, and dragging a road instead of rerolling
 until one lands where you wanted. That is where this stops being a machine
 you tune and becomes a set you dress.
 
-Everything before them is real work they depend on: identity so an edit
-survives, placements so there is something to edit, curves so there is
-something to draw with. But it is worth knowing which direction the
-groundwork points, and 4.2 in particular is small — one scalar becoming an
-interface — for how much it changes.
+4.2 landed, and it was what it looked like: one scalar becoming an interface,
+small for how much it changes. The half of the claim that mattered turned out
+to be the cheaper half — a town you *site* rather than size reads differently
+before you have edited a single point of it.
+
+5.2 is the other half and it is the one still worth being impatient about.
+Everything between here and it is real work it depends on: placements so
+there is something to edit, and 4.3 so a road is a thing that exists rather
+than a thing that is emitted.

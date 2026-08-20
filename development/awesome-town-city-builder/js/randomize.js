@@ -54,6 +54,13 @@ export function randomParams(current, locks = null) {
   const p = { ...current };
 
   p.seed = Math.floor(Math.random() * 100000);
+  // Terrain and the road pattern each get a genuine roll of their own here,
+  // the same as pressing their own reroll button would — not left at `null`
+  // to quietly follow whatever the city seed just became. "Randomise
+  // everything" means every system that is not locked actually rerolls, and
+  // a system that only ever moved because another one did would not be one.
+  p.terrainSeed = Math.floor(Math.random() * 100000);
+  p.roadSeed = Math.floor(Math.random() * 100000);
 
   // --- town ---------------------------------------------------------------
   p.cols = rangeInt(8, 22);

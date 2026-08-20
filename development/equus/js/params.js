@@ -38,6 +38,7 @@ export const params = {
   scale: 1.0,
   mass: 500,
   accelLimit: 3.4,
+  lateralGrip: 5.0,
 
   // World.
   terrainSeed: 7,
@@ -91,9 +92,13 @@ export const CONTROL_DEFS = [
   },
   {
     key: 'accelLimit', tab: 'Drive', label: 'Acceleration', type: 'range', min: 0.5, max: 6, step: 0.1,
-    help: 'Ceiling on how fast speed may change, which is what gives starting and stopping their weight.',
+    help: 'Ceiling on how fast speed may change, which is what gives starting and stopping their weight. Braking is allowed to be harder, since all four feet can brake but only the hinds can push.',
     source: 'A 500 kg horse accelerating harder than about 3.5 m/s squared would need more grip than turf gives.',
-    pending: true,
+  },
+  {
+    key: 'lateralGrip', tab: 'Drive', label: 'Cornering grip', type: 'range', min: 1, max: 12, step: 0.1,
+    help: 'How hard the horse may corner. Because cornering force is speed squared over radius, a fixed limit means the faster it goes the wider it has to turn. This one dial is most of why speed feels like mass.',
+    source: 'About 5 m/s squared on turf. At a 9 m/s gallop that works out to a turn radius near 16 metres, which is roughly what a racehorse needs.',
   },
 
   // Clock
@@ -154,9 +159,8 @@ export const CONTROL_DEFS = [
   },
   {
     key: 'bendGain', tab: 'Style', label: 'Bend gain', type: 'range', min: 0, max: 3, step: 0.01,
-    help: 'Multiplier on how much the body curves into a turn. At 1.0 the bend is exactly what was measured on a real horse.',
-    source: 'On a circle at trot the neck bends 5.2 degrees and the back 3.75. Real bend is subtle, so 1.0 will look understated next to other games.',
-    pending: true,
+    help: 'Multiplier on how much the body curves into a turn. At 1.0 the bend is exactly what was measured on a real horse, which is far less than illustration and games usually show.',
+    source: 'On a circle at trot the neck bends 5.2 degrees and the back 3.75, with the neck taking about 1.4 times the back. Real bend is subtle, so 1.0 will look understated. Push it for the drawing rather than the animal.',
   },
   {
     key: 'limbStiffness', tab: 'Style', label: 'Limb stiffness', type: 'range', min: 90, max: 170, step: 1,
