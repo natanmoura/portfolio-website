@@ -431,11 +431,61 @@ overriding hand-authored heights, found only by driving the real gesture end
 to end rather than calling the underlying methods, which is now the second
 time that exact difference has caught something.
 
+**Then a second round on the same three, because using them found what they
+were still missing.** Worth reading as one thing: none of it was new
+capability, all of it was the first version being wrong in a way only visible
+once there was something to look at.
+
+- **Roads were not draping at all**, and the reason is the one this project
+  keeps rediscovering: a road's control points are junctions, not samples. A
+  grid road has two, both at the edge of town, so the tarmac ribbon spanned
+  the whole run with a single flat quad. Invisible on level ground — which is
+  why it survived this long — and over a drawn cliff it was a road passing
+  clean through the hill. Fixed by subdividing a throwaway copy at draw time,
+  never `road.pts`, which would rename the road and lose every edit on it.
+- **Nothing refused to build on a cliff.** `slopeAt` and `normalAt` exist now
+  (see Tier 6, which this closes half of) and `maxBuildSlope` drops a plot
+  whose *footprint* is too steep — measured at four corners and the centre,
+  because a plot straddling a cliff edge has a perfectly reasonable slope in
+  the middle.
+- **Roads bridge ground they cannot climb.** One slope-limited envelope, two
+  sweeps, no threshold anywhere deciding "steep enough for a bridge". The
+  useful shape of the control turned out to be the inverse of the useful
+  shape of the algorithm: the algorithm wants a maximum grade, and as a
+  slider that is backwards, since larger means steeper means *less* bridging.
+  `roadEase` runs the other way with zero as the identity.
+- **The descent had to be an S**, and the obvious repair does not work.
+  Relaxing the surface toward its neighbours cannot touch a straight line,
+  and the only corner it could touch is pinned against the plateau by the
+  clamp that keeps roads above ground. Each straight run is replaced outright
+  with a smoothstep between its own ends. The general lesson is worth keeping:
+  **smoothing repairs a shape that is nearly right and cannot create one that
+  is structurally wrong.**
+- **Columns, and what they say.** A highway stands on a pair under its deck
+  edges, a street on one down its middle, and thickness is one figure for the
+  whole town — so the count carries the distinction rather than the girth
+  saying it a second time.
+
+**Three things these surfaced that are worth carrying forward**, all of the
+same family — a value that was correct until the thing underneath it changed:
+
+- `flatten` silently dropped any per-point field it did not know about, so
+  every hand-raised road came back on the floor. The kind of bug that only
+  appears when a primitive gains a field after its consumers were written.
+- The bridge stored height *above the ground* rather than absolute height,
+  which is identical arithmetic anywhere the ground between two samples is a
+  straight line and wrong by the height of a cliff at the one place the
+  system exists for.
+- `profile.peak` was recomputed after bridging and wiped it, so eight bridged
+  roads reported zero, counted as un-raised, and silently got no columns.
+
 **What is still missing from the road tier**: 5.3 junctions, 5.4 width
-profiles, 5.5 road types. 5.6 (roads conform to terrain) is *half* done by
-accident — a road drapes on drawn ground the same as on noise — but cut and
-fill, embankments and real bridge abutments are untouched, and the columns are
-the plainest thing that reads as structure rather than a pier component.
+profiles, 5.5 road types. 5.6 (roads conform to terrain) is now *mostly* done
+and from an unplanned direction — roads drape properly, and bridge what they
+cannot climb — but it is all fill and no cut: no cutting into a hill, no
+embankment, no abutment where a deck meets ground. The columns remain the
+plainest thing that reads as structure rather than a pier component, which is
+the component-library job 4.4 would open up.
 
 **Next: the missing anchor.** Every building edit is road-relative today,
 including "Nudge X", which is why they ride a road that moves — the right
@@ -881,19 +931,24 @@ landform curves stacked over a raster, exclusive with noise — is the
 in a particular spot rather than because the roadmap asked for a field. See
 `README.md` under "Two kinds of ground, and never both". What that leaves:
 
-- **`normalAt` and `slopeAt` still do not exist.** The raster makes both
-  cheap — two samples and a cross product — and the moment anything wants to
-  lie flat on a hillside, orient to it, or refuse to build on a cliff, they
-  are the first thing to write. Nothing has needed them yet, which is the
-  only reason they are not there.
+- ~~**`normalAt` and `slopeAt` do not exist.**~~ Both landed, and exactly as
+  predicted: the raster made them two samples and an arctangent, and they
+  arrived the moment something wanted to refuse to build on a cliff. They are
+  sampled rather than analytic on purpose — drawn ground is a raster and
+  terracing is a rounding step, neither of which has a derivative, and a
+  building asking "is this patch too steep" is asking about a patch anyway.
 - **Nothing conforms to terrain beyond standing on it.** A building on a
   slope is planted at one height with a flat base, which reads fine at the
   gentle end and badly on a real cliff. That is Tier 3's placement record
-  wanting a transform rather than a Y.
-- **Nothing displaces it.** Roads drape rather than cut; there is no
-  embankment, no cutting, no quarry. That is 5.6 and Tier 7 and both want the
-  raster to become writable *by systems* rather than only by hand, which it
-  currently is not.
+  wanting a transform rather than a Y. **Newly the most visible gap in this
+  tier**: `maxBuildSlope` currently hides it by refusing the plots where it
+  would show, which is the right stopgap and not a fix — the same rule with
+  a placement that could tilt would be a hillside town rather than a bare
+  hillside.
+- **Nothing displaces it.** Roads bridge rather than cut, so it is all fill
+  and no excavation: no cutting into a hill, no embankment, no quarry. That
+  is 5.6 and Tier 7 and both want the raster to become writable *by systems*
+  rather than only by hand, which it currently is not.
 
 **On the reordering:** the roadmap's layer chain has terrain first, and that
 is still the right *evaluation* order at runtime. It is not the right build
@@ -993,12 +1048,22 @@ where the lock names what the transform is measured against — world, a curve
 at t, another component's anchor, terrain at XZ.
 
 **Or 4.4, if the week should produce something to look at rather than
-something to build on.** Distribute-along-curve is now the cheapest large
-win on the list — every dependency landed as a side effect of other work —
-and it is the item that finally puts the component library to use on
-something other than a building. Lamp posts down a street, railings on a
-viaduct, pylons across a valley, fence posts round a boundary: four consumers
-of one algorithm, using four curves that already exist.
+something to build on** — and this is now the stronger recommendation of the
+two. Distribute-along-curve is the cheapest large win on the list and it has
+got cheaper twice without being touched: `resample` already spaces points
+evenly by arc length, curves already answer height as well as position, the
+assembly sizing fix means a component asked for a size takes it, and since
+the bridging work a curve can say where its *deck* is rather than only where
+its ground is.
+
+It is also the item that finally puts the component library to use on
+something other than a building — which is the gap the whole library has been
+sitting in. Lamp posts down a street, railings along a viaduct, pylons across
+a valley, fence posts round a boundary: four consumers of one algorithm, on
+four curves that already exist. The viaduct railings are the case worth
+aiming at, because they are the first thing that would need a curve's height
+rather than its plan, and everything needed for that landed this week by
+accident.
 
 Take the roads work as the pattern for all of it: an artifact stored in
 `params`, generated first and edited second, a frozen name at the moment of

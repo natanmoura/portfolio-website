@@ -65,6 +65,26 @@ The city is a pure function of three things: the `params` object the controls
 write to, the `overrides` object the editor writes to, and the image pool.
 Nothing else is stored, which is why a saved scene is a few kilobytes.
 
+**What belongs in this section, and what does not.** Everything below explains
+the system as it stands: what a control means, what invariant a piece of code
+is protecting, and which decisions would be quietly undone by someone who did
+not know why they were made. It is written for the next person to change this
+code, and the test for a paragraph is whether not knowing it would cause a
+mistake.
+
+What does not belong here is history — what was tried first, what the
+measurements were before and after, which bug prompted which fix. That is
+what commit messages are for and they already carry it in more detail than
+this could. Two rounds of terrain and road work went in as narrative before
+this line existed, and the result was a third of the file describing one
+week and a paragraph still confidently documenting behaviour that had been
+replaced. If a rule here is surprising, say why in one clause. If the story
+needs a paragraph, it belongs in the commit.
+
+`NEXT.md` holds what to build next and why the order is what it is.
+`ROADMAP.md` holds the reasoning behind the tiers. `COMPONENTS.md` covers the
+component library and its editor.
+
 | File | Does |
 | --- | --- |
 | `js/rng.js` | Seeded randomness, and the hashes that give each lot and each module a stable identity |
@@ -72,16 +92,19 @@ Nothing else is stored, which is why a saved scene is a few kilobytes.
 | `js/generate.js` | Params, seed and overrides in, city data out. No three.js |
 | `js/region.js` | Where the town is: contains, clip, extent. The square is the default one |
 | `js/curve.js` | The curve primitive: sampling, resampling, editing, queries |
+| `js/curveview.js` | Drawing curves and making their handles pickable |
+| `js/curveedit.js` | Moving control points, and alt-dragging them upward |
+| `js/landform.js` | Ground you drew: closed curves with a height and a falloff |
+| `js/elevation.js` | How high a road runs, and what it bridges rather than climbs |
 | `js/geometry.js` | The ten module shapes, and the per-face UV cropping |
 | `js/build.js` | City data to merged chunk buffers, plus the pick tables |
 | `js/material.js` | The one material every module shares |
 | `js/textures.js` | The image pool packed into a texture array |
-| `js/terrain.js` | Displaced ground and the grid that follows it |
+| `js/terrain.js` | The ground: height, slope, tarmac, columns and the grid |
 | `js/scene.js` | Renderer, camera, day/night rig, fog and sky |
 | `js/select.js` | Raycast picking and highlight |
 | `js/ui.js` | Global control definitions |
 | `js/piechart.js` | The draggable module mix wheel |
-
 | `js/inspector.js` | The selection panel |
 | `js/scenes.js` | Named scene storage |
 | `js/tooltip.js` | Hover help overlay |
@@ -89,6 +112,7 @@ Nothing else is stored, which is why a saved scene is a few kilobytes.
 | `js/ssao.js` | Depth-based ambient occlusion pass |
 | `js/looks.js` | Depth of field, grade, halftone, posterise, vignette, grain |
 | `js/traffic.js` | Cars and flyers, two instanced meshes sharing one material |
+| `js/particles.js` | Things rising off the town, animated entirely in the vertex shader |
 | `js/flyby.js` | The driving tour |
 | `js/layout.js` | Street patterns and where buildings sit |
 | `js/randomize.js` | The dice |
@@ -245,150 +269,72 @@ cannot draw a cliff finer than one cell anyway, so buildings, traffic and the
 camera all stand on exactly the surface that was drawn rather than on a more
 precise one nobody can see.
 
-### Roads that leave the ground
+### Roads and height
 
-A road used to be paint: a ribbon on the terrain plus six centimetres so it
-did not z-fight. Set **Road height** in the Streets panel and the town gets a
-viaduct network instead, with thin columns holding the decks up in the road's
-own colour a shade deeper.
+A road used to be paint: a ribbon on the terrain plus six centimetres so it did
+not z-fight. It now has a relationship with the ground, and four controls in
+the Streets panel decide what that relationship is.
 
-Height is a profile along the run, not a property of a control point, and that
-distinction is the design. A grid road has exactly two control points, both at
-the edge of town, so a per-point model could not express "up in the middle,
-down at both ends" without inserting points -- and inserting a point renames
-the road, which renames every building on it, which loses every edit made to
-them. So the points are never touched. A road carries a cruising height and a
-ramp length at each end, and rendering subdivides a throwaway copy.
+**Road height** raises the whole network onto viaducts. **Slope easing** is the
+one that matters most: at zero a road is glued to the terrain, over every bump
+and down every cliff; raise it and the road refuses steeper and steeper ground,
+stretching the descent off a hill and leaving a taller gap underneath. **Column
+spacing** and **column thickness** decide what fills that gap. Alt-drag any
+control point to lift that point alone.
 
-**An end either meets a road or comes down.** Tested against every other
-road's whole line rather than only its endpoints, because in a grid nothing
-meets end to end -- roads cross in the middle and terminate at the boundary.
-So a T-junction counts and takes its height from the road it arrives at, so
-the two line up where they touch. An end that meets nothing ramps to the
-floor, which is what stops a raised network ending in mid-air at the edge of
-town. Roads crossing mid-span at different heights are left alone and read as
-flyovers, which is what they are.
+**Height is a profile along the run, not a property of a control point**, and
+that is the design rather than an implementation detail. A grid road has
+exactly two control points, both at the edge of town, so a per-point model
+could not express "up in the middle, down at both ends" without inserting
+points — and inserting a point renames the road, which renames every building
+on it, which loses every edit made to them. So the points are never touched.
+The same constraint decides how a road is *drawn*: the ribbon is built from a
+subdivided copy made at draw time, because two vertices cannot follow a hill.
+Anything that varies along a road has to be shaped this way, which includes
+the width profiles Tier 5.4 wants.
 
-Ramps want a 1-in-6 grade, shrink to fit when the run is short, and refuse
-past 1-in-2.5 -- a road too short to get up and down again simply stays on the
-ground, because an overpass shorter than it is tall is not an overpass.
+**An end either meets a road or comes down.** Tested against every other road's
+whole line rather than only its endpoints, because in a grid nothing meets end
+to end: roads cross in the middle and terminate at the boundary. So a
+T-junction counts, and takes its height from the road it arrives at so the two
+agree where they touch. An end that meets nothing ramps to the floor. Roads
+crossing mid-span at different heights are left alone and read as flyovers,
+which is what they are.
 
-**Alt-drag a control point to raise it**, and that point alone. Zero is the
-ground, and the drag clamps there, so "some points stick and others lift off"
-is the same gesture as putting one back down. A height you set by hand is
-`fixed` in the constraints.js sense: the generator gets no opinion on it, no
-automatic ramp and no junction match, because a road you shaped already ramps
-by itself -- that is what the difference between two neighbouring points is.
+**Ground steeper than the easing allows is bridged, not followed.** One
+slope-limited envelope does it: sample the ground along the road, sweep forward
+limiting how fast the surface may drop, sweep back doing the same, and what
+survives both passes is the lowest line that stays above the terrain within the
+grade. No threshold decides "steep enough for a bridge" — a ravine, a cliff
+approach and a gentle hill are the same rule with different answers. Three
+properties are load-bearing and easy to break:
 
-### Roads that cannot climb, bridge
+- The envelope stores the road's **absolute height**, not its height above the
+  ground. Rebuilding a surface as `ground + lift` is only correct where the
+  ground between two samples is a straight line, which is exactly what a cliff
+  is not.
+- The ground is sampled as the **highest point in each interval**, so a cliff
+  lip thinner than the spacing cannot slip between two samples and leave the
+  deck underground.
+- Each straight run is then **replaced by a smoothstep** between its own ends,
+  which is what makes a descent an S rather than a ramp with a crease at each
+  end. Smoothing cannot do this — averaging a straight line returns it
+  unchanged, and the only corner it could touch is pinned against the plateau
+  by the clamp keeping roads above ground. A smoothstep's steepest point is one
+  and a half times its average, so the sweeps run at two thirds of the limit
+  and the curve brings it back to exactly the limit.
 
-A road follows the ground while the ground is climbable and leaves it when it
-is not. **Slope easing** in the Streets panel is the only input. At zero the
-road is glued to the terrain, over every bump and down every cliff. Raise it
-and the road refuses steeper and steeper ground: the descent off a hill
-stretches out, and the gap underneath fills with columns. There is no
-threshold anywhere deciding "this is steep enough for a bridge" — a ravine, a
-cliff approach and a gentle hill are all the same rule producing different
-answers.
+**A highway stands on a pair of columns**, one under each edge of its deck; a
+**street stands on a single one** down the middle of its path. Two thin legs
+under a wide deck reads as a viaduct where one under the middle reads as a
+plank on a stick, so the count carries the distinction and thickness stays one
+figure for the whole town. Spacing divides each road into a whole number of
+equal bays so supports come out evenly spaced end to end.
 
-Measured across the slider on a mesa with 87° sides: at 0 the road runs at 87°
-with no gap and no columns; at 0.2 it runs at 57° with a 17.8m gap; at 1 it
-runs at 4° with a 29.2m gap. The slope it reaches is always exactly the figure
-the setting names.
-
-The mechanism is one classical sweep. Sample the ground along the road, walk
-forward limiting how fast the surface may drop, walk back doing the same
-(which limits how fast it may rise going forward), and what survives both
-passes is the lowest line that stays above the terrain and never exceeds the
-grade. Level where the ground falls away under it, back down on the ground the
-moment the ground comes up to meet it.
-
-Three things about it are worth knowing because each was a bug first:
-
-- **The bridge stores the road's absolute height, not its height above the
-  ground.** Storing a lift and rebuilding the surface as `ground + lift` is
-  only correct where the ground between two samples is a straight line, and
-  the one place this exists for is where it is not. At a cliff the deck dived
-  after the terrain and came back — every bridged road had a spike in it,
-  worst case nearly nine metres of rise inside one metre of road.
-- **The ground is sampled as the highest point in each interval**, not the
-  value at its centre. A cliff lip thinner than the sample spacing sits
-  between two samples that both miss it, and the deck comes out below ground.
-- **The grade wants to be a control, not a constant.** At a real road's limit
-  of one-in-ten, any terrain worth looking at exceeds it nearly everywhere and
-  the whole town ends up on stilts — measured, ordinary noise hills bridged
-  ten roads of eleven. The useful setting is far steeper than a highway
-  engineer would allow, because the question is whether it reads as a road
-  climbing a hill.
-
-### The descent is an S, not a ramp
-
-The two sweeps give the right line and the wrong shape: flat along the top,
-a dead-straight ramp at exactly the grade, flat again, with a hard crease at
-each end. A road does not leave a hill that way.
-
-The obvious repair — relax the surface toward its neighbours a few hundred
-times — does not work, and it is worth knowing why because it looks like it
-should. Averaging a straight line returns the same straight line, so the only
-thing it can touch is the two corners; and the upper corner sits exactly on
-the plateau, where the clamp keeping the road above ground pins it. What comes
-out is a ramp with one slightly rounded foot and a crease at the top: a slope
-profile reading 50°, 50°, 50°, 50°, 50°, 50°, 0°.
-
-So each straight run is replaced outright. Walk the surface, find every
-maximal stretch that climbs or falls without turning round, and rewrite its
-interior as a smoothstep between the two ends it already has. That gives zero
-slope at both ends by construction and puts the peak in the middle, where the
-ground is furthest below and the columns are tallest. The same profile now
-reads 21°, 43°, 50°, 48°, 35°, 6°, 0°.
-
-A smoothstep's steepest point is one and a half times its average, so the
-sweeps run at two thirds of the limit and the curve brings it back to exactly
-the limit. And nothing has to cut into the hill: the curve leaves the lip at
-plateau height and only starts falling once it is out over open air, where no
-constraint is binding.
-
-### What holds a road up
-
-**Column spacing** divides each road into a whole number of equal bays, so
-supports always come out evenly spaced end to end rather than starting
-wherever a walk had accumulated a full span. **Column thickness** is one
-figure for the whole town, and it is thin on purpose: the thing worth looking
-at is the road being up in the air, not what is holding it there.
-
-They are cylinders, with radial normals per vertex rather than one per face.
-The first version was faceted on the theory that a few flat sides catching
-different light reads as cast concrete, and at the thickness these actually
-want it read as a hexagonal pencil. Twelve sides with the light wrapping is
-enough to look round at any distance the town is viewed from, and the
-silhouette does the rest.
-
-A **highway stands on a pair**, one under each edge of its deck. A **street
-stands on a single support down the middle** of its own path. That is the
-whole difference between them and it is enough: two thin legs under a wide
-deck reads as a viaduct, where one under the middle would read as a plank
-balanced on a stick. Letting the wide road also have fat columns would say the
-same thing twice and blunt the distinction the count is already making.
-
-### Roads follow the ground they are on
-
-A road's control points are junctions, not samples: a grid road has exactly
-two, both at the edge of town. A ribbon built straight from them spans the
-whole run with a single flat quad, which is invisible on level ground and is
-why it went unnoticed — and over a drawn cliff is a road passing clean through
-the hill and out the other side.
-
-So every road is drawn from a subdivided copy of itself. The points are never
-added to the road proper, because that renames it and every building on it, so
-the subdivision lives for the length of one draw call and nothing derives an
-id from it. On ground that genuinely never moves it is skipped entirely and a
-flat town's tarmac is exactly the geometry it always was.
-
-Each ribbon edge then asks the terrain its own question where the road is on
-the ground — which is what lets tarmac follow a slope sideways as well as
-lengthwise — and takes the centreline's absolute height where it is not,
-because a deck is a flat thing and letting its edges chase the ravine below
-would twist it into a ribbon following the gap it is supposed to cross.
+**A height you set by hand is `fixed`** in the constraints.js sense: no
+automatic ramp, no junction match, no grade rule. A road you shaped already
+ramps by itself — that is what the difference between two neighbouring points
+is.
 
 ### Nothing stands on a cliff
 
@@ -400,78 +346,69 @@ across one corner. Tested before the packing grid claims the ground, so a
 rejected plot leaves the space genuinely empty rather than reserved by a
 building that never appeared.
 
+It is a refusal, not a fix. A building is still planted at one height with a
+flat base, so this works by declining the plots where that would show. A
+placement that could tilt to the ground under it would give a hillside town
+rather than a bare hillside, and that is Tier 3's placement record.
+
 ### Things in the air
 
 Whatever is in `collage/particles/` drifts up out of the streets and fades out
-above the roofline, with controls for size, rise, speed, drift, spin, opacity,
-glow and colour. Drop your own stars and small shapes in and rerun the scan.
+above the roofline, with controls for size, rise, speed, drift, spin, opacity
+and glow. Drop your own stars and small shapes in and rerun the scan.
 
 **Two folders, and the folder is the whole of the setting.** A sprite in
 `particles/static/` never turns and stays upright; one in
 `particles/rotating/` spins, each at its own rate and direction so they never
-turn in lockstep. That is deliberately not a per-sprite flag stored somewhere:
-a lens flare that must stay level and a star that should tumble are different
-*kinds* of thing, and dropping a file in one folder or the other is the
-shortest way to say which. Sprites are picked uniformly across the pool and
-then behave according to where they came from, so putting more files in
-`rotating/` makes more of the field spin — which is what anyone would predict
-from the folders alone.
+turn in lockstep. Deliberately not a per-sprite flag stored somewhere: a lens
+flare that must stay level and a star that should tumble are different *kinds*
+of thing, and dropping a file in one folder or the other is the shortest way
+to say which. Sprites are picked uniformly across the pool and then behave
+according to where they came from, so putting more files in `rotating/` makes
+more of the field spin — which is what anyone would predict from the folders
+alone.
 
 Upright means upright *in the world*, not on screen. Those are the same thing
-right up until the camera rolls, which the tour does every time it banks — so
-a static sprite's own up axis is world up projected into the screen plane, and
-it counter-rotates against a bank rather than tipping with it.
+right up until the camera rolls, which the tour does every time it banks, so a
+static sprite's up axis is world up projected into the screen plane and it
+counter-rotates against a bank rather than tipping with it.
 
-**Colour is always the palette's, and there is no control for it.** Each
-particle takes one of the palette's face colours — the colours the town is
-literally built out of, so a mote shares a colour you can point at on a wall —
-with the glow colours after them. Changing palette recolours the whole field
-with no rebuild.
+**A sprite is a shape, not a picture.** Only its alpha is read: colour always
+comes from the palette, so what the file contributes is the silhouette. Put a
+white star in the folder and the town decides what colour it is.
 
-Every one is pushed into a band of saturation and lightness on the way
-through, and that step is doing real work rather than tidying. A palette's
-paper white and its near-black ink are both fine wall colours and both useless
-on a mote in the air: one reads as no colour, the other as no particle. Hue is
-never touched, so the result is still recognisably the palette's — a nearly
-monochrome palette comes out as variations on its own hue rather than as grey,
-which is right, because it should look like that town.
+Each particle takes one of the palette's face colours — the colours the town
+is literally built out of, so a mote shares a colour you can point at on a
+wall — with the glow colours after them. Every one is pushed into a band of
+saturation and lightness on the way through, and that step earns its place: a
+palette's paper white and its near-black ink are both fine wall colours and
+both useless on a mote in the air, one reading as no colour and the other as
+no particle. Hue is never touched, so a nearly monochrome palette comes out as
+variations on its own hue rather than as grey, which is right — it should look
+like that town.
 
-Which means **a sprite is a shape, not a picture**: only its alpha is read.
-Put a white silhouette in the folder and the town decides what colour it is.
+**Two rules keep them from washing out to white**, and both are the same
+principle. The brightest channel is scaled to a ceiling and never allowed past
+one, because scaling preserves hue and clipping destroys it — push a warm
+amber to 2.5 and every channel clips, and the result is not approximately
+white but exactly it. And the material is premultiplied alpha, where the
+fragment's own output alpha decides whether it blends as an object or adds as
+a light: pure addition onto a bright sky can only wash toward white however
+saturated the source, so a particle has to be *drawn over* daylight to read as
+a colour against it. Glow slides between the two, weighted by the hour — solid
+and coloured at noon, pure light after dark — and brightness past the ceiling
+comes from the bloom pass, because the framebuffer has nowhere else to put it.
 
-**Why they stopped coming out white.** Two things, and both are the same
-mistake. Glow used to multiply every channel and let them run past 1.0, which
-is fine for one channel and fatal for three — a warm amber at 2.5× is (2.5,
-2.1, 1.6), all three clip, and the particle renders exactly white. And in
-daylight, pure additive blending onto a bright sky can only ever wash toward
-white however saturated the source is, because a colour has to be *drawn over*
-the sky to read against it.
+**Speed spread** varies how fast each one climbs; zero moves the whole field
+as one sheet, which reads as a scrolling texture rather than as objects. It is
+centred, so turning it up never changes the average — a variance control that
+also moved the mean would be two controls fighting.
 
-So the brightest channel is now scaled to a ceiling and never allowed past
-one — scaling preserves hue, clipping destroys it — and the material uses
-premultiplied alpha, where the fragment's own output alpha decides whether it
-blends as an object or adds as a light. Glow slides between the two, weighted
-by the hour: solid and coloured at noon, pure light after dark. Brightness
-beyond the ceiling comes from the bloom pass, because the framebuffer has
-nowhere else to put it.
-
-**Speed spread** varies how fast each one climbs. Zero moves the whole field
-as one sheet, which reads as a scrolling texture rather than as objects. The
-spread is centred, so turning it up never changes the average — a variance
-control that also moved the mean would be two controls fighting.
-
-Every particle is animated entirely in the vertex shader -- position, drift,
+Every particle is animated entirely in the vertex shader: position, drift,
 spin, fade and size are all functions of one time uniform and attributes
-rolled once at build time, so ten thousand of them cost one uniform write a
-frame. Everything expressive is a uniform too, so only the count, the sprite
-pool and the town's extent ever rebuild the buffer.
-
-The hologram look is three things at once and needs all three: additive
-blending so overlapping motes brighten instead of occluding, no depth write so
-they do not punch holes in each other, and a glow that multiplies rather than
-adds -- which keeps a sprite's dark parts dark and pushes its bright parts
-past 1.0 into the bloom pass, so the shape stays legible while it glows
-instead of dissolving into a blob of light.
+rolled once at build time, so ten thousand cost one uniform write a frame.
+Everything expressive is a uniform too, so only the count, the sprite pool and
+the town's extent ever rebuild the buffer.
 
 ### Holding things still
 
