@@ -127,6 +127,19 @@ export const DEFAULTS = {
   roadHeight: 0,
   roadHeightVariance: 0,
   roadColumnSpacing: 8,
+  // Whether a road is allowed to bridge ground it cannot climb. On by
+  // default and a no-op on flat terrain, so nothing that predates drawn
+  // ground notices it. See elevation.js.
+  roadBridging: true,
+  // The steepest a road may run, in degrees. One notion, used both for
+  // bridging ground it cannot climb and for the ramps at a raised road's
+  // ends. Eighteen is far steeper than a real road and about right for a town
+  // you look at rather than drive.
+  roadGrade: 18,
+  // How steep the ground under a plot may be, in degrees, before nothing is
+  // built there. Ninety is off — no slope can exceed it — which is what every
+  // scene saved before this had.
+  maxBuildSlope: 38,
   // Traffic
   carCount: 110,
   flyerCount: 16,
@@ -985,7 +998,11 @@ export function generateCity(
     anchors.set(plotId, at);
   }
 
-  const layout = buildLayout(params, undefined, claims, anchors);
+  // The ground goes in now, not just to `generateLot` afterwards. Two things
+  // in the layout need it: a plot has to know whether it is standing on a
+  // cliff, and a road has to know whether it can follow the terrain or has to
+  // bridge it. Both were decisions the layout was making blind.
+  const layout = buildLayout(params, undefined, claims, anchors, groundAt);
   const buildings = [];
   for (const site of layout.sites) {
     const b = generateLot(

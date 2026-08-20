@@ -273,7 +273,40 @@ function siteTickets(seed, roadId, slot) {
 // middle of a road a good outcome. It is the usual reason a held road that
 // moves loses a plot, the edit is reported rather than dropped, and the
 // building comes back when the road moves clear again.
-function placeSites(roads, params, region, claims = null, anchors = null) {
+// Whether a plot's ground is flat enough to put a building on.
+//
+// Measured across the footprint rather than at its centre, and that is the
+// whole reason it works: a plot straddling a cliff edge has a perfectly
+// reasonable slope at the middle of it and a ten-metre drop across one
+// corner. Four corners plus the centre is enough to catch that, and it is the
+// same five points the generator already samples to decide how far to sink a
+// building's base — so this asks the same question about the same ground.
+//
+// Reported as the worst of the five. One corner in mid-air is enough to make
+// a site wrong.
+function tooSteep(groundAt, maxSlope, x, z, w, d) {
+  if (!groundAt || !(maxSlope < 90)) return false;
+  const hw = w / 2;
+  const hd = d / 2;
+  const at = (px, pz) => {
+    // Central differences over the plot's own size, so the question is "how
+    // far does this footprint have to tilt", not "how rough is this patch".
+    const span = Math.max(1, Math.min(hw, hd));
+    const dx = (groundAt(px + span, pz) - groundAt(px - span, pz)) / (2 * span);
+    const dz = (groundAt(px, pz + span) - groundAt(px, pz - span)) / (2 * span);
+    return (Math.atan(Math.hypot(dx, dz)) * 180) / Math.PI;
+  };
+  return (
+    at(x, z) > maxSlope ||
+    at(x - hw, z - hd) > maxSlope ||
+    at(x + hw, z - hd) > maxSlope ||
+    at(x + hw, z + hd) > maxSlope ||
+    at(x - hw, z + hd) > maxSlope
+  );
+}
+
+function placeSites(roads, params, region, claims = null, anchors = null, groundAt = null) {
+  const maxSlope = params.maxBuildSlope ?? 90;
   const sites = [];
   const seed = params.seed >>> 0;
   const frontage = params.cell * params.lotFill;
@@ -324,6 +357,10 @@ function placeSites(roads, params, region, claims = null, anchors = null) {
           const w = frontage * (1 + (t4.w * 2 - 1) * params.lotJitter);
           const d = depth * (1 + (t4.d * 2 - 1) * params.lotJitter);
           const radius = Math.max(w, d) * 0.44;
+          // Nothing stands on a cliff face. Tested before the packing grid
+          // claims the ground, so a rejected site leaves the space genuinely
+          // empty rather than reserved by a building that never appeared.
+          if (tooSteep(groundAt, maxSlope, px, pz, w, d)) continue;
           if (packing.overlaps(px, pz, radius)) continue;
           // Its own street already has clearance built into the offset. Every
           // other road has to be cleared by the footprint's own reach.
@@ -623,7 +660,10 @@ function applySpans(sites, params) {
 // `regionFor`, which reads a boundary if the scene has one and derives the
 // old square from cols and rows if it does not — so nothing that never draws
 // a boundary can tell the difference.
-export function buildLayout(params, region = regionFor(params), claims = null, anchors = null) {
+// `groundAt` is optional and its absence means flat, which is what the digest
+// runs with — so every terrain-aware rule below is a no-op there and an
+// untouched town still hashes the same.
+export function buildLayout(params, region = regionFor(params), claims = null, anchors = null, groundAt = null) {
   // The road pattern's own seed, falling back to the city seed until it is
   // given one of its own. See `terrainSeed`/`roadSeed` in generate.js.
   const roadSeed = (params.roadSeed ?? params.seed) >>> 0;
@@ -670,9 +710,9 @@ export function buildLayout(params, region = regionFor(params), claims = null, a
   // Height, once the list is final. It has to run after the merge and the
   // removals, because whether a road's end meets anything is a question about
   // the roads that actually exist rather than about the ones proposed.
-  liftRoads(roads, params);
+  liftRoads(roads, params, groundAt);
 
-  const sites = applySpans(placeSites(roads, params, region, claims, anchors), params);
+  const sites = applySpans(placeSites(roads, params, region, claims, anchors, groundAt), params);
   // `half` stays on the layout because plenty of things still want one number
   // for how big the town is — the camera framing, the tour, the shadow span.
   // It is the region's now rather than a separate calculation that could

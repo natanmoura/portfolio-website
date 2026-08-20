@@ -272,6 +272,70 @@ is the same gesture as putting one back down. A height you set by hand is
 automatic ramp and no junction match, because a road you shaped already ramps
 by itself -- that is what the difference between two neighbouring points is.
 
+### Roads that cannot climb, bridge
+
+A road follows the ground while the ground is climbable and leaves it when it
+is not. **Max road slope** in the Streets panel is the only input: ground
+steeper than that gets a deck across it and columns underneath, ground gentler
+than it gets nothing at all. There is no threshold anywhere deciding "this is
+steep enough for a bridge" — a ravine, a cliff approach and a gentle hill are
+all the same rule producing different answers.
+
+The mechanism is one classical sweep. Sample the ground along the road, walk
+forward limiting how fast the surface may drop, walk back doing the same
+(which limits how fast it may rise going forward), and what survives both
+passes is the lowest line that stays above the terrain and never exceeds the
+grade. Level where the ground falls away under it, back down on the ground the
+moment the ground comes up to meet it.
+
+Three things about it are worth knowing because each was a bug first:
+
+- **The bridge stores the road's absolute height, not its height above the
+  ground.** Storing a lift and rebuilding the surface as `ground + lift` is
+  only correct where the ground between two samples is a straight line, and
+  the one place this exists for is where it is not. At a cliff the deck dived
+  after the terrain and came back — every bridged road had a spike in it,
+  worst case nearly nine metres of rise inside one metre of road.
+- **The ground is sampled as the highest point in each interval**, not the
+  value at its centre. A cliff lip thinner than the sample spacing sits
+  between two samples that both miss it, and the deck comes out below ground.
+- **The grade wants to be a control, not a constant.** At a real road's limit
+  of one-in-ten, any terrain worth looking at exceeds it nearly everywhere and
+  the whole town ends up on stilts — measured, ordinary noise hills bridged
+  ten roads of eleven. The useful setting is far steeper than a highway
+  engineer would allow, because the question is whether it reads as a road
+  climbing a hill.
+
+### Roads follow the ground they are on
+
+A road's control points are junctions, not samples: a grid road has exactly
+two, both at the edge of town. A ribbon built straight from them spans the
+whole run with a single flat quad, which is invisible on level ground and is
+why it went unnoticed — and over a drawn cliff is a road passing clean through
+the hill and out the other side.
+
+So every road is drawn from a subdivided copy of itself. The points are never
+added to the road proper, because that renames it and every building on it, so
+the subdivision lives for the length of one draw call and nothing derives an
+id from it. On ground that genuinely never moves it is skipped entirely and a
+flat town's tarmac is exactly the geometry it always was.
+
+Each ribbon edge then asks the terrain its own question where the road is on
+the ground — which is what lets tarmac follow a slope sideways as well as
+lengthwise — and takes the centreline's absolute height where it is not,
+because a deck is a flat thing and letting its edges chase the ravine below
+would twist it into a ribbon following the gap it is supposed to cross.
+
+### Nothing stands on a cliff
+
+**Buildable slope** drops any plot whose ground is steeper than it, so a mesa
+gets a town on top and clean bare sides. Measured across the footprint rather
+than at its centre, which is the whole reason it works: a plot straddling a
+cliff edge has a perfectly reasonable slope in the middle and a ten-metre drop
+across one corner. Tested before the packing grid claims the ground, so a
+rejected plot leaves the space genuinely empty rather than reserved by a
+building that never appeared.
+
 ### Things in the air
 
 Whatever is in `collage/particles/` drifts up out of the streets and fades out

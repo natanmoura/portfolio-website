@@ -247,7 +247,10 @@ function sampleRoute(route, distance, out) {
   out.x = a[0] + (b[0] - a[0]) * t;
   out.z = a[1] + (b[1] - a[1]) * t;
   out.angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  out.lift = route.road ? liftAt(route.road, d) : 0;
+  // How far along, kept so the deck height can be asked for later — once the
+  // caller knows what the terrain is doing under the car, which is the only
+  // way to get the right answer where a bridge crosses a cliff.
+  out.at = d;
   return true;
 }
 
@@ -559,7 +562,7 @@ export class Traffic {
       // A flyer is already off the ground by its own rule and ignores the
       // deck; a ground car drives on whatever its road is doing, which is the
       // terrain until the road leaves it.
-      const deck = car.flying ? 0 : this._hit.lift || 0;
+      const deck = car.flying || !car.route.road ? 0 : liftAt(car.route.road, this._hit.at, base);
       const y = base + deck + waveAt(x, z) + (car.flying ? lift : car.size * 0.26 * tall);
       this._last = { x, z };
 

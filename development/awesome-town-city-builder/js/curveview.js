@@ -67,6 +67,32 @@ const GRIP_SCALE = 0.62;
 const HANDLE_GRIP = 0x8fa8c8;
 const HANDLE_HELD = 0xff8a3d;
 
+// Extra points along a polyline so it can follow ground it was not sampled
+// against. Purely for drawing — these carry no ids and nothing downstream
+// counts them, which is what makes it safe to add as many as the terrain
+// needs. `lift` is interpolated with everything else so a raised road's line
+// draws on its deck rather than on the ground under it.
+function densify(points, spacing) {
+  if (points.length < 2) return points;
+  const out = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / spacing));
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      out.push({
+        x: a.x + (b.x - a.x) * t,
+        y: (a.y || 0) + ((b.y || 0) - (a.y || 0)) * t,
+        z: a.z + (b.z - a.z) * t,
+        lift: (a.lift || 0) + ((b.lift || 0) - (a.lift || 0)) * t,
+      });
+    }
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
 export class CurveView {
   constructor(scene) {
     this.root = new THREE.Group();
@@ -148,7 +174,12 @@ export class CurveView {
     this.clear(this.handles, false);
 
     for (const curve of this.curves) {
-      const flat = settleAll(curve, flatten(curve, 16), this.groundAt);
+      // Subdivided before settling, for the same reason the tarmac is: a road
+      // curve is corners with no tension, so `flatten` hands back exactly its
+      // control points, and a line drawn between two of them cuts straight
+      // through whatever hill stands between. The drawn line has to agree
+      // with the road it represents or picking one becomes guesswork.
+      const flat = settleAll(curve, densify(flatten(curve, 16), 2), this.groundAt);
       if (flat.length > 1) {
         const pos = new Float32Array(flat.length * 3);
         flat.forEach((p, i) => {

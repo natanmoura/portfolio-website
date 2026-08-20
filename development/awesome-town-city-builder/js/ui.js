@@ -172,6 +172,13 @@ export const CONTROL_DEFS = [
       R('roadHeight', 'Road height', 0, 20, 0.1, 'How far off the ground the streets run. Zero lays them on the terrain. Raise it and the town gets a viaduct network: an end that meets another road takes that road’s height so the two line up, and an end that meets nothing ramps back down to the floor.', { live: false, hard: [0, 200] }),
       R('roadHeightVariance', 'Height spread', 0, 1, 0.01, 'How much roads differ from each other in height. Zero puts every raised road on one level. High gives a stack of decks crossing over one another. Rolled from each road’s own name, so a road keeps its height when its neighbour disappears.', { live: false, hard: [0, 1] }),
       R('roadColumnSpacing', 'Column spacing', 2, 30, 0.5, 'How far apart the piers under a raised road stand. Close reads as a trestle, far as a concrete span.', { live: false, hard: [1, 200] }),
+      R('roadGrade', 'Max road slope', 4, 45, 0.5, 'The steepest a road is allowed to run, in degrees. Ground steeper than this is bridged rather than followed -- so low puts the town on viaducts wherever it is hilly, and high lets roads climb almost anything. The same figure sets how long a ramp is at the end of a raised road.', { live: false, hard: [1, 70] }),
+      {
+        key: 'roadBridging',
+        label: 'Bridge steep ground',
+        type: 'check',
+        help: 'Lets a road leave the ground where it cannot follow it at a walkable grade. A ravine gets a deck across it and columns underneath; a cliff gets an approach instead of a wall; a gentle hill gets nothing, because the ground was already climbable. Nothing decides "this is steep enough to bridge" -- the grade limit is the only rule and the rest falls out of it.',
+      },
       {
         key: 'roadColor',
         label: 'Road colour',
@@ -309,6 +316,7 @@ export const CONTROL_DEFS = [
       R('terrainScale', 'Hill size', 0.1, 4, 0.01, 'How wide the bumps are. Large gives a few broad hills the town drapes over.', { live: false, hard: [0.02, 40] }),
       R('terrainDetail', 'Roughness', 1, 5, 1, 'Layers of noise. One is smooth swells, five adds fine crumple on top.', { live: false, hard: [1, 8] }),
       R('terrainStep', 'Terracing', 0, 8, 0.1, 'Cuts the ground into flat shelves this far apart, with a hard riser between each. Zero is off. Works on hills and on drawn ground alike, so one slider turns any slope into rice paddies, a strip mine or a stack of card.', { live: false, hard: [0, 80] }),
+      R('maxBuildSlope', 'Buildable slope', 5, 60, 1, 'The steepest ground anything will be built on, in degrees. Nothing stands on a cliff face past this: the plots are dropped and the ground is left bare, so a mesa gets a town on top and clean sides. Measured across a plot’s whole footprint, not at its centre, so one corner hanging over an edge is enough to reject it. Ninety turns it off.', { live: false, hard: [1, 90] }),
       {
         key: 'landformTools',
         label: 'Drawn ground',

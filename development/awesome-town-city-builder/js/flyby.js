@@ -72,7 +72,7 @@ export class Flyby {
   // drawn against. Taken from the layout rather than worked out again from
   // cols and rows, so a tour of a town with a drawn boundary circles the town
   // rather than the square it would have filled.
-  build(roads, params, region = null) {
+  build(roads, params, region = null, groundAt = null) {
     const usable = (roads || []).filter((r) => r.pts.length > 1);
     const mains = usable.filter((r) => r.main);
     const pool = mains.length >= 2 ? mains : usable;
@@ -108,7 +108,7 @@ export class Flyby {
       // control points, which is what makes its speed even, and a road that
       // runs on a viaduct is toured on the viaduct rather than through the
       // piers holding it up.
-      for (const p of walkRoad(current, forward, RESAMPLE)) points.push(p);
+      for (const p of walkRoad(current, forward, RESAMPLE, groundAt)) points.push(p);
       at = forward ? last : first;
 
       // Hop to the nearest unused road.
@@ -133,7 +133,7 @@ export class Flyby {
     for (const p of points) {
       if (!thinned.length || thinned[thinned.length - 1].distanceToSquared(p) > 4) thinned.push(p);
     }
-    if (thinned.length < 4) return this.build([], params);
+    if (thinned.length < 4) return this.build([], params, region, groundAt);
     this.setCurve(thinned);
   }
 
@@ -271,7 +271,7 @@ export class Flyby {
 // what the tour curve wants and the road's own points cannot give: they are
 // junctions, placed where the street plan needed one, so a grid road two
 // hundred metres long has two of them and a bend has six in a row.
-function walkRoad(road, forward, spacing) {
+function walkRoad(road, forward, spacing, groundAt) {
   const pts = forward ? road.pts : [...road.pts].reverse();
   const { at, total } = measure(pts);
   const out = [];
@@ -284,12 +284,15 @@ function walkRoad(road, forward, spacing) {
     const b = pts[i];
     const span = Math.max(1e-6, at[i] - at[i - 1]);
     const k = (d - at[i - 1]) / span;
+    const x = a[0] + (b[0] - a[0]) * k;
+    const z = a[1] + (b[1] - a[1]) * k;
     // Height is asked of the road in its own direction, which is why the
     // distance is flipped for a reversed walk rather than the profile being
     // rebuilt: a ramp belongs to an end of the road, not to an end of the
-    // tour's journey through it.
-    const lift = liftAt(road, forward ? d : total - d);
-    out.push(new THREE.Vector3(a[0] + (b[0] - a[0]) * k, lift, a[1] + (b[1] - a[1]) * k));
+    // tour's journey through it. The ground goes in too, so a tour of a
+    // bridge drives the bridge rather than dipping into the ravine under it.
+    const lift = liftAt(road, forward ? d : total - d, groundAt ? groundAt(x, z) || 0 : null);
+    out.push(new THREE.Vector3(x, lift, z));
   }
   return out;
 }

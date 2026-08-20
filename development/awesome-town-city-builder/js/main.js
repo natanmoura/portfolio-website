@@ -31,6 +31,7 @@ import {
 import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
 import { ROAD_PATTERNS, PATTERN_LABEL, NONE_PATTERN } from './layout.js';
+import { liftAt, isRaised } from './elevation.js';
 import { Traffic } from './traffic.js';
 import { Particles } from './particles.js';
 import { Flyby } from './flyby.js';
@@ -625,7 +626,7 @@ function rebuildAll() {
   // shape they rise out of. Rebuilt only when the count, the pool or the
   // extent changed — everything expressive about them is a uniform.
   particles.build(p, state.city.layout.region, groundAt);
-  flyby.build(state.city.layout.roads, p, state.city.layout.region);
+  flyby.build(state.city.layout.roads, p, state.city.layout.region, groundAt);
   builder.build(state.city);
   if (stage) builder.sortPending(stage.camera);
   reindex();
@@ -2498,5 +2499,6 @@ Object.defineProperty(window, 'cc', {
   get: () => ({
     state, stage, builder, materials, pool, matPool, particlePool, picker, inspector, controls, wheels, traffic, particles, flyby,
     actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curveEditor, curves,
+    liftAt, isRaised,
   }),
 });

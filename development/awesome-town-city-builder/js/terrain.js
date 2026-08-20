@@ -48,6 +48,11 @@ export const TERRAIN_MODE_LABEL = {
   [DRAWN]: 'Drawn',
 };
 
+// How finely a road is subdivided to follow the ground, in metres. Close to
+// the ground mesh's own cell size, since that is the finest shape the terrain
+// can express and there is nothing below it worth chasing.
+const DRAPE_STEP = 1.5;
+
 // The ground rides the same water as the buildings, using the same uniforms.
 function patchWaves(material, withNormals) {
   material.onBeforeCompile = (shader) => {
@@ -163,6 +168,37 @@ export class Ground {
     return h;
   }
 
+  // How steep the ground is here, in degrees from horizontal.
+  //
+  // Central differences over a fixed baseline rather than an analytic
+  // derivative, because there is no analytic form to differentiate: drawn
+  // ground is a raster and terracing is a rounding step, neither of which has
+  // a gradient in the calculus sense. Sampling is also the honest answer for
+  // what this is used for — a building asks "is the ground under my footprint
+  // too steep to stand on", which is a question about a patch of ground, not
+  // about a point.
+  //
+  // The baseline is a metre and a half: fine enough to catch a cliff face,
+  // coarse enough that the one-cell riser a terrace leaves behind does not
+  // read as a vertical wall everywhere.
+  slopeAt(x, z, span = 1.5) {
+    if (this.mode !== DRAWN && this.amplitude <= 0 && this.step <= 0) return 0;
+    const dx = (this.heightAt(x + span, z) - this.heightAt(x - span, z)) / (2 * span);
+    const dz = (this.heightAt(x, z + span) - this.heightAt(x, z - span)) / (2 * span);
+    return (Math.atan(Math.hypot(dx, dz)) * 180) / Math.PI;
+  }
+
+  // The surface normal, from the same two differences. Nothing uses it yet;
+  // it is here because it is three lines given `slopeAt` exists, and the
+  // first thing that wants to lie flat on a hillside rather than merely stand
+  // on it will need exactly this.
+  normalAt(x, z, span = 1.5) {
+    const dx = (this.heightAt(x + span, z) - this.heightAt(x - span, z)) / (2 * span);
+    const dz = (this.heightAt(x, z + span) - this.heightAt(x, z - span)) / (2 * span);
+    const len = Math.hypot(dx, 1, dz) || 1;
+    return { x: -dx / len, y: 1 / len, z: -dz / len };
+  }
+
   // `townSpan` is how far the town actually reaches, which is the square cols
   // and rows imply until a boundary is drawn and then whatever that boundary
   // covers. The ground takes the larger of the two, so dragging the edge of
@@ -260,6 +296,9 @@ export class Ground {
     const pos = [];
     const nor = [];
     const lift = 0.06 + this.relief * 0.004;
+    // Whether the ground under the town moves at all. Terracing counts even
+    // at zero relief, because a riser is a cliff however short the hill is.
+    const drapes = this.relief > 0 || this.step > 0;
     // Where each raised road actually runs, collected as it is drawn so the
     // columns underneath can be stood up against the same numbers the deck
     // was built from rather than against a second evaluation that could
@@ -275,33 +314,49 @@ export class Ground {
       const closed =
         pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-6;
 
-      if (isRaised(road)) {
-        // A raised road is drawn from a subdivided copy of itself. Its own
-        // control points are far too sparse to carry a ramp — a grid road has
-        // two, both at the edge of town — and adding points to `road.pts`
-        // would rename the road and every building on it. These vertices live
-        // for one draw call and nothing derives an id from them.
-        const dense = raisedPoints(road, 2);
-        const flat = dense.map((p) => [p[0], p[1]]);
-        const height = new Map();
-        for (const p of dense) height.set(`${p[0]},${p[1]}`, p[2]);
-        const edges = ribbonEdges(flat, road.width / 2, closed);
-        // The mitred edge points sit off the centreline, so each one asks the
-        // ground its own question and takes the deck height of the centreline
-        // vertex it was offset from — which is what keeps a deck flat across
-        // its width on a slope instead of banking with the hill under it.
-        const yAt = (p, i) => this.heightAt(p[0], p[1]) + lift + (height.get(`${flat[i][0]},${flat[i][1]}`) ?? 0);
-        const { pos: p2, nor: n2 } = ribbonTriangles(edges, (p, i) => yAt(p, i));
-        pos.push(...p2);
-        nor.push(...n2);
-        decks.push({ road, dense });
-        continue;
-      }
-
-      const edges = ribbonEdges(pts, road.width / 2, closed);
-      const { pos: p2, nor: n2 } = ribbonTriangles(edges, (p) => this.heightAt(p[0], p[1]) + lift);
+      // **Every road is drawn from a subdivided copy of itself, raised or
+      // not.** A road's control points are junctions, not samples: a grid road
+      // has exactly two, both at the edge of town, so a ribbon built from them
+      // spans the whole run with a single flat quad. On level ground that is
+      // invisible and it is why this went unnoticed for so long. Over a hill
+      // it is a road that ignores the hill, and over a drawn cliff it is a
+      // road that passes clean through it and comes out the other side.
+      //
+      // Adding the points to `road.pts` instead is not an option — that
+      // renames the road and every building on it (see `roadId` in layout.js)
+      // — so the subdivision lives here, for the length of one draw call, and
+      // nothing derives an id from it.
+      // On ground that genuinely never moves, the subdivision is skipped and
+      // the control points are used exactly as before — `Infinity` makes
+      // `raisedPoints` emit one step per segment. That is not an
+      // optimisation for its own sake: it keeps a flat town's tarmac
+      // byte-identical to what it always was, and it stops a two-kilometre
+      // road in a very large flat town paying for a thousand vertices that
+      // would all land on the same plane.
+      const dense = raisedPoints(
+        road,
+        drapes || isRaised(road) ? DRAPE_STEP : Infinity,
+        (x, z) => this.heightAt(x, z)
+      );
+      const flat = dense.map((p) => [p[0], p[1]]);
+      const edges = ribbonEdges(flat, road.width / 2, closed);
+      // Two answers, chosen per vertex by whether the road is off the ground
+      // there.
+      //
+      // On the ground, an edge asks the terrain its own question, which is
+      // what lets tarmac follow a slope sideways as well as lengthwise.
+      // Off the ground, it takes the centreline's absolute surface height —
+      // a deck is a flat thing, and letting its edges chase the terrain under
+      // a viaduct would twist it into a ribbon following the ravine it is
+      // supposed to be crossing.
+      const { pos: p2, nor: n2 } = ribbonTriangles(edges, (p, i) => {
+        const src = dense[Math.min(dense.length - 1, i)];
+        if (src && src[2] > GROUNDED) return src[3] + lift;
+        return this.heightAt(p[0], p[1]) + lift;
+      });
       pos.push(...p2);
       nor.push(...n2);
+      if (isRaised(road)) decks.push({ road, dense });
     }
 
     const geo = new THREE.BufferGeometry();
@@ -344,9 +399,10 @@ export class Ground {
         // Nothing to hold up where the deck is already on the ground, which is
         // most of a ramp and all of a road that only rises in the middle.
         if (b[2] <= GROUNDED) continue;
-        const ground = this.heightAt(b[0], b[1]);
-        const top = ground + deckLift + b[2];
-        prism(pos, nor, b[0], b[1], ground - 0.5, top, radius, sides);
+        // Top from the deck's own surface height rather than recomputed from
+        // the ground, so a pier always meets the underside of the road it is
+        // holding up instead of ending a little under or through it.
+        prism(pos, nor, b[0], b[1], this.heightAt(b[0], b[1]) - 0.5, b[3] + deckLift, radius, sides);
       }
     }
 

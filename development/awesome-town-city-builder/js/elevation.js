@@ -82,11 +82,46 @@ function rampAt(rampIn, rampOut, d, total) {
   return k * k * (3 - 2 * k);
 }
 
+// A sampled array of the bridge, read at a distance along the road.
+//
+// **The bridge stores the road's absolute height, not its height above the
+// ground, and that distinction is a bug fix rather than bookkeeping.** Storing
+// a lift and rebuilding the surface as `ground + lift` is only correct where
+// the ground between two samples is a straight line — and the one place this
+// system exists for is precisely where it is not. At a cliff, interpolating a
+// lift across a sample interval while the real ground drops eighteen metres
+// inside it produced a deck that dived after the terrain and came back: eight
+// bridged roads, every one with a spike in it, worst case nearly nine metres
+// of rise inside one metre of road. Interpolating the surface itself cannot
+// do that, because the surface is the thing the slope limit was applied to.
+function sampleBridge(array, step, d) {
+  const f = Math.min(array.length - 1, Math.max(0, d / step));
+  const i = Math.floor(f);
+  const j = Math.min(array.length - 1, i + 1);
+  const t = f - i;
+  return array[i] + (array[j] - array[i]) * t;
+}
+
 // The one function everything asks. `d` in metres from the road's first point.
-export function liftAt(road, d) {
+//
+// The two contributions are taken at whichever is higher rather than summed.
+// They are answers to different questions — "how high did you ask this road to
+// run" and "how high does it have to be to cross this ground at a sane grade"
+// — and a road needs to satisfy both, which is the maximum. Summing would put
+// a road you raised six metres twenty metres up over a ravine that only
+// needed fourteen.
+// `groundHere` is the terrain height at the exact point being asked about.
+// Callers almost always have it already and should pass it: the fallback is
+// the ground *sampled* along the road, which is right on open terrain and
+// wrong by the height of a cliff at the one place that matters.
+export function liftAt(road, d, groundHere = null) {
   if (!road.profile) return 0;
-  const { lifts, at, total, rampIn, rampOut } = road.profile;
-  return cruiseAt(lifts, at, d) * rampAt(rampIn, rampOut, d, total);
+  const { lifts, at, total, rampIn, rampOut, bridge } = road.profile;
+  const cruise = cruiseAt(lifts, at, d) * rampAt(rampIn, rampOut, d, total);
+  if (!bridge) return cruise;
+  const ground = groundHere ?? sampleBridge(bridge.ground, bridge.step, d);
+  const above = sampleBridge(bridge.surface, bridge.step, d) - ground;
+  return Math.max(cruise, above > 0 ? above : 0);
 }
 
 // Whether this road ever leaves the ground, which is the cheap test every
@@ -97,11 +132,21 @@ export const isRaised = (road) => Boolean(road.profile && road.profile.peak > GR
 // draws it. Subdividing here rather than in `road.pts` is what keeps ramps
 // smooth on a two-point road without renaming it: these vertices exist only
 // for the length of a draw call and no id is ever derived from them.
-export function raisedPoints(road, step = 2) {
+// Each entry is `[x, z, lift, surfaceY]` — how far off the ground the road is
+// there, and where its surface actually sits in the world. Both, because the
+// two consumers want different ones: a column is `lift` tall, and a deck is
+// drawn at `surfaceY` regardless of what the ground beneath its edges is
+// doing.
+export function raisedPoints(road, step = 2, groundAt = null) {
   const pts = road.pts;
   if (!pts || pts.length < 2) return [];
   const { at, total } = road.profile || measure(pts);
   const out = [];
+  const emit = (x, z, d) => {
+    const ground = groundAt ? groundAt(x, z) || 0 : 0;
+    const lift = liftAt(road, d, groundAt ? ground : null);
+    out.push([x, z, lift, ground + lift]);
+  };
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1];
     const b = pts[i];
@@ -109,11 +154,11 @@ export function raisedPoints(road, step = 2) {
     const steps = Math.max(1, Math.ceil(segment / step));
     for (let s = 0; s < steps; s++) {
       const t = s / steps;
-      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, liftAt(road, at[i - 1] + segment * t)]);
+      emit(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, at[i - 1] + segment * t);
     }
   }
   const last = pts[pts.length - 1];
-  out.push([last[0], last[1], liftAt(road, total)]);
+  emit(last[0], last[1], total);
   return out;
 }
 
@@ -157,14 +202,106 @@ function nearestOn(road, x, z) {
   return best;
 }
 
-// How long a ramp wants to be: six times the height it has to climb, which is
-// a 1-in-6 grade — steep for a real road, right for a town you are looking at
-// rather than driving, and unmistakably a ramp rather than a wall.
-const RAMP_GRADE = 6;
-// And the steepest it is allowed to become when the road is not long enough
-// to have what it wants. Past 1-in-2.5 it stops reading as a road climbing
-// and starts reading as a road broken in half.
-const STEEPEST = 2.5;
+// The steepest a ramp is allowed to become when the road is not long enough
+// to come down at the scene's grade. Past 1-in-2 it stops reading as a road
+// climbing and starts reading as a road broken in half, and a road that
+// cannot manage even that stays on the ground instead.
+const STEEPEST = 2;
+
+// --- bridging ---------------------------------------------------------------
+
+// The steepest a road may run, as a rise over run, from the scene's own
+// setting in degrees.
+//
+// This is the single most consequential number in the file and it wants to be
+// a control rather than a constant. Set it to a real road's limit — a tenth,
+// one in ten — and any terrain worth looking at exceeds it nearly everywhere,
+// so the whole town ends up on stilts: measured, ordinary noise hills bridged
+// ten roads out of eleven and stood up sixty-seven columns. The useful
+// setting is much steeper than a highway engineer would allow, because the
+// question here is "does this read as a road climbing a hill" and the answer
+// stays yes far past the point where a lorry would object.
+const gradeOf = (params) =>
+  Math.tan((Math.min(70, Math.max(1, params.roadGrade ?? 18)) * Math.PI) / 180);
+// How far apart the ground is sampled along a road. Finer than the terrain
+// mesh can express, so a cliff edge is never stepped over.
+const BRIDGE_STEP = 1;
+// Extra ground samples each side of every step, used to take the highest
+// point in the interval rather than the value at its centre. Three is enough
+// to catch a cliff lip at this spacing without turning one road into a
+// thousand terrain queries.
+const SUB_SAMPLES = 3;
+// Below this the road is simply on the ground. Ordinary terrain wobble should
+// not put a town on stilts a few centimetres high.
+const BRIDGE_MIN = 0.15;
+
+// The road surface, as the lowest line that stays above the ground and never
+// climbs or falls faster than `MAX_ROAD_GRADE`.
+//
+// This is the whole of "a road bridges what it cannot climb", and it is one
+// classical sweep rather than any kind of decision about where a bridge goes.
+// Walk forward limiting how fast the surface may drop; walk back doing the
+// same, which limits how fast it may rise going forward. What survives both
+// passes is the minimal slope-limited upper envelope of the terrain — level
+// where the ground falls away under it, back down on the ground the moment
+// the ground comes up to meet it.
+//
+// So a ravine gets a deck across it and columns underneath, a cliff gets an
+// approach at a walkable grade instead of a wall, and a gentle hill gets
+// nothing at all because the terrain already satisfies the constraint. No
+// threshold anywhere decides "this is steep enough to bridge" — the grade
+// limit is the only input, and everything else falls out of it.
+function bridgeTerrain(road, groundAt, grade) {
+  const { total } = road.profile;
+  const n = Math.max(2, Math.ceil(total / BRIDGE_STEP) + 1);
+  const step = total / (n - 1);
+  const pts = road.pts;
+  const at = road.profile.at;
+
+  const groundOn = (d) => {
+    let i = 1;
+    while (i < at.length - 1 && at[i] < d) i++;
+    const a = pts[i - 1];
+    const b = pts[i];
+    const span = Math.max(1e-6, at[i] - at[i - 1]);
+    const t = Math.min(1, Math.max(0, (d - at[i - 1]) / span));
+    return groundAt(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) || 0;
+  };
+
+  // The ground under the road, taken as the **highest** point in each
+  // interval rather than the value at its centre.
+  //
+  // A point sample is not conservative, and on the shape this exists to cross
+  // that bites: a ridge or a cliff lip thinner than the sample spacing sits
+  // between two samples that both miss it, the envelope is built under it,
+  // and the deck comes out below ground for a metre — which reads as the road
+  // diving into the hill and back out. Sub-sampling and keeping the maximum
+  // makes the envelope an upper bound of the real terrain, so the deck can
+  // only ever be at or above it.
+  const ground = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const d = k * step;
+    let peak = groundOn(d);
+    for (let s = 1; s <= SUB_SAMPLES; s++) {
+      const o = (step * s) / (SUB_SAMPLES + 1);
+      peak = Math.max(peak, groundOn(Math.max(0, d - o)), groundOn(Math.min(total, d + o)));
+    }
+    ground[k] = peak;
+  }
+
+  const drop = grade * step;
+  const surface = Float32Array.from(ground);
+  for (let k = 1; k < n; k++) surface[k] = Math.max(surface[k], surface[k - 1] - drop);
+  for (let k = n - 2; k >= 0; k--) surface[k] = Math.max(surface[k], surface[k + 1] - drop);
+
+  // Both arrays are kept: the surface is what gets interpolated (see
+  // `sampleBridge`) and the ground is the fallback for callers that cannot
+  // say what the terrain is doing where they are asking.
+  let peak = 0;
+  for (let k = 0; k < n; k++) peak = Math.max(peak, surface[k] - ground[k]);
+  if (peak <= BRIDGE_MIN) return null;
+  return { bridge: { surface, ground, step }, peak };
+}
 
 // Give every road a height profile.
 //
@@ -172,7 +309,7 @@ const STEEPEST = 2.5;
 // per-point heights they were authored with, and proposals are still flat.
 // Mutates rather than copies: the road records are freshly built every rebuild
 // and nothing upstream is holding one.
-export function liftRoads(roads, params) {
+export function liftRoads(roads, params, groundAt = null) {
   for (const road of roads) {
     const { at, total } = measure(road.pts);
     // A held road brings its own heights, one per point, and the pattern does
@@ -194,6 +331,23 @@ export function liftRoads(roads, params) {
       // same as it does for the shape.
       authored: Boolean(authored),
     };
+
+    // What the ground forces, independent of what anyone asked for. Runs even
+    // on an authored road: raising a road by hand says how high you want it,
+    // not that you are willing to have it dive through a cliff on the way.
+    if (groundAt && params.roadBridging !== false) {
+      const bridged = bridgeTerrain(road, groundAt, gradeOf(params));
+      if (bridged) {
+        road.profile.bridge = bridged.bridge;
+        // Kept as its own field rather than folded into `peak`, because the
+        // junction pass below recomputes `peak` from the cruise lifts and
+        // would otherwise wipe it — which it did: eight bridged roads all
+        // reported a peak of zero, so none of them counted as raised, none
+        // got columns, and none were drawn subdivided.
+        road.profile.bridgePeak = bridged.peak;
+        road.profile.peak = Math.max(road.profile.peak, bridged.peak);
+      }
+    }
   }
 
   // Ends, once every road knows its cruising height. Read against the profiles
@@ -236,7 +390,10 @@ export function liftRoads(roads, params) {
 
     if (ramping.length) {
       const lift = Math.max(0, ...road.profile.lifts);
-      const want = Math.max(4, lift * RAMP_GRADE);
+      // The same grade the bridging uses, so a road has exactly one idea of
+      // how steep it is allowed to be whether it is coming down off a viaduct
+      // or climbing out of a ravine.
+      const want = Math.max(4, lift / gradeOf(params));
       // Two ramps share the run, so each gets half of it at most. A road that
       // has to climb and descend inside its own length is the case that
       // produced spikes: a seven-metre stub was ramping seven metres up and
@@ -252,7 +409,7 @@ export function liftRoads(roads, params) {
         for (const key of ramping) road.profile[key] = length;
       }
     }
-    road.profile.peak = Math.max(0, ...road.profile.lifts);
+    road.profile.peak = Math.max(0, road.profile.bridgePeak || 0, ...road.profile.lifts);
   }
   return roads;
 }
