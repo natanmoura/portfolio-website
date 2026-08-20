@@ -17,6 +17,7 @@ import { Rng, hashString, hashCoords } from './rng.js';
 import { SpatialGrid } from './grid.js';
 import { regionFor } from './region.js';
 import { flatten } from './curve.js';
+import { liftRoads } from './elevation.js';
 
 export const ROAD_PATTERNS = ['grid', 'boulevard', 'radial', 'organic'];
 
@@ -456,9 +457,19 @@ function heldRoads(params) {
     // so flattening returns exactly the control points. Segment indices and
     // control points stay one to one, which is what keeps the plot ids on a
     // road stable while its shape is being pulled about.
-    const pts = flatten(edit.curve, 16).map((p) => [p.x, p.z]);
+    const flat = flatten(edit.curve, 16);
+    const pts = flat.map((p) => [p.x, p.z]);
     if (pts.length < 2) continue;
-    out.push({ id, pts, main: Boolean(edit.main), width: edit.width, held: true });
+    // Height comes along with the shape. Because a road curve has every point
+    // a corner and no tension, `flatten` hands back exactly the control
+    // points, so a lift authored on point three arrives on point three — the
+    // same one-to-one that keeps plot ids stable while a road is dragged.
+    // Only carried when something has actually been raised; a road you moved
+    // in plan and never lifted should still take the pattern's proposal for
+    // its height rather than pinning itself flat forever.
+    const lifts = flat.map((p) => p.lift || 0);
+    const raised = lifts.some((v) => v > 0);
+    out.push({ id, pts, main: Boolean(edit.main), width: edit.width, held: true, ...(raised ? { lifts } : {}) });
   }
   return out;
 }
@@ -656,6 +667,10 @@ export function buildLayout(params, region = regionFor(params), claims = null, a
   // being generated.
   const removed = params.roadRemoved;
   const roads = removed && Object.keys(removed).length ? merged.filter((r) => !removed[r.id]) : merged;
+  // Height, once the list is final. It has to run after the merge and the
+  // removals, because whether a road's end meets anything is a question about
+  // the roads that actually exist rather than about the ones proposed.
+  liftRoads(roads, params);
 
   const sites = applySpans(placeSites(roads, params, region, claims, anchors), params);
   // `half` stays on the layout because plenty of things still want one number

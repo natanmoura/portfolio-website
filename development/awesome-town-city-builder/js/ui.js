@@ -169,6 +169,16 @@ export const CONTROL_DEFS = [
       R('highwayWidth', 'Highway width', 1, 14, 0.1, 'Width of the main roads. Every third street is one.', { live: false }),
       R('streetWidth', 'Street width', 0.5, 8, 0.1, 'Width of the smaller streets cutting between them.', { live: false }),
       R('setback', 'Setback', 0, 6, 0.05, 'Gap between the kerb and the buildings facing it.', { live: false }),
+      R('roadHeight', 'Road height', 0, 20, 0.1, 'How far off the ground the streets run. Zero lays them on the terrain. Raise it and the town gets a viaduct network: an end that meets another road takes that road’s height so the two line up, and an end that meets nothing ramps back down to the floor.', { live: false, hard: [0, 200] }),
+      R('roadHeightVariance', 'Height spread', 0, 1, 0.01, 'How much roads differ from each other in height. Zero puts every raised road on one level. High gives a stack of decks crossing over one another. Rolled from each road’s own name, so a road keeps its height when its neighbour disappears.', { live: false, hard: [0, 1] }),
+      R('roadColumnSpacing', 'Column spacing', 2, 30, 0.5, 'How far apart the piers under a raised road stand. Close reads as a trestle, far as a concrete span.', { live: false, hard: [1, 200] }),
+      {
+        key: 'roadColor',
+        label: 'Road colour',
+        type: 'color',
+        cheap: true,
+        help: 'The colour of the tarmac. The columns under a raised road take the same colour, a shade deeper, so a viaduct reads as one piece of construction.',
+      },
       R('frontageSpacing', 'Frontage gap', 0.6, 3, 0.01, 'How far apart buildings sit along a street. One packs them shoulder to shoulder.', { live: false, hard: [0.4, 12] }),
       R('blockDepthRatio', 'Depth ratio', 0.3, 2.5, 0.01, 'How deep buildings are relative to their street frontage.', { live: false }),
     ],
@@ -481,7 +491,8 @@ export const CONTROL_DEFS = [
       R('flybyHeight', 'Eye height', 0.5, 60, 0.1, 'Low is a car on the street, high is a drone over the roofs.', { cheap: true }),
       R('flybyLookAhead', 'Look ahead', 2, 80, 0.5, 'How far down the road the camera aims. Short feels urgent, long feels smooth.', { cheap: true }),
       R('flybyBank', 'Bank', 0, 2, 0.01, 'How hard the camera leans into a turn.', { cheap: true, hard: [0, 6] }),
-      R('flybyPitch', 'Aim', -10, 20, 0.1, 'Raises or lowers where the camera is pointed relative to the road.', { cheap: true }),
+      R('flybyPitch', 'Aim', -4, 8, 0.05, 'How far the camera looks up. Measured as metres of climb per ten metres of look-ahead, so the angle stays the same whether the tour is creeping or racing. Around two puts the top of a building in frame from street level; zero stares down the road at the vanishing point.', { cheap: true, hard: [-20, 40] }),
+      R('flybySmoothing', 'Smoothing', 0.5, 20, 0.1, 'How tightly the camera tracks the route. Low is a long, floating lag that ignores every corner; high is bolted to the road and takes its bumps. The aim always lags the body, which is what makes a turn read as looking into it.', { cheap: true, hard: [0.2, 60] }),
     ],
   },
   {
@@ -903,6 +914,17 @@ export class Controls {
       this.inputs.set(def.toggleKey, toggle);
       this.inputs.set(def.key, color);
       return h('label', { class: 'row colour' }, toggle, h('span', { class: 'lbl' }, def.label), color);
+    }
+
+    // A colour with nothing to fall back to. `colorToggle` above exists for
+    // the palette overrides, where "off" is a real state meaning "let the
+    // palette decide". Tarmac has no palette entry, so a checkbox next to it
+    // would be a switch between one colour and the same colour.
+    if (def.type === 'color') {
+      const color = h('input', { type: 'color', class: 'swatch-input', value: value || '#ffffff' });
+      color.addEventListener('input', () => this.onChange(def.key, color.value, def));
+      this.inputs.set(def.key, color);
+      return h('label', { class: 'row colour' }, h('span', { class: 'lbl' }, def.label), color);
     }
 
     if (def.type === 'select') {

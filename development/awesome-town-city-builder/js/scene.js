@@ -483,6 +483,9 @@ export class Stage {
       ? groundDay.clone().multiplyScalar(0.14)
       : new THREE.Color(palette.ground.night);
     this.ground.setColor(groundNight.lerp(groundDay, day));
+    // Tarmac darkens at night the same way, and takes the columns with it.
+    const road = new THREE.Color(params.roadColor || '#2a2723');
+    this.ground.setRoadColor(road.clone().multiplyScalar(0.22).lerp(road, day));
     this.ground.setGridOpacity(0.05 + day * 0.1);
 
     // Held so the render loop can refresh the pass every frame. Focus follows

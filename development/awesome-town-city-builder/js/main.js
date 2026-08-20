@@ -49,7 +49,7 @@ import { resetNotes, readNotes, describe } from './provenance.js';
 import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './locks.js';
 import { CurveView } from './curveview.js';
 import { CurveEditor } from './curveedit.js';
-import { curveFromPolyline } from './curve.js';
+import { curveFromPolyline, OFFSET } from './curve.js';
 import { BOUNDARY_ID, BOUNDARY_SHAPES, BOUNDARY_LABEL, boundaryShape, defaultHalf, regionFor } from './region.js';
 import {
   LANDFORM_SHAPES,
@@ -81,6 +81,10 @@ const ENV_DEFAULTS = {
   // so each one keeps the ground its palette always gave it.
   groundCustom: true,
   groundColor: '#6d8c4a',
+  // The tarmac, which was a hardcoded hex in the material until now — no
+  // palette carries a road colour, so this has no "off" state to fall back to
+  // and starts on the exact shade it was baked at.
+  roadColor: '#2a2723',
   bloomOn: true,
   bloomStrength: 1,
   shadows: true,
@@ -124,10 +128,16 @@ const ENV_DEFAULTS = {
   highlightTint: '#ffe6c0',
   showCars: true,
   flybySpeed: 16,
-  flybyHeight: 3.2,
+  // Just above a windscreen. Low enough that the buildings tower, high enough
+  // to see over a parked car — and paired with the new aim below, which
+  // climbs with distance instead of sitting level with the road, this is what
+  // makes the default tour look up at the town rather than down the street at
+  // the vanishing point.
+  flybyHeight: 2.6,
   flybyLookAhead: 16,
   flybyBank: 0.8,
-  flybyPitch: 1.5,
+  flybyPitch: 2.2,
+  flybySmoothing: 6,
 };
 
 const SHORTCUTS = [
@@ -147,6 +157,7 @@ const SHORTCUTS = [
   ['delete', 'remove it, or the picked control points'],
   ['click near a road', 'pick that road up'],
   ['drag a handle', 'move it, and hold it there'],
+  ['alt + drag a handle', 'raise or lower that bit of road'],
   ['L', 'hold this road as it is, or let it go'],
   ['delete, no points picked', 'delete the whole curve'],
   ['double click a picked curve', 'add a control point'],
@@ -547,11 +558,19 @@ function rebuildAll() {
   // the rebuild that a drag causes and a second nudge does not need re-aiming.
   curves = state.city.layout.roads.map((road) => {
     const held = state.params.roadEdits?.[road.id];
-    if (held?.curve) return { ...held.curve, held: true };
+    if (held?.curve) return { ...held.curve, ground: OFFSET, held: true };
+    // A proposed road is drawn carrying the height the pattern gave it, not
+    // flat. That is what makes alt-dragging one handle an *edit* rather than
+    // a reset: grab a point on a road cruising at six metres and it starts at
+    // six, so the first thing a lift gesture does is never to drop the road
+    // to the floor and start again.
+    const lifts = road.profile?.lifts;
     return curveFromPolyline(road.pts, {
       id: road.id,
       label: road.main ? 'Highway' : 'Street',
       kind: 'road',
+      ground: OFFSET,
+      lifts,
     });
   });
   // Landforms next, then the boundary last, so both draw over the roads. Both

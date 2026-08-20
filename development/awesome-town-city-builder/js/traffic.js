@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { Rng } from './rng.js';
 import { waveAt } from './wave.js';
 import { shaderVersion } from './pcss.js';
+import { liftAt } from './elevation.js';
 
 // --- shapes ----------------------------------------------------------------
 
@@ -202,7 +203,11 @@ function makeRoute(road, id) {
   for (let i = 1; i < pts.length; i++) {
     cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
   }
-  return { id, pts, cum, length: cum[cum.length - 1], width: road.width, main: road.main, exits: [[], []] };
+  // The road itself comes along so a car can ask how high its deck is at the
+  // distance it has travelled. Cars have always sat on the terrain directly,
+  // which is right up until the road leaves it and they keep driving through
+  // the valley the viaduct crosses.
+  return { id, pts, cum, road, length: cum[cum.length - 1], width: road.width, main: road.main, exits: [[], []] };
 }
 
 // Nearest point on a route to somewhere, as an arclength. Used to work out
@@ -242,6 +247,7 @@ function sampleRoute(route, distance, out) {
   out.x = a[0] + (b[0] - a[0]) * t;
   out.z = a[1] + (b[1] - a[1]) * t;
   out.angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  out.lift = route.road ? liftAt(route.road, d) : 0;
   return true;
 }
 
@@ -550,7 +556,11 @@ export class Traffic {
       const z = this._hit.z + nz * (laneOffset + wobble);
       const base = groundAt ? groundAt(x, z) : 0;
       const tall = car.boxy ? car.tall || 1 : 1;
-      const y = base + waveAt(x, z) + (car.flying ? lift : car.size * 0.26 * tall);
+      // A flyer is already off the ground by its own rule and ignores the
+      // deck; a ground car drives on whatever its road is doing, which is the
+      // terrain until the road leaves it.
+      const deck = car.flying ? 0 : this._hit.lift || 0;
+      const y = base + deck + waveAt(x, z) + (car.flying ? lift : car.size * 0.26 * tall);
       this._last = { x, z };
 
       // Roll about the car's own forward axis, and nothing else: a car on the

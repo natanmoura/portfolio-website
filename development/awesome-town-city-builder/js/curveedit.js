@@ -23,7 +23,16 @@
 // work and it should cost one gesture.
 
 import * as THREE from 'three';
-import { FREE, movePoint, pointIdOf, insertAt, removePoint, setCorner, closestOn } from './curve.js';
+import { FREE, OFFSET, movePoint, pointIdOf, insertAt, removePoint, setCorner, closestOn } from './curve.js';
+
+// Where a control point actually sits in the world, which is not what the
+// point stores: a raised road's point holds a lift above the terrain, and the
+// grab has to start at the handle you can see rather than at the number.
+function groundYOf(point, curve, groundAt) {
+  if ((curve.ground || '') === FREE) return point.y || 0;
+  const ground = groundAt ? groundAt(point.x, point.z) || 0 : 0;
+  return ground + (point.lift ?? curve.lift ?? 0);
+}
 
 export class CurveEditor {
   constructor(stage, view, opts = {}) {
@@ -123,9 +132,17 @@ export class CurveEditor {
 
   // The plane a point moves in. Horizontal for anything that lives on the
   // ground, which is almost everything; camera-facing vertical for a curve
-  // whose height is authored.
-  planeFor(curve, at) {
-    if ((curve.ground || '') === FREE) {
+  // whose height is authored, and for any curve while alt is held.
+  //
+  // Alt is the whole gesture for raising a road, and it is a modifier rather
+  // than a mode for the same reason dragging is not a tool you select first:
+  // shaping a viaduct is nudging it in plan, then nudging it in height, then
+  // in plan again, and a mode switch between every nudge is the difference
+  // between sketching and filling in a form. Which axis you are working in is
+  // decided at the moment you press, so a drag never changes meaning halfway
+  // through.
+  planeFor(curve, at, vertical = false) {
+    if (vertical || (curve.ground || '') === FREE) {
       const normal = this.stage.camera.getWorldDirection(new THREE.Vector3()).negate();
       normal.y = 0;
       if (normal.lengthSq() < 1e-6) normal.set(0, 0, 1);
@@ -176,8 +193,13 @@ export class CurveEditor {
       this.select(hit.curveId, [hit.pointId]);
     }
 
-    const at = new THREE.Vector3(point.x, point.y || 0, point.z);
-    this.planeFor(curve, at);
+    // Alt raises and lowers instead of moving in plan. Only offered where
+    // height is a thing the curve can hold: a draped curve's Y is the
+    // terrain's answer, and writing to it would be a value thrown away on the
+    // next settle.
+    const lifting = e.altKey && (curve.ground || '') === OFFSET;
+    const at = new THREE.Vector3(point.x, groundYOf(point, curve, this.view.groundAt), point.z);
+    this.planeFor(curve, at, lifting);
     if (!this.castFrom(e).ray.intersectPlane(this.plane, this.hitPoint)) return false;
 
     // Grabbing offset, so the point does not jump to the pointer on the first
@@ -186,12 +208,21 @@ export class CurveEditor {
 
     this.drag = {
       curveId: hit.curveId,
+      lifting,
       // Every selected point moves, each remembering where it started, so a
       // multi-point drag translates the group rather than collapsing it.
       start: [...this.selectedPoints]
         .map((id) => {
           const i = curve.points.findIndex((p, j) => pointIdOf(p, j) === id);
-          return i < 0 ? null : { id, x: curve.points[i].x, y: curve.points[i].y || 0, z: curve.points[i].z };
+          return i < 0
+            ? null
+            : {
+                id,
+                x: curve.points[i].x,
+                y: curve.points[i].y || 0,
+                z: curve.points[i].z,
+                lift: curve.points[i].lift || 0,
+              };
         })
         .filter(Boolean),
       origin: at.clone(),
@@ -215,6 +246,14 @@ export class CurveEditor {
     if (!curve) return true;
     const free = (curve.ground || '') === FREE;
     for (const s of this.drag.start) {
+      if (this.drag.lifting) {
+        // Never below the ground it is measured from. Dragging a pier down
+        // past zero should put the road back on the terrain and stop, not
+        // bury it — and zero is exactly the state that means "this point is
+        // on the ground", which is the one every road starts in.
+        curve = movePoint(curve, s.id, { lift: Math.max(0, s.lift + dy) });
+        continue;
+      }
       curve = movePoint(curve, s.id, {
         x: s.x + dx,
         z: s.z + dz,

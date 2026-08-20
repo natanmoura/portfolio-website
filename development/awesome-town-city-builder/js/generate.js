@@ -120,6 +120,13 @@ export const DEFAULTS = {
   highwayWidth: 5.2,
   streetWidth: 2.6,
   showRoads: true,
+  // How far off the ground the pattern proposes its roads. Zero is every road
+  // on the ground, which is every scene that predates this. See elevation.js:
+  // an end that meets another road agrees with it, an end that meets nothing
+  // ramps back down, and anything you have lifted by hand ignores all of it.
+  roadHeight: 0,
+  roadHeightVariance: 0,
+  roadColumnSpacing: 8,
   // Traffic
   carCount: 110,
   flyerCount: 16,

@@ -51,7 +51,13 @@ export const GROUND_LABEL = {
 // --- building ---------------------------------------------------------------
 
 export function newPoint(x, y, z, opts = {}) {
-  return { id: mintId('c'), x, y: y || 0, z, corner: Boolean(opts.corner) };
+  const point = { id: mintId('c'), x, y: y || 0, z, corner: Boolean(opts.corner) };
+  // How far this point stands off the ground, in OFFSET mode. Only written
+  // when it is actually raised, so a road on the ground saves exactly the
+  // JSON it always did and a scene from before viaducts existed reads back
+  // identically. See `settle`.
+  if (opts.lift) point.lift = opts.lift;
+  return point;
 }
 
 export function newCurve(points = [], opts = {}) {
@@ -74,11 +80,16 @@ export function newCurve(points = [], opts = {}) {
 // A curve from a bare polyline, which is what every road pattern emits today.
 // Corners on, tension zero: identical geometry to the polyline it came from,
 // so adopting the type changes nothing until somebody smooths it.
-export const curveFromPolyline = (pts, opts = {}) =>
-  newCurve(
-    pts.map(([x, z]) => ({ x, y: 0, z, corner: true })),
-    { tension: 0, ...opts }
+// `lifts`, when given, is one height per point — what a road pattern proposed
+// for this run. Kept out of `opts` spreading on purpose: it becomes per-point
+// data, not a property of the curve.
+export const curveFromPolyline = (pts, opts = {}) => {
+  const { lifts, ...rest } = opts;
+  return newCurve(
+    pts.map(([x, z], i) => ({ x, y: 0, z, corner: true, lift: lifts?.[i] || 0 })),
+    { tension: 0, ...rest }
   );
+};
 
 export const pointIdOf = (point, index) => idOf(point, index, 'c');
 
@@ -87,18 +98,29 @@ export const pointIdOf = (point, index) => idOf(point, index, 'c');
 // Catmull-Rom, evaluated between p1 and p2 with p0 and p3 as the neighbours
 // that decide the tangents. A corner point kills the tangent on its side,
 // which is what makes a sharp turn sharp rather than a tight bulge.
+// `lift` rides along with the three coordinates, and has to: a sampled point
+// that dropped it would put every hand-raised road back on the floor the
+// moment anything flattened it, which is every consumer there is — the view
+// that draws it, the layout that reads a held road back, the region that
+// clips against it. Interpolating it with the same weights is also the right
+// answer rather than a convenience: on a smoothed road the height between two
+// control points should follow the same curve the road does.
 function segmentAt(p0, p1, p2, p3, t, tension) {
   const t2 = t * t;
   const t3 = t2 * t;
   const k = tension * 2;
   const out = {};
-  for (const a of ['x', 'y', 'z']) {
-    const m1 = (k * (p2[a] - p0[a])) / 2;
-    const m2 = (k * (p3[a] - p1[a])) / 2;
+  for (const a of ['x', 'y', 'z', 'lift']) {
+    const v0 = p0[a] || 0;
+    const v1 = p1[a] || 0;
+    const v2 = p2[a] || 0;
+    const v3 = p3[a] || 0;
+    const m1 = (k * (v2 - v0)) / 2;
+    const m2 = (k * (v3 - v1)) / 2;
     out[a] =
-      (2 * t3 - 3 * t2 + 1) * p1[a] +
+      (2 * t3 - 3 * t2 + 1) * v1 +
       (t3 - 2 * t2 + t) * m1 +
-      (-2 * t3 + 3 * t2) * p2[a] +
+      (-2 * t3 + 3 * t2) * v2 +
       (t3 - t2) * m2;
   }
   return out;
@@ -214,11 +236,15 @@ export function resample(curve, spacing, perSegment = 12) {
 // author made; where it sits vertically is a consequence of the terrain it is
 // laid on, and mixing the two would mean re-authoring every road the first
 // time somebody raises a hill.
+// A point's own `lift` beats the curve's, and that is what makes "this end
+// stays on the ground, that one is up on a pier" expressible at all. The
+// curve's `lift` remains the answer for a run that is uniformly raised — a
+// cable, a pipe — where "three metres up" is a property of the whole thing.
 export function settle(curve, point, groundAt) {
   const mode = curve.ground || DRAPE;
   if (mode === FREE || !groundAt) return point;
   const ground = groundAt(point.x, point.z) || 0;
-  return { ...point, y: mode === OFFSET ? ground + (curve.lift || 0) : ground };
+  return { ...point, y: mode === OFFSET ? ground + (point.lift ?? curve.lift ?? 0) : ground };
 }
 
 export const settleAll = (curve, points, groundAt) =>
@@ -369,21 +395,29 @@ function dedupeClosed(pts) {
 
 // Triangle indices for a ribbon's edges, wound counter-clockwise seen from
 // above — the winding every ground-facing surface in this project uses, and
-// the one that gets culled if it is backwards. `y(point)` decides height per
-// vertex, so a ribbon can drape on terrain or sit at a flat lift depending on
-// what the caller passes.
+// the one that gets culled if it is backwards. `y(point, index)` decides
+// height per vertex, so a ribbon can drape on terrain or sit at a flat lift
+// depending on what the caller passes.
+//
+// `index` is which centreline point the edge vertex was mitred out from. A
+// draping caller ignores it and asks the ground; a caller with a height
+// profile along the run needs it, because an offset edge vertex is not on the
+// centreline any more and has no other way to find out how high its own bit
+// of road is. Without it a raised deck would bank across its width wherever
+// the ground under it sloped, instead of staying flat and letting the columns
+// take up the difference.
 export function ribbonTriangles({ left, right, closed, n }, y) {
   const pos = [];
   const nor = [];
-  const tri = (a, b, c) => {
-    pos.push(a[0], y(a), a[1], b[0], y(b), b[1], c[0], y(c), c[1]);
+  const tri = (a, ai, b, bi, c, ci) => {
+    pos.push(a[0], y(a, ai), a[1], b[0], y(b, bi), b[1], c[0], y(c, ci), c[1]);
     nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
   };
   const last = closed ? n : n - 1;
   for (let i = 0; i < last; i++) {
     const j = (i + 1) % n;
-    tri(left[i], right[j], left[j]);
-    tri(left[i], right[i], right[j]);
+    tri(left[i], i, right[j], j, left[j], j);
+    tri(left[i], i, right[i], i, right[j], j);
   }
   return { pos, nor };
 }
