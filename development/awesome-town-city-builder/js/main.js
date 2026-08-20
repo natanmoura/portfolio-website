@@ -47,6 +47,8 @@ import { buildExport, downloadExport } from './exporter.js';
 import { writeStats } from './stats.js';
 import { resetNotes, readNotes, describe } from './provenance.js';
 import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './locks.js';
+import { CurveView } from './curveview.js';
+import { curveFromPolyline } from './curve.js';
 
 const APP_NAME = 'City Builder';
 
@@ -220,6 +222,11 @@ const roleRedraws = [];
 let rebuildMixWheels = null;
 // Layer visibility. Purely a view concern, kept out of params on purpose.
 let layers = null;
+// The curve layer. Nothing authors into it yet — it currently mirrors the
+// roads so the primitive can be seen against something real — but it is the
+// store the boundary, the roads and every other linear thing will share.
+let curveView = null;
+let curves = [];
 
 // Mounted by shell.js, which owns the two views and decides which is on
 // screen. This one loads first because it is what you came for.
@@ -282,6 +289,8 @@ async function boot() {
   };
   traffic = new Traffic();
   stage.scene.add(traffic.group);
+  curveView = new CurveView(stage.scene);
+  curveView.setGroundAt(groundAt);
   flyby = new Flyby(stage);
   pool.onChange(() => materials.setAtlas(pool));
   matPool.onChange(() => materials.setMatAtlas(matPool));
@@ -392,6 +401,13 @@ function rebuildAll() {
   resetNotes();
   state.city = generateCity(p, state.overrides, pool.imageCount, pool.cutoutCount, matPool.length, groundAt, library);
   stage.ground.setRoads(state.city.layout.roads, p);
+  // Roads mirrored as curves, which is the adoption path proving itself in
+  // place: a polyline becomes a curve with no geometric change at all, so the
+  // day roads genuinely become curves the town does not move.
+  curves = state.city.layout.roads.map((road) =>
+    curveFromPolyline(road.pts, { id: road.id, label: road.main ? 'Highway' : 'Street', kind: 'road' })
+  );
+  curveView?.set(curves);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   flyby.build(state.city.layout.roads, p);
   builder.build(state.city);
@@ -572,6 +588,7 @@ function applyLayerVisibility() {
   builder.setGhost(layers.ghosted('buildings'));
 
   if (stage.ground.mesh) stage.ground.mesh.visible = layers.visible('ground');
+  curveView?.setVisible(layers.visible('curves'));
 }
 
 function updateLayerCounts() {
@@ -1597,6 +1614,9 @@ function animate() {
   traffic.update(dt, waveClock, groundAt, state.params);
   flyby.update(dt, state.params, groundAt);
   if (state.params.waveHeight > 0 && state.selection) refreshHighlight();
+  // Handles hold their size on screen rather than in the world, so this has
+  // to run against the live camera every frame rather than at build time.
+  curveView?.faceCamera(stage.camera, viewport.clientHeight);
   stage.render(dt, waveClock);
 
   frameAccum += dt;
@@ -1621,6 +1641,6 @@ function animate() {
 Object.defineProperty(window, 'cc', {
   get: () => ({
     state, stage, builder, materials, pool, matPool, picker, inspector, controls, wheels, traffic, flyby,
-    actions, flush, markAll, applyEnv, frameCity, history, presets, library,
+    actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curves,
   }),
 });
