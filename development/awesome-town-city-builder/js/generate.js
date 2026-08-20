@@ -136,7 +136,11 @@ export const DEFAULTS = {
   // ground, eases the descent over a longer run, and leaves a taller gap for
   // the columns to fill. See elevation.js.
   roadEase: 0.3,
-  roadColumnWidth: 0.5,
+  // Thin. A pier is read against a whole town, and at anything chunkier the
+  // supports under a street start competing with the buildings beside it for
+  // attention — which is backwards, since the thing worth looking at is the
+  // road being up in the air, not what is holding it there.
+  roadColumnWidth: 0.25,
   // How steep the ground under a plot may be, in degrees, before nothing is
   // built there. Ninety is off — no slope can exceed it — which is what every
   // scene saved before this had.

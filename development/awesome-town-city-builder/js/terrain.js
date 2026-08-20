@@ -14,26 +14,36 @@ import { ribbonEdges, ribbonTriangles } from './curve.js';
 import { landformRaster } from './landform.js';
 import { isRaised, raisedPoints, GROUNDED } from './elevation.js';
 
-// One column, as a plain n-sided prism with flat sides. No caps: the top is
-// under a road deck and the bottom is half a metre into the ground, so
-// neither is ever seen, and two fans per pier across a whole viaduct is
-// geometry paid for and never looked at.
-function prism(pos, nor, cx, cz, bottom, top, radius, sides) {
-  for (let s = 0; s < sides; s++) {
-    const a0 = (s / sides) * Math.PI * 2;
-    const a1 = ((s + 1) / sides) * Math.PI * 2;
-    const x0 = cx + Math.cos(a0) * radius;
-    const z0 = cz + Math.sin(a0) * radius;
-    const x1 = cx + Math.cos(a1) * radius;
-    const z1 = cz + Math.sin(a1) * radius;
-    // One normal per quad rather than per vertex, so the prism reads as a few
-    // flat faces catching different light instead of as a smooth cylinder,
-    // which is what a cast pier actually looks like.
-    const nx = Math.cos((a0 + a1) / 2);
-    const nz = Math.sin((a0 + a1) / 2);
+// One column, as a cylinder. No caps: the top is under a road deck and the
+// bottom is half a metre into the ground, so neither is ever seen, and two
+// fans per pier across a whole viaduct is geometry paid for and never looked
+// at.
+//
+// **Normals are per vertex and radial, which is the whole of the difference
+// between a cylinder and a post.** The first version gave each quad one
+// normal, on the theory that a few flat faces catching different light reads
+// as cast concrete — and at the thickness these actually want, it reads as a
+// hexagonal pencil instead. A radial normal per vertex makes the light wrap,
+// so twelve sides is enough to look round at any distance the town is viewed
+// from and the silhouette does the rest.
+const COLUMN_SIDES = 12;
+
+function cylinder(pos, nor, cx, cz, bottom, top, radius) {
+  for (let s = 0; s < COLUMN_SIDES; s++) {
+    const a0 = (s / COLUMN_SIDES) * Math.PI * 2;
+    const a1 = ((s + 1) / COLUMN_SIDES) * Math.PI * 2;
+    const c0 = Math.cos(a0);
+    const s0 = Math.sin(a0);
+    const c1 = Math.cos(a1);
+    const s1 = Math.sin(a1);
+    const x0 = cx + c0 * radius;
+    const z0 = cz + s0 * radius;
+    const x1 = cx + c1 * radius;
+    const z1 = cz + s1 * radius;
     pos.push(x0, bottom, z0, x1, bottom, z1, x1, top, z1);
+    nor.push(c0, 0, s0, c1, 0, s1, c1, 0, s1);
     pos.push(x0, bottom, z0, x1, top, z1, x0, top, z0);
-    for (let k = 0; k < 6; k++) nor.push(nx, 0, nz);
+    nor.push(c0, 0, s0, c1, 0, s1, c0, 0, s0);
   }
 }
 
@@ -387,8 +397,7 @@ export class Ground {
     // road. A highway is held up by two and a street by one, so letting the
     // wide road also have fat columns would say the same thing twice and
     // blunt the distinction the count is already making.
-    const radius = Math.max(0.05, (params.roadColumnWidth ?? 0.5) / 2);
-    const sides = 6;
+    const radius = Math.max(0.02, (params.roadColumnWidth ?? 0.25) / 2);
 
     for (const { road, dense } of decks) {
       // Arc length along the drawn centreline, so bents land at genuinely
@@ -442,7 +451,7 @@ export class Ground {
         for (const side of pair ? [-1, 1] : [0]) {
           const px = x + nx * offset * side;
           const pz = z + nz * offset * side;
-          prism(pos, nor, px, pz, this.heightAt(px, pz) - 0.5, top, radius, sides);
+          cylinder(pos, nor, px, pz, this.heightAt(px, pz) - 0.5, top, radius);
         }
       }
     }

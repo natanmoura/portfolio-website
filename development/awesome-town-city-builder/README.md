@@ -345,7 +345,15 @@ constraint is binding.
 **Column spacing** divides each road into a whole number of equal bays, so
 supports always come out evenly spaced end to end rather than starting
 wherever a walk had accumulated a full span. **Column thickness** is one
-figure for the whole town.
+figure for the whole town, and it is thin on purpose: the thing worth looking
+at is the road being up in the air, not what is holding it there.
+
+They are cylinders, with radial normals per vertex rather than one per face.
+The first version was faceted on the theory that a few flat sides catching
+different light reads as cast concrete, and at the thickness these actually
+want it read as a hexagonal pencil. Twelve sides with the light wrapping is
+enough to look round at any distance the town is viewed from, and the
+silhouette does the rest.
 
 A **highway stands on a pair**, one under each edge of its deck. A **street
 stands on a single support down the middle** of its own path. That is the
