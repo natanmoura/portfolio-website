@@ -293,6 +293,18 @@ subdivided copy made at draw time, because two vertices cannot follow a hill.
 Anything that varies along a road has to be shaped this way, which includes
 the width profiles Tier 5.4 wants.
 
+Each ribbon vertex sits at **whichever is higher, the deck or its own
+terrain**. There is deliberately no test deciding between them: choosing per
+vertex puts neighbours on opposite sides of a threshold wherever a road lifts
+off, and the two answers do not meet there, which draws a notch. Fading
+between them does not help either — the fade would have to be driven by the
+lift, and the lift is `surface - ground`, so on steep ground it is the ground
+term that jumps and the blend factor is as discontinuous as the thing it was
+meant to smooth. The maximum needs no such number: continuous because both
+arguments are, incapable of putting tarmac under the terrain, and true to how
+a road is built, since the surface is flat across its width and a hill rising
+under one edge meets it rather than bending it.
+
 **An end either meets a road or comes down.** Tested against every other road's
 whole line rather than only its endpoints, because in a grid nothing meets end
 to end: roads cross in the middle and terminate at the boundary. So a

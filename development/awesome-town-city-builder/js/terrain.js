@@ -63,6 +63,7 @@ export const TERRAIN_MODE_LABEL = {
 // can express and there is nothing below it worth chasing.
 const DRAPE_STEP = 1.5;
 
+
 // The ground rides the same water as the buildings, using the same uniforms.
 function patchWaves(material, withNormals) {
   material.onBeforeCompile = (shader) => {
@@ -350,19 +351,43 @@ export class Ground {
       );
       const flat = dense.map((p) => [p[0], p[1]]);
       const edges = ribbonEdges(flat, road.width / 2, closed);
-      // Two answers, chosen per vertex by whether the road is off the ground
-      // there.
+      // Two answers, blended by how far off the ground the road is.
       //
       // On the ground, an edge asks the terrain its own question, which is
-      // what lets tarmac follow a slope sideways as well as lengthwise.
-      // Off the ground, it takes the centreline's absolute surface height —
-      // a deck is a flat thing, and letting its edges chase the terrain under
-      // a viaduct would twist it into a ribbon following the ravine it is
+      // what lets tarmac follow a slope sideways as well as lengthwise. Off
+      // the ground, it takes the centreline's absolute surface height — a
+      // deck is a flat thing, and letting its edges chase the terrain under a
+      // viaduct would twist it into a ribbon following the ravine it is
       // supposed to be crossing.
+      //
+      // **Whichever is higher, and no test between them.** Choosing per vertex
+      // is what produced the notches: a hard `lift > GROUNDED` puts
+      // neighbouring vertices on opposite sides of it wherever a road lifts
+      // off, and the two answers do not meet there — the deck is one height
+      // all the way across while a draped edge is wherever its own terrain
+      // happens to be, so on a cross-slope they differ by however far the hill
+      // falls over half a road width. That drew thin V-shaped notches hanging
+      // off the tarmac into the hillside: fourteen triangles with a 4.66m
+      // drop, one vertex 1.26m above its ground beside two still pinned at
+      // the z-fight epsilon.
+      //
+      // Fading between the two over the first metre of lift is the obvious
+      // repair and is worse — sixty-two notches instead of fourteen. The
+      // reason is worth keeping: `lift` is `surface - ground`, and on steep
+      // ground it is the *ground* term that jumps, so the blend factor is
+      // every bit as discontinuous as the thing it was meant to smooth. You
+      // cannot fade between two answers using a number that is itself
+      // jumping.
+      //
+      // The maximum needs no such number. It is continuous because both
+      // arguments are, it can never put tarmac under the terrain, and it says
+      // something true: a road surface is flat across its width, so where the
+      // ground rises under one edge the road stays level and the hill meets
+      // it, rather than the road bending into the hill.
       const { pos: p2, nor: n2 } = ribbonTriangles(edges, (p, i) => {
+        const here = this.heightAt(p[0], p[1]);
         const src = dense[Math.min(dense.length - 1, i)];
-        if (src && src[2] > GROUNDED) return src[3] + lift;
-        return this.heightAt(p[0], p[1]) + lift;
+        return (src && src[3] > here ? src[3] : here) + lift;
       });
       pos.push(...p2);
       nor.push(...n2);
