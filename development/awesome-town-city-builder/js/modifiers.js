@@ -170,6 +170,76 @@ function applyLattice(geo, p, seed, path) {
   return geo;
 }
 
+// --- bulge -------------------------------------------------------------------
+
+// Pushes vertices away from (or in toward) the vertical axis, peaking at one
+// height and falling off on either side of it — a barrel, a paunch, a wasp
+// waist, depending on the sign and where the peak sits. Lattice's `taper`
+// only ever runs one way, thin to fat or fat to thin, top to bottom; a bulge
+// is the shape a taper cannot make, because it needs to grow and then shrink
+// again inside the same object.
+function applyBulge(geo, p, seed, path) {
+  const pos = geo.pos;
+  const b = bounds(pos);
+  const size = Math.max(1e-6, b.max[1] - b.min[1]);
+  const cx = (b.min[0] + b.max[0]) / 2;
+  const cz = (b.min[2] + b.max[2]) / 2;
+  const amount = p.amount || 0;
+  const peak = p.peak ?? 0.5;
+  const width = Math.max(0.02, p.width ?? 0.35);
+
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i];
+    const y = pos[i + 1];
+    const z = pos[i + 2];
+    const t = (y - b.min[1]) / size;
+    // A bell centred on `peak`, not a sine wave — a sine would also bulge
+    // the two ends this shape is supposed to hold flat.
+    const d = (t - peak) / width;
+    const k = Math.exp(-d * d);
+    const rx = x - cx;
+    const rz = z - cz;
+    const r = Math.hypot(rx, rz);
+    if (r < 1e-6) continue;
+    const push = 1 + (amount * k) / r;
+    pos[i] = cx + rx * push;
+    pos[i + 2] = cz + rz * push;
+  }
+  return geo;
+}
+
+// --- facet ---------------------------------------------------------------
+
+// Shoves each triangle straight out along its own face normal by its own
+// random amount, so a smooth wall breaks into planes that catch the light
+// differently — a shattered or crystalline read noise cannot get to, since
+// noise moves vertices independently and a shared edge between two
+// triangles tears open; moving a whole triangle at once keeps every edge it
+// does not share with a push of a different size sealed; the ones it does
+// share still tear, which is the point — that is the facet line.
+function applyFacet(geo, p, seed, path) {
+  const pos = geo.pos;
+  const nor = geo.nor;
+  const amount = p.amount ?? 0.1;
+  const salt = `${seed}|${path}`;
+  for (let i = 0; i < pos.length; i += 9) {
+    const tri = i / 9;
+    // One draw per triangle, not per vertex — every vertex making up this
+    // face has to move the same distance along the same normal or the face
+    // stops being flat.
+    const k = (unit(`${salt}|${tri}`) * 2 - 1) * amount;
+    const nx = nor[i];
+    const ny = nor[i + 1];
+    const nz = nor[i + 2];
+    for (let v = 0; v < 3; v++) {
+      pos[i + v * 3] += nx * k;
+      pos[i + v * 3 + 1] += ny * k;
+      pos[i + v * 3 + 2] += nz * k;
+    }
+  }
+  return geo;
+}
+
 // --- radial array -----------------------------------------------------------
 
 // Copies the shape around the vertical axis, evenly spaced across `sweep`
@@ -264,6 +334,18 @@ export const MODIFIERS = {
     apply: applyRadialArray,
     defaults: { count: range(1, 4), sweep: fixed(180) },
     help: 'Repeats the shape around the vertical axis, evenly spaced across the sweep. A spinner’s blade count is just this: one card, arrayed.',
+  },
+  bulge: {
+    label: 'Bulge',
+    apply: applyBulge,
+    defaults: { amount: range(-0.3, 0.5), peak: range(0.3, 0.7), width: range(0.2, 0.5) },
+    help: 'Pushes the shape out (or pinches it in) around its vertical axis, peaking at one height. A barrel, a paunch, a wasp waist — where the peak sits and which way the amount goes decides which.',
+  },
+  facet: {
+    label: 'Facet',
+    apply: applyFacet,
+    defaults: { amount: range(0.02, 0.15) },
+    help: 'Shoves each triangle out along its own face normal by its own random amount. A smooth wall reads as broken glass or rough-cut stone instead — noise cannot get here, since it moves vertices instead of whole faces.',
   },
 };
 

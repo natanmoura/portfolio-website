@@ -416,7 +416,23 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
       ? resolveParams(part.params, seed, `${partPath}.pin`)
       : undefined;
     const r = resolveComponent(child, lib, seed, `${partPath}:${chosenId}`, proposals, depth + 1, nextSeen);
-    if (r) resolvedParts.push({ ...r, partIndex, instanceIndex: i, slotId: chosenId, path: partPath });
+    if (r) {
+      // Turn and spin don't get w/h/d's blanket "every component has one
+      // whether it says so or not" treatment — most components have no
+      // business spinning, and a pin should not make one move that never
+      // opted in. But a pin *is* opting a specific occurrence in, the same
+      // way a size pin does, so it still has to land even when the picked
+      // component never declared the param on itself. Only fills the gap:
+      // if the child already resolved its own turn/spin (declared the
+      // param at all, in any mode), that stands — this never overrides it.
+      if (proposals && r.params) {
+        const filled = { ...r.params };
+        if (Number.isFinite(proposals.turn) && !Number.isFinite(filled.turn)) filled.turn = proposals.turn;
+        if (Number.isFinite(proposals.spinSpeed) && !Number.isFinite(filled.spinSpeed)) filled.spinSpeed = proposals.spinSpeed;
+        r.params = filled;
+      }
+      resolvedParts.push({ ...r, partIndex, instanceIndex: i, slotId: chosenId, path: partPath });
+    }
   }
 
   // The arrangement's own idea of its size is discarded: it can only
