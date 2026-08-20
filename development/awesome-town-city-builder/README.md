@@ -194,6 +194,104 @@ approximate -- square and round never carry randomness, and blob's only
 depends on the seed, so reclicking the one already showing regenerates
 something bit-for-bit identical rather than merely similar.
 
+### Two kinds of ground, and never both
+
+Terrain used to be one thing: layered noise, three sliders, take it or leave
+it. You could make it rougher or wider but you could never say "there is a
+hill *here*".
+
+The Terrain panel now picks between **hills**, which is that, and **drawn**,
+which is shapes you place. A landform is a closed curve with a height and a
+falloff: the outline you draw is the flat top, and the falloff is how far out
+the slope runs before it meets whatever is underneath. A falloff near zero is
+a sheer cliff. Thirty metres is a swell you could drive up. Negative height
+digs a pit instead.
+
+They stack in the order they were added, each layering over the last, so a
+landform's height is exactly the height its top sits at whatever it is
+standing on. Draw a plateau at 8, draw a smaller one inside it at 16, and the
+second is at 16 rather than at 24. That is the property that makes terracing
+predictable, and summing would have destroyed it -- every plateau's real
+height would depend on the list above it, which is unusable at three of them.
+
+**The two never mix.** A slider that could nudge ground somebody placed by
+hand is exactly the corruption the rest of this tool refuses, so choosing one
+leaves the other's controls visible but out of play, and the dice never touch
+`landforms` or `terrainMode` at all.
+
+A landform is a curve, which is the whole reason it is a landform and not a
+brush. A brush paints pixels you cannot re-edit; a curve stays a handful of
+draggable points forever, saves as four lines of JSON, undoes cleanly, and
+inherits the view, the editor, the drag, the halo and the delete key that
+roads and the boundary already had.
+
+**Terracing** is separate and applies to both: it cuts any slope into flat
+shelves with hard risers between them. One slider turns a swell into rice
+paddies, a strip mine or a stack of card.
+
+Under the hood the drawn field is rastered once at the ground mesh's own cell
+size rather than evaluated per query -- a point-in-polygon plus a
+distance-to-outline is fifty-odd edge tests and the mesh alone asks a quarter
+of a million times. That is not lost fidelity but gained agreement: the mesh
+cannot draw a cliff finer than one cell anyway, so buildings, traffic and the
+camera all stand on exactly the surface that was drawn rather than on a more
+precise one nobody can see.
+
+### Roads that leave the ground
+
+A road used to be paint: a ribbon on the terrain plus six centimetres so it
+did not z-fight. Set **Road height** in the Streets panel and the town gets a
+viaduct network instead, with thin columns holding the decks up in the road's
+own colour a shade deeper.
+
+Height is a profile along the run, not a property of a control point, and that
+distinction is the design. A grid road has exactly two control points, both at
+the edge of town, so a per-point model could not express "up in the middle,
+down at both ends" without inserting points -- and inserting a point renames
+the road, which renames every building on it, which loses every edit made to
+them. So the points are never touched. A road carries a cruising height and a
+ramp length at each end, and rendering subdivides a throwaway copy.
+
+**An end either meets a road or comes down.** Tested against every other
+road's whole line rather than only its endpoints, because in a grid nothing
+meets end to end -- roads cross in the middle and terminate at the boundary.
+So a T-junction counts and takes its height from the road it arrives at, so
+the two line up where they touch. An end that meets nothing ramps to the
+floor, which is what stops a raised network ending in mid-air at the edge of
+town. Roads crossing mid-span at different heights are left alone and read as
+flyovers, which is what they are.
+
+Ramps want a 1-in-6 grade, shrink to fit when the run is short, and refuse
+past 1-in-2.5 -- a road too short to get up and down again simply stays on the
+ground, because an overpass shorter than it is tall is not an overpass.
+
+**Alt-drag a control point to raise it**, and that point alone. Zero is the
+ground, and the drag clamps there, so "some points stick and others lift off"
+is the same gesture as putting one back down. A height you set by hand is
+`fixed` in the constraints.js sense: the generator gets no opinion on it, no
+automatic ramp and no junction match, because a road you shaped already ramps
+by itself -- that is what the difference between two neighbouring points is.
+
+### Things in the air
+
+Whatever is in `collage/particles/` drifts up out of the streets and fades out
+above the roofline, with controls for size, rise, speed, drift, spin, opacity,
+glow and tint. Drop your own stars and small shapes in and rerun the scan;
+eight placeholders ship.
+
+Every particle is animated entirely in the vertex shader -- position, drift,
+spin, fade and size are all functions of one time uniform and attributes
+rolled once at build time, so ten thousand of them cost one uniform write a
+frame. Everything expressive is a uniform too, so only the count, the sprite
+pool and the town's extent ever rebuild the buffer.
+
+The hologram look is three things at once and needs all three: additive
+blending so overlapping motes brighten instead of occluding, no depth write so
+they do not punch holes in each other, and a glow that multiplies rather than
+adds -- which keeps a sprite's dark parts dark and pushes its bright parts
+past 1.0 into the bloom pass, so the shape stays legible while it glows
+instead of dissolving into a blob of light.
+
 ### Holding things still
 
 The tool's whole reason to exist is that **authored decisions survive

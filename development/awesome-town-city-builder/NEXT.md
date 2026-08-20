@@ -379,6 +379,64 @@ found on this list.**
   given its own `minmax` floor so a panel narrower than intended degrades
   rather than disappearing.
 
+**Four features arrived next, all asked for directly, and between them they
+moved Tier 6 out of the future and put a real dent in Tier 5.**
+
+- **Terrain became something you draw, and the two kinds do not mix.** This is
+  most of Tier 6 arriving early and from an unexpected direction: the roadmap
+  wanted `heightAt`/`normalAt`/`slopeAt` and a writable field, and what was
+  actually asked for was "let me pull the ground up here, with a sharp edge".
+  A landform is a closed curve with a height and a falloff, stacked in order,
+  each layering over the last so its height is exactly where its top sits
+  whatever it stands on. That last property is the whole reason it is usable
+  at three landforms rather than one. `terrainMode` chooses noise or shapes and
+  refuses to blend them, which is the same refusal the rest of the tool is
+  built on applied one level up. Full write-up in `README.md` under "Two kinds
+  of ground, and never both".
+- **The curve primitive paid off again, and for the fourth time.** Nothing in
+  the landform work needed a view, an editor, a drag, a halo, a grip or a
+  delete key: roads and the boundary had already bought all of them. That is
+  now four consumers of one type — boundary, road, landform, and whatever 4.4
+  distributes along — which is what 4.1 was written for and the clearest
+  evidence yet that building the primitive before any of its customers was the
+  right order.
+- **Roads can leave the ground**, which is a chunk of Tier 5 that was not on
+  the list at all. The interesting part was not the geometry but the identity
+  question it forced: height had to be a *profile along the run* rather than a
+  property of a control point, because a grid road has two control points and
+  expressing "up in the middle, down at both ends" per point would mean
+  inserting points, which renames the road and loses every edit on it. So the
+  points are untouched and rendering subdivides a throwaway copy. Ends meet
+  other roads or ramp to the floor; an authored height is `fixed` and the
+  generator gets no say. Columns, road colour, cars on the deck.
+- **Particles**, which are not on any tier and are the first thing in the tool
+  that exists purely for a *moving* frame. A still frame was always a collage;
+  this is the volume above the town having something in it. Entirely
+  vertex-shader driven, so the count is a performance question and nothing
+  else is.
+- **The tour got smooth**, which turned out to be three separate things and
+  none of them the route: centripetal Catmull-Rom instead of uniform (road
+  points are junctions, not samples, and uniform answers uneven spacing with
+  cusps exactly where a junction is), the route resampled before it becomes a
+  curve, and the eye and its aim low-passed rather than read raw. Measured:
+  peak camera acceleration 644 → 431 → 143 m/s², with the aim going 615 → 95,
+  which is the number you actually feel.
+
+**Two things these surfaced that are worth carrying forward.** `flatten` was
+silently dropping any per-point field it did not know about, which meant every
+hand-raised road came back on the floor — the kind of bug that only appears
+when a primitive gains a field after its consumers were written, and worth
+remembering the next time one does. And the grade rule for ramps was
+overriding hand-authored heights, found only by driving the real gesture end
+to end rather than calling the underlying methods, which is now the second
+time that exact difference has caught something.
+
+**What is still missing from the road tier**: 5.3 junctions, 5.4 width
+profiles, 5.5 road types. 5.6 (roads conform to terrain) is *half* done by
+accident — a road drapes on drawn ground the same as on noise — but cut and
+fill, embankments and real bridge abutments are untouched, and the columns are
+the plainest thing that reads as structure rather than a pier component.
+
 **Next: the missing anchor.** Every building edit is road-relative today,
 including "Nudge X", which is why they ride a road that moves — the right
 default, and the only one available, since a plot's whole identity is its
@@ -672,6 +730,16 @@ Slots into `algorithms.js` beside the nine arrangements already there, and
 needs nothing new from the component system. This is what puts lamp posts
 down a street, fence posts along a boundary, and pylons across a valley.
 
+**The strongest candidate on this list now**, and it moved up without being
+touched. Three things landed underneath it: `resample` in curve.js already
+spaces points evenly by arc length; the elevation work means a curve can
+answer "how high am I here" as well as "where am I here", so a distributed
+object on a viaduct lands on the deck rather than under it; and the assembly
+sizing fix means a lamp post asked for a size actually takes it. The
+railings, balustrades and pylons in the curve.js header have had nothing
+standing in their way for a while — this is the item that turns four
+consumers of the curve primitive into a reason to have built it.
+
 ### 4.5 Semantic anchors
 Promote `base`/`top`/`sides` into queryable tagged surfaces: "wall faces
 fronting a street", "flat roof area over four square metres", "edges at
@@ -748,6 +816,17 @@ deleting a proposed road outright, and widening one road on its own. The
 middle constraint state — a road that may reroute but must keep meeting the
 roads it currently meets — is still unbuilt, and is the interesting one.
 
+**Height landed since, and was not on this list.** A road is no longer
+obliged to lie on the ground: `roadHeight` proposes a viaduct network,
+alt-dragging a control point raises that point alone, and columns hold the
+decks up. The part worth keeping from it is not the viaducts but what the
+identity scheme forced — height had to be a profile along the run rather than
+a per-point value, because expressing "up in the middle, down at both ends"
+on a two-point grid road would mean inserting points, and inserting a point
+renames the road and loses every edit on it. Any future per-road property
+that varies *along* the road — 5.4's width profile, most obviously — has to
+be shaped the same way for the same reason. That is the precedent.
+
 ### 5.3 Junctions as generated components
 Where two curves meet, resolve a junction from the library — a crossroads, a
 T, a roundabout, a fork — rather than overlapping two ribbons and hoping.
@@ -795,6 +874,26 @@ it writable so roads can cut into it and volumes can displace it.
 
 If terrain stays a rendered mesh rather than a queryable field, every later
 system special-cases it.
+
+**Partly landed, and from the other end than expected.** Drawn ground —
+landform curves stacked over a raster, exclusive with noise — is the
+*writable* half, and it arrived because somebody wanted to pull the ground up
+in a particular spot rather than because the roadmap asked for a field. See
+`README.md` under "Two kinds of ground, and never both". What that leaves:
+
+- **`normalAt` and `slopeAt` still do not exist.** The raster makes both
+  cheap — two samples and a cross product — and the moment anything wants to
+  lie flat on a hillside, orient to it, or refuse to build on a cliff, they
+  are the first thing to write. Nothing has needed them yet, which is the
+  only reason they are not there.
+- **Nothing conforms to terrain beyond standing on it.** A building on a
+  slope is planted at one height with a flat base, which reads fine at the
+  gentle end and badly on a real cliff. That is Tier 3's placement record
+  wanting a transform rather than a Y.
+- **Nothing displaces it.** Roads drape rather than cut; there is no
+  embankment, no cutting, no quarry. That is 5.6 and Tier 7 and both want the
+  raster to become writable *by systems* rather than only by hand, which it
+  currently is not.
 
 **On the reordering:** the roadmap's layer chain has terrain first, and that
 is still the right *evaluation* order at runtime. It is not the right build
@@ -892,6 +991,14 @@ The world anchor, then Tier 3's placement record, which is the structure it
 wants to live in: `{ id, componentId, transform, seed, tags, source, lock }`,
 where the lock names what the transform is measured against — world, a curve
 at t, another component's anchor, terrain at XZ.
+
+**Or 4.4, if the week should produce something to look at rather than
+something to build on.** Distribute-along-curve is now the cheapest large
+win on the list — every dependency landed as a side effect of other work —
+and it is the item that finally puts the component library to use on
+something other than a building. Lamp posts down a street, railings on a
+viaduct, pylons across a valley, fence posts round a boundary: four consumers
+of one algorithm, using four curves that already exist.
 
 Take the roads work as the pattern for all of it: an artifact stored in
 `params`, generated first and edited second, a frozen name at the moment of
