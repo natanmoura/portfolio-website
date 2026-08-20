@@ -339,26 +339,10 @@ export const CONTROL_DEFS = [
       R('particleSpin', 'Spin', 0, 3, 0.01, 'How fast the ones from collage/particles/rotating/ turn on the spot. Each has its own rate and direction so they never turn in lockstep. Sprites from static/ ignore this entirely and stay upright.', { cheap: true, hard: [0, 30] }),
       R('particleOpacity', 'Opacity', 0, 1, 0.01, 'How solid they are. Low is the hologram end -- present, but you can see the town straight through them.', { cheap: true, hard: [0, 1] }),
       R('particleGlow', 'Glow', 0, 3, 0.01, 'How hard they push light into the bloom pass. This is what makes a small bright shape read as light rather than as a sticker. Follows the hour, so one setting works at noon and at midnight.', { cheap: true, hard: [0, 20] }),
-      {
-        key: 'particleColor',
-        label: 'Colour',
-        type: 'select',
-        cheap: true,
-        options: [
-          ['palette', 'From the palette'],
-          ['tint', 'One colour'],
-          ['sprite', 'The sprite’s own'],
-        ],
-        help: 'Where their colour comes from. From the palette gives each one of the palette’s glow colours -- the same list the town’s own lit windows draw from, which is what makes them read as part of the place. One colour uses the swatch below. The sprite’s own leaves each image exactly as it was drawn.',
-      },
-      {
-        key: 'particleTint',
-        label: 'Tint',
-        type: 'color',
-        cheap: true,
-        help: 'The colour used when Colour is set to One colour. Ignored otherwise.',
-      },
-      R('particleTintAmount', 'Colour strength', 0, 1, 0.01, 'How far toward that colour they go. One paints them outright; lower lets the sprite’s own tones show through, which keeps detail in an image that has any. Ignored when Colour is set to the sprite’s own.', { cheap: true, hard: [0, 1] }),
+      // No colour control, on purpose. Particles always take one of the
+      // palette's glow colours, so the only way to recolour them is to change
+      // the palette -- which is the one place the whole scene's colour is
+      // already decided.
     ],
   },
   {

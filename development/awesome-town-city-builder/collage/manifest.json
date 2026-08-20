@@ -80,7 +80,8 @@
       "particle_star_01.png"
     ],
     "rotating": [
-      "particle_square_01.png"
+      "particle_square_01.png",
+      "particle_star8_01.png"
     ],
     "loose": []
   }

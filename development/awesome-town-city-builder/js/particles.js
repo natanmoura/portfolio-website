@@ -122,7 +122,6 @@ precision highp sampler2DArray;
 
 uniform sampler2DArray uAtlas;
 uniform sampler2D uRects;
-uniform float uTintAmount;
 uniform float uGlow;
 uniform float uOpacity;
 
@@ -140,16 +139,15 @@ void main() {
   vec2 uv = rect.xy + vUv * rect.zw;
   vec4 texel = texture(uAtlas, vec3(uv, float(index)));
 
-  // Cheap cutouts. These are drawn additively, so a black background
-  // contributes nothing anyway — but a source with a hard alpha channel
-  // should not have its edge pixels smeared by the mip chain either.
+  // **A sprite is a shape, not a picture.** Only its alpha is read: the
+  // colour is always one of the palette's, so what the file contains is the
+  // silhouette and nothing else. That is the whole simplification — there is
+  // no mode to choose, no tint to keep in step with the palette, and no way
+  // for a particle field to end up a colour the town is not.
   float alpha = texel.a * vFade * uOpacity;
   if (alpha < 0.004) discard;
 
-  // vColor is whichever colour this particle drew: one of the palette's glow
-  // colours, or the tint, depending on the mode. uTintAmount decides how far
-  // it goes, so a sprite with colour of its own can keep some of it.
-  vec3 colour = mix(texel.rgb, vColor, uTintAmount);
+  vec3 colour = vColor;
   // Glow multiplies rather than adds, so a dark part of a sprite stays dark
   // and a bright one runs past 1.0 into the bloom pass. That difference is
   // what makes the shape legible while it glows instead of dissolving into a
@@ -175,7 +173,6 @@ export class Particles {
       // twice what any palette carries, so the cap has never been reached.
       uColors: { value: Array.from({ length: 8 }, () => new THREE.Color('#ffffff')) },
       uColorCount: { value: 1 },
-      uTintAmount: { value: 0 },
       uGlow: { value: 0.6 },
       uOpacity: { value: 0.7 },
     };
@@ -339,25 +336,23 @@ export class Particles {
     // still register at midnight, and a fixed value cannot do both.
     u.uGlow.value = (params.particleGlow ?? 0.6) * (0.45 + night * 0.9);
 
-    // Three answers to "what colour is this", and only the middle one needed
-    // anything new. The palette's *glow* colours rather than its faces: these
-    // are lights in the air, and glow is already this palette's answer to
-    // "what colour is light in this town" — the same list the town's own lit
+    // One answer to "what colour is this", always: the palette's.
+    //
+    // The palette's *glow* colours rather than its faces, because these are
+    // lights in the air and glow is already this palette's answer to "what
+    // colour is light in this town" — the same list the town's own lit
     // windows draw from, which is what makes a particle field read as part of
-    // the place rather than as something laid over it.
-    const mode = params.particleColor || 'sprite';
-    const source =
-      mode === 'palette'
-        ? palette?.glow?.length
-          ? palette.glow
-          : ['#ffffff']
-        : [params.particleTint || '#8fd8ff'];
+    // the place rather than as something laid over it. Each particle holds an
+    // index rather than a colour, so changing palette recolours the whole
+    // field with no rebuild.
+    //
+    // There was briefly a mode here, with a tint and a strength. It is gone
+    // on purpose: three ways to answer one question, two of which could put
+    // the field a colour the rest of the town is not.
+    const source = palette?.glow?.length ? palette.glow : ['#ffffff'];
     const n = Math.min(8, source.length);
     for (let i = 0; i < 8; i++) u.uColors.value[i].set(source[i % n]);
     u.uColorCount.value = n;
-    // Sprite mode is the tint amount going to zero rather than a branch in the
-    // shader: there is nothing to colour toward, so nothing moves.
-    u.uTintAmount.value = mode === 'sprite' ? 0 : params.particleTintAmount ?? 1;
   }
 
   update(time) {

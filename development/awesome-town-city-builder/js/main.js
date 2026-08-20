@@ -141,13 +141,9 @@ const ENV_DEFAULTS = {
   particleSpin: 0.3,
   particleOpacity: 0.7,
   particleGlow: 0.6,
-  // Following the palette is the default because it is the answer that makes
-  // a particle field look like it belongs to this town rather than like
-  // something laid over it — and because the palette is already the one place
-  // the whole scene's colour is decided.
-  particleColor: 'palette',
-  particleTint: '#8fd8ff',
-  particleTintAmount: 0.85,
+  // No colour parameter. Particles take the palette's glow colours and only
+  // those — a sprite is read for its shape, never its pixels. See
+  // particles.js.
   flybySpeed: 16,
   // Just above a windscreen. Low enough that the buildings tower, high enough
   // to see over a parked car — and paired with the new aim below, which
@@ -2311,8 +2307,27 @@ function refreshSceneMenu() {
   }
 }
 
+// Parameters that used to exist and no longer do.
+//
+// Both load paths spread a saved scene over the defaults, so a key nothing
+// reads any more rides along forever — it survives every load, every save and
+// every export, and the next person to read a scene file finds three settings
+// that look like they should do something. Dropped on the way in, which is
+// the one place both paths pass through.
+//
+// Kept as a list rather than removed silently so the reason is written down:
+// particles briefly had a colour mode, a tint and a strength, and now take
+// the palette's glow colours and nothing else.
+const RETIRED = ['particleColor', 'particleTint', 'particleTintAmount'];
+
+function loadParams(saved) {
+  const params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(saved || {}) };
+  for (const key of RETIRED) delete params[key];
+  return params;
+}
+
 function applyScene(scene, name, isPreset = false) {
-  state.params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(scene.params || {}) };
+  state.params = loadParams(scene.params);
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(scene.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(scene.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(scene.params?.surfaceMix || {}) };
@@ -2405,7 +2420,7 @@ function autosave() {
 function restore() {
   const saved = Scenes.loadAuto();
   if (!saved) return;
-  state.params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(saved.params || {}) };
+  state.params = loadParams(saved.params);
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(saved.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
   state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(saved.params?.surfaceMix || {}) };

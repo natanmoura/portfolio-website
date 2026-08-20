@@ -294,13 +294,16 @@ right up until the camera rolls, which the tour does every time it banks — so
 a static sprite's own up axis is world up projected into the screen plane, and
 it counter-rotates against a bank rather than tipping with it.
 
-**Colour** comes from one of three places. *From the palette* gives each
-particle one of the palette's glow colours — the same list the town's own lit
-windows draw from, which is what makes a field read as part of the place
-rather than as something laid over it, and it follows the palette when you
-change it. *One colour* uses the swatch. *The sprite's own* leaves each image
-exactly as drawn. Colour strength decides how far toward that colour they go,
-so an image with tones of its own can keep some of them.
+**Colour is always the palette's, and there is no control for it.** Each
+particle takes one of the palette's *glow* colours — not its faces, because
+these are lights in the air, and glow is already the palette's answer to "what
+colour is light in this town". It is the same list the town's own lit windows
+draw from, which is what makes a field read as part of the place rather than
+as something laid over it, and changing palette recolours the whole field with
+no rebuild.
+
+Which means **a sprite is a shape, not a picture**: only its alpha is read.
+Put a white silhouette in the folder and the town decides what colour it is.
 
 **Speed spread** varies how fast each one climbs. Zero moves the whole field
 as one sheet, which reads as a scrolling texture rather than as objects. The

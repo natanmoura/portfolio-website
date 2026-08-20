@@ -39,7 +39,6 @@ const SYNONYMS = {
   particleCount: ['stars', 'sparks', 'dust', 'motes', 'embers', 'snow', 'hologram', 'air', 'atmosphere'],
   particleGlow: ['bloom', 'bright', 'neon', 'hologram', 'light'],
   particleOpacity: ['transparent', 'hologram', 'ghost', 'fade'],
-  particleColor: ['colour', 'palette', 'tint', 'stars', 'particles'],
   particleSpin: ['rotate', 'rotating', 'turn', 'tumble', 'static', 'upright'],
   particleSpeedVariance: ['spread', 'variety', 'variance', 'stagger'],
   flybySmoothing: ['tour', 'camera', 'smooth', 'jitter', 'damping', 'shake'],
