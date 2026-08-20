@@ -48,6 +48,7 @@ import { writeStats } from './stats.js';
 import { resetNotes, readNotes, describe } from './provenance.js';
 import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './locks.js';
 import { CurveView } from './curveview.js';
+import { CurveEditor } from './curveedit.js';
 import { curveFromPolyline } from './curve.js';
 
 const APP_NAME = 'City Builder';
@@ -226,6 +227,7 @@ let layers = null;
 // roads so the primitive can be seen against something real — but it is the
 // store the boundary, the roads and every other linear thing will share.
 let curveView = null;
+let curveEditor = null;
 let curves = [];
 
 // Mounted by shell.js, which owns the two views and decides which is on
@@ -291,6 +293,17 @@ async function boot() {
   stage.scene.add(traffic.group);
   curveView = new CurveView(stage.scene);
   curveView.setGroundAt(groundAt);
+  curveEditor = new CurveEditor(stage, curveView, {
+    // Live during the drag, committed on release. Rebuilding the town per
+    // frame is far too expensive, so the curve redraws continuously and
+    // anything that consumes it waits for the gesture to finish — the same
+    // split the component editor's sliders already use.
+    onLive: () => stage.render(),
+    onChange: () => {
+      noteStatus('Curve edited');
+      updateStatus();
+    },
+  });
   flyby = new Flyby(stage);
   pool.onChange(() => materials.setAtlas(pool));
   matPool.onChange(() => materials.setMatAtlas(matPool));
@@ -408,6 +421,7 @@ function rebuildAll() {
     curveFromPolyline(road.pts, { id: road.id, label: road.main ? 'Highway' : 'Street', kind: 'road' })
   );
   curveView?.set(curves);
+  curveEditor?.setCurves(curves);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   flyby.build(state.city.layout.roads, p);
   builder.build(state.city);
@@ -589,6 +603,9 @@ function applyLayerVisibility() {
 
   if (stage.ground.mesh) stage.ground.mesh.visible = layers.visible('ground');
   curveView?.setVisible(layers.visible('curves'));
+  // Only editable while you can see them. A drag that lands on something
+  // hidden is indistinguishable from the tool ignoring you.
+  curveEditor?.setEnabled(layers.visible('curves'));
 }
 
 function updateLayerCounts() {
@@ -878,8 +895,30 @@ function bindPointer() {
   let down = null;
 
   canvas.addEventListener('pointerdown', (e) => {
+    // Curves get first refusal on the press. Taking it means the orbit
+    // controls have to stand down, or dragging a control point would spin the
+    // camera underneath it at the same time.
+    if (curveEditor?.pointerDown(e)) {
+      stage.controls.enabled = false;
+      canvas.setPointerCapture?.(e.pointerId);
+      down = null;
+      return;
+    }
     down = { x: e.clientX, y: e.clientY };
   });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (curveEditor?.pointerMove(e)) e.preventDefault();
+  });
+
+  const endCurveDrag = (e) => {
+    if (!curveEditor?.dragging) return;
+    curveEditor.pointerUp(e);
+    stage.controls.enabled = true;
+    canvas.releasePointerCapture?.(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', endCurveDrag);
+  canvas.addEventListener('pointercancel', endCurveDrag);
 
   canvas.addEventListener('pointerup', (e) => {
     if (!down) return;
@@ -1198,6 +1237,11 @@ function buildUI() {
     applyLayerVisibility();
     stage.render();
   });
+  // Once, now, rather than only on the first toggle. Everything that reads a
+  // layer happened to default to visible on its own, so nothing noticed the
+  // stored state was never actually applied at startup — right up until
+  // something arrived whose safe default is off.
+  applyLayerVisibility();
 
   buildSceneTools();
   buildTourTools();
@@ -1641,6 +1685,6 @@ function animate() {
 Object.defineProperty(window, 'cc', {
   get: () => ({
     state, stage, builder, materials, pool, matPool, picker, inspector, controls, wheels, traffic, flyby,
-    actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curves,
+    actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curveEditor, curves,
   }),
 });

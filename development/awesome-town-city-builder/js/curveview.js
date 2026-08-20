@@ -80,16 +80,22 @@ export class CurveView {
     this.rebuild();
   }
 
-  clear(group) {
+  // Disposes what a rebuild actually owns. The handle geometry is one shared
+  // circle reused by every control point, so freeing it here would tear down
+  // the buffer every other handle is still drawing from, every rebuild.
+  clear(group, ownsGeometry = true) {
     for (const child of [...group.children]) {
       group.remove(child);
-      child.geometry?.dispose();
+      if (ownsGeometry) child.geometry?.dispose();
+      // Handle materials are made per point so each can carry its own colour;
+      // line materials are shared and outlive the meshes that used them.
+      if (child.isMesh) child.material?.dispose?.();
     }
   }
 
   rebuild() {
     this.clear(this.lines);
-    this.clear(this.handles);
+    this.clear(this.handles, false);
 
     for (const curve of this.curves) {
       const flat = settleAll(curve, flatten(curve, 16), this.groundAt);
@@ -159,6 +165,13 @@ export class CurveView {
   // rather than the mesh, since nothing above here should have to know that a
   // control point is drawn as a circle.
   pick(raycaster) {
+    // Matrices first. faceCamera writes each handle's rotation and scale and
+    // leaves the renderer to flush them, so a pick between frames tests
+    // against where the handles were rather than where they are. Cheap, since
+    // it is one group of a few dozen billboards, and it makes picking
+    // independent of when anything last drew — which a press has no way of
+    // knowing.
+    this.handles.updateMatrixWorld(true);
     const hits = raycaster.intersectObjects(this.handles.children, false);
     return hits.length ? { ...hits[0].object.userData, distance: hits[0].distance } : null;
   }
