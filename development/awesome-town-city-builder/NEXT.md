@@ -957,6 +957,21 @@ This is the single biggest visual upgrade in the tier and it needs no new
 machinery: a junction is a component, chosen by a role, sized by its
 constraints.
 
+**Per-road width and kind landed early**, out of a refactor rather than out of
+this tier. Putting the selected curve in the same panel a selected building
+uses — which was an inconsistency worth fixing on its own — turned out to be
+the thing that made a per-road setting *possible*: a width that applies to
+this road has nowhere to live in a panel of global sliders. The data model
+needed nothing; `roadEdits` already carried `width` and `main` from the day
+holding a road existed, and only the UI was missing.
+
+Two things follow from that worth remembering here. Any per-road property
+Tier 5 wants — a width profile, a road type, a frontage rule — now has a home
+to appear in, which removes most of the reason 5.4 and 5.5 looked expensive.
+And the width one is already the thin end of 5.4: what is missing is only that
+the width is a single number per road rather than a profile along it, and
+elevation.js has already established the shape that has to take.
+
 ### 5.4 Width profiles and cross sections
 A road's cross section is a small assembly: carriageway, kerb, pavement,
 gutter, verge. Distribute-along-curve (4.4) already places what sits on it —

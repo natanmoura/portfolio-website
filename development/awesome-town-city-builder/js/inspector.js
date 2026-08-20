@@ -603,6 +603,161 @@ export class Inspector {
     );
   }
 
+  // --- curves ---------------------------------------------------------------
+
+  // The selected road, landform or boundary, in the same panel a selected
+  // building uses.
+  //
+  // **The pattern is the point.** Everything else in this tool answers "what
+  // is selected" in one place on the right, and curves were the exception:
+  // a road's settings did not exist at all, and a landform's lived in a list
+  // in the World tab, which meant selecting a shape in the viewport and then
+  // going to look for it in a panel that also held every other shape. Putting
+  // them here is not a tidier home for the same controls, it is the reason a
+  // per-road width can exist — a setting that is only meaningful for *this*
+  // road has nowhere to live in a panel of global sliders.
+  showCurve(view) {
+    if (this.locked) return;
+    this.root.classList.remove('empty');
+    this.selection = null;
+    setChildren(this.tabsMount);
+    if (view.kind === 'landform') return this.renderLandform(view);
+    if (view.kind === 'boundary') return this.renderBoundary(view);
+    this.renderRoad(view);
+  }
+
+  renderRoad(view) {
+    const a = view.actions;
+    const { road, held, points, corners } = view;
+    this.head.textContent = view.main ? 'Highway' : 'Street';
+
+    setChildren(this.body,
+      label(
+        `${points} point${points === 1 ? '' : 's'} · ${view.length.toFixed(0)}m · ${
+          held ? 'held' : 'proposed'
+        }${view.raised ? ` · up to ${view.raised.toFixed(1)}m` : ''}`
+      ),
+      h('p', { class: 'hint' },
+        held
+          ? 'This road is yours. The pattern will not touch it, and the buildings on it keep their edits wherever you move it.'
+          : 'The pattern still owns this road. Changing anything here takes hold of it, exactly as dragging a point would.'),
+
+      label('This road'),
+      withHelp(
+        h('div', { class: 'chips' },
+          ...[['street', false], ['highway', true]].map(([name, main]) =>
+            h('button', {
+              class: `chip${view.main === main ? ' on' : ''}`,
+              onclick: () => a.setRoadKind(main),
+            }, name))
+        ),
+        'What kind of street this one is. A highway is wider, carries more traffic, and stands on a pair of columns where it leaves the ground rather than a single one.',
+        'Road kind'
+      ),
+      this.slider('Width', view.width, 0.5, 20, 0.1, (v) => a.setRoadWidth(v),
+        'How wide this road is, on its own — the Streets panel sets every road of a kind at once, and this overrides it for this one. Buildings re-front onto the new kerb.',
+        [0.2, 80]),
+      this.slider('Height', view.lift, 0, 30, 0.1, (v) => a.setRoadLift(v),
+        'Raises the whole road off the ground, with columns underneath. Alt-drag a single control point to raise just that part of it instead. Zero puts it back on the terrain.',
+        [0, 300]),
+
+      label('Points'),
+      withHelp(
+        h('div', { class: 'chips' },
+          h('button', {
+            class: 'chip',
+            onclick: () => a.toggleCorner(),
+          }, corners ? 'make them curve' : 'make them corners'),
+          h('button', { class: 'chip', onclick: () => a.deletePoints() }, 'delete picked')
+        ),
+        'A corner turns sharply, anything else bends through. Pick points in the viewport first — shift-click adds to the selection, and shift-clicking the line adds a new point.',
+        'Control points'
+      ),
+
+      label('Whole road'),
+      withHelp(
+        h('div', { class: 'chips actions' },
+          h('button', { class: 'chip sm', onclick: () => a.toggleHold() }, held ? 'let it go' : 'hold it'),
+          h('button', { class: 'chip sm', onclick: () => a.deleteCurve() }, 'delete')
+        ),
+        'Letting go hands the road back to the pattern and it reappears shaped however the pattern shapes it. Deleting says there should be no road here at all: its buildings go, and the pattern is refused if it proposes one in the same place.',
+        'Road actions'
+      )
+    );
+  }
+
+  renderLandform(view) {
+    const a = view.actions;
+    this.head.textContent = `${view.source || 'Shape'} landform`;
+    setChildren(this.body,
+      label(`${view.points} points · ${view.index + 1} of ${view.total} in the stack`),
+      h('p', { class: 'hint' },
+        'The outline you drew is the flat top. Later shapes layer over earlier ones, so a small one inside a big one is a step up rather than a total.'),
+
+      label('This shape'),
+      this.slider('Height', view.height, -40, 40, 0.5, (v) => a.setLandform('height', v),
+        'How high the flat top sits. Negative digs a pit instead. Each shape lands at exactly this height whatever it is standing on.',
+        [-400, 400]),
+      this.slider('Falloff', view.falloff, 0, 40, 0.5, (v) => a.setLandform('falloff', v),
+        'How far out the slope runs before it meets the ground underneath. Zero is a sheer cliff at the outline you drew. Large is a swell you could drive up.',
+        [0, 400]),
+
+      label('Stack'),
+      withHelp(
+        h('div', { class: 'chips' },
+          h('button', { class: 'chip', onclick: () => a.moveLandform(-1) }, 'earlier'),
+          h('button', { class: 'chip', onclick: () => a.moveLandform(1) }, 'later')
+        ),
+        'Where this shape sits in the order. Later shapes layer over earlier ones, so moving one later lets it cut through what was on top of it.',
+        'Stack order'
+      ),
+
+      label('Points'),
+      withHelp(
+        h('div', { class: 'chips' },
+          h('button', { class: 'chip', onclick: () => a.toggleCorner() }, 'corner or curve'),
+          h('button', { class: 'chip', onclick: () => a.deletePoints() }, 'delete picked')
+        ),
+        'Pick points in the viewport first. Shift-click adds to the selection, and shift-clicking the outline adds a new point.',
+        'Control points'
+      ),
+
+      withHelp(
+        h('div', { class: 'chips actions' },
+          h('button', { class: 'chip sm', onclick: () => a.deleteCurve() }, 'remove shape')
+        ),
+        'Removes this landform. Undo brings it back.',
+        'Landform actions'
+      )
+    );
+  }
+
+  renderBoundary(view) {
+    const a = view.actions;
+    this.head.textContent = 'Town boundary';
+    setChildren(this.body,
+      label(`${view.points} points`),
+      h('p', { class: 'hint' },
+        'The outline the town fills. Roads are cut to it, lots outside it go, and dragging a corner moves the edge of town.'),
+      label('Points'),
+      withHelp(
+        h('div', { class: 'chips' },
+          h('button', { class: 'chip', onclick: () => a.toggleCorner() }, 'corner or curve'),
+          h('button', { class: 'chip', onclick: () => a.deletePoints() }, 'delete picked')
+        ),
+        'Pick points in the viewport first. Shift-clicking the outline adds a new one.',
+        'Control points'
+      ),
+      withHelp(
+        h('div', { class: 'chips actions' },
+          h('button', { class: 'chip sm', onclick: () => a.deleteCurve() }, 'drop the boundary')
+        ),
+        'Back to the square columns and rows imply. The outline is discarded, so this is one to undo rather than redraw.',
+        'Boundary actions'
+      )
+    );
+  }
+
   // --- bits ----------------------------------------------------------------
 
   slider(name, value, min, max, step, onInput, help, hard) {

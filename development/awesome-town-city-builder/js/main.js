@@ -51,7 +51,7 @@ import { resetNotes, readNotes, describe } from './provenance.js';
 import { FACETS, FACET_KEYS, locksOf, isLocked, withFacet, keepLocked } from './locks.js';
 import { CurveView } from './curveview.js';
 import { CurveEditor } from './curveedit.js';
-import { curveFromPolyline, OFFSET } from './curve.js';
+import { curveFromPolyline, OFFSET, pointIdOf } from './curve.js';
 import { BOUNDARY_ID, BOUNDARY_SHAPES, BOUNDARY_LABEL, boundaryShape, defaultHalf, regionFor } from './region.js';
 import {
   LANDFORM_SHAPES,
@@ -381,6 +381,10 @@ async function boot() {
     // anything that consumes it waits for the gesture to finish — the same
     // split the component editor's sliders already use.
     onLive: () => stage.render(),
+    // Every route into a curve selection ends here — a click, a grip, the
+    // keyboard, and the re-point that follows every rebuild — so the panel
+    // follows the selection from one place rather than from each of them.
+    onSelect: () => refreshInspector(),
     onPick: (curve) => {
       // Not `deselect()`: the curve half of that would undo the very
       // selection this callback exists to report, since it fires after
@@ -1138,6 +1142,14 @@ function refreshHighlight() {
 }
 
 function refreshInspector() {
+  // The curve layer is built well before the panel is, and selecting the
+  // boundary is part of the first rebuild, so this runs at least once with
+  // nothing to draw into.
+  if (!inspector) return;
+  // A curve and a building are never both selected — picking either one drops
+  // the other — so this is a chain rather than a merge, and the building goes
+  // first only because it is the older half of the tool.
+  if (!state.selection && curveEditor?.selectedCurve) return showCurveInspector();
   if (!state.selection) return inspector.hide();
   const palette = getPalette(state.params.palette);
   const building = byBuilding.get(state.selection.buildingId);
@@ -1148,6 +1160,132 @@ function refreshInspector() {
   const entry = byModule.get(state.selection.moduleId);
   if (!entry) return inspector.hide();
   inspector.show(state.selection, entry.module, building, palette, state.params);
+}
+
+// What the panel shows for whichever curve is picked up.
+//
+// Reads the live curve rather than a stored copy, so a value typed here and a
+// point dragged in the viewport are describing the same object. Every action
+// goes back through the same functions the keyboard and the drag already use —
+// `holdRoad`, `removeRoad`, `setBoundary` — rather than writing to `params`
+// itself, which is what keeps one rule about what an edit means instead of two.
+function showCurveInspector() {
+  const id = curveEditor.selectedCurve;
+  const curve = curveEditor.curveById(id);
+  if (!curve) return inspector.hide();
+
+  const picked = [...curveEditor.selectedPoints];
+  const shared = {
+    toggleCorner: () => {
+      if (!curveEditor.toggleCorner()) noteStatus('Pick a point first');
+      refreshInspector();
+    },
+    deletePoints: () => {
+      if (!curveEditor.deleteSelected()) noteStatus('Pick a point first');
+      refreshInspector();
+    },
+    deleteCurve: () => curveEditor.deleteCurve(),
+  };
+
+  if (curve.kind === 'landform') {
+    const list = state.params.landforms || [];
+    const index = list.findIndex((l) => l.id === id);
+    const land = list[index];
+    if (!land) return inspector.hide();
+    return inspector.showCurve({
+      kind: 'landform',
+      source: LANDFORM_LABEL[land.source] || null,
+      points: land.points.length,
+      index,
+      total: list.length,
+      height: land.height ?? 0,
+      falloff: land.falloff ?? 0,
+      actions: {
+        ...shared,
+        setLandform: (field, value) => setLandformField(id, field, value),
+        moveLandform: (dir) => moveLandform(id, dir),
+      },
+    });
+  }
+
+  if (curve.id === BOUNDARY_ID) {
+    return inspector.showCurve({
+      kind: 'boundary',
+      points: curve.points.length,
+      actions: shared,
+    });
+  }
+
+  const road = state.city?.layout?.roads?.find((r) => r.id === id);
+  const edit = state.params.roadEdits?.[id];
+  const lifts = curve.points.map((p) => p.lift || 0);
+  return inspector.showCurve({
+    kind: 'road',
+    road,
+    held: Boolean(edit),
+    main: edit ? Boolean(edit.main) : Boolean(road?.main),
+    width: edit?.width ?? road?.width ?? state.params.streetWidth,
+    // The single number a whole-road slider can honestly show. A road raised
+    // unevenly by hand has no one height, so the highest point is what the
+    // slider sits at and dragging it levels the road at that value — which is
+    // what a control called "Height" on the whole road should do.
+    lift: Math.max(0, ...lifts),
+    raised: road?.profile?.peak > 0.05 ? road.profile.peak : 0,
+    length: road?.profile?.total ?? 0,
+    points: curve.points.length,
+    corners: curve.points.some((p, i) => curveEditor.selectedPoints.has(pointIdOf(p, i)) && p.corner),
+    actions: {
+      ...shared,
+      setRoadKind: (main) => setRoadField(id, { main }),
+      setRoadWidth: (width) => setRoadField(id, { width }),
+      setRoadLift: (lift) => setRoadLift(id, lift),
+      toggleHold: () => (state.params.roadEdits?.[id] ? releaseRoad(id) : holdRoad(curve)),
+    },
+  });
+}
+
+// Changing anything about a road takes hold of it, for the same reason
+// dragging one of its points does: the pattern cannot be asked to keep
+// proposing a road that is six metres wide only here. `holdRoad` mints the
+// entry from the current proposal, so the first change carries the road's
+// existing width and kind across rather than resetting them.
+function setRoadField(id, patch) {
+  const curve = curveEditor?.curveById(id);
+  if (!curve) return;
+  if (!state.params.roadEdits[id]) holdRoad(curve, 'held');
+  Object.assign(state.params.roadEdits[id], patch);
+  history?.record(`road:${id}`);
+  markAll();
+  refreshInspector();
+}
+
+// Levels the whole road at one height. Per-point lifts are what alt-drag
+// writes; this sets all of them, which is the only thing a single slider can
+// mean and the fastest way to put a road that was shaped by hand back on the
+// ground.
+function setRoadLift(id, lift) {
+  const curve = curveEditor?.curveById(id);
+  if (!curve) return;
+  if (!state.params.roadEdits[id]) holdRoad(curve, 'held');
+  const stored = state.params.roadEdits[id].curve;
+  stored.points = stored.points.map((p) => ({ ...p, lift }));
+  curveEditor.replace({ ...curve, points: stored.points.map((p) => ({ ...p })) });
+  history?.record(`road:${id}`);
+  markAll();
+}
+
+function moveLandform(id, dir) {
+  const list = [...(state.params.landforms || [])];
+  const i = list.findIndex((l) => l.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  state.params.landforms = list;
+  history?.record('landform-order');
+  extentKey = '';
+  markAll();
+  syncLandformTools();
+  refreshInspector();
 }
 
 // --- input -----------------------------------------------------------------
@@ -1872,63 +2010,35 @@ function syncLandformTools() {
 
   setChildren(
     landformList,
-    ...list.map((land, i) => {
-      const num = (value, step, min, max, onCommit) => {
-        const input = h('input', { type: 'number', class: 'num', step, value });
-        input.addEventListener('change', () => {
-          const v = Math.min(max, Math.max(min, Number(input.value)));
-          if (!Number.isFinite(v)) return;
-          input.value = v;
-          onCommit(v);
-        });
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') input.blur();
-          e.stopPropagation();
-        });
-        return input;
-      };
-
-      // The name says which shape it started as and how far up the stack it
-      // is, because "landform 3" tells you nothing and the stack order is the
-      // one property of a landform you cannot see by looking at it.
-      const label = h(
-        'button',
-        {
-          class: 'landform-name',
-          onclick: () => {
-            curveEditor?.select(land.id, []);
-            noteStatus('Show the Curves layer to drag its points');
+    // A list of names now, not a row of controls. Height and falloff belong
+    // to one shape, so they live in the selection panel with everything else
+    // that belongs to one thing — this is the way in to that panel, and the
+    // one property a list can usefully show is the stack order, which is the
+    // only thing about a landform you cannot see by looking at it.
+    ...list.map((land, i) =>
+      withHelp(
+        h(
+          'button',
+          {
+            class: `landform-name${drawn ? '' : ' idle'}${
+              curveEditor?.selectedCurve === land.id ? ' on' : ''
+            }`,
+            onclick: () => {
+              curveEditor?.select(land.id, []);
+              noteStatus('Editing this shape. Show the Curves layer to drag its points');
+            },
           },
-        },
-        `${i + 1}. ${LANDFORM_LABEL[land.source] || 'Shape'}`
-      );
-
-      return h(
-        'div',
-        { class: `landform-row${drawn ? '' : ' idle'}` },
-        withHelp(label, 'Selects this shape so its control points show in the viewport. Turn on the Curves layer to drag them.', 'Select'),
-        withHelp(
-          num(land.height ?? 0, 0.5, -400, 400, (v) => setLandformField(land.id, 'height', v)),
-          'How high the flat top of this shape sits. Negative digs a pit instead. Each shape lands at exactly this height whatever it is standing on, so a small one inside a big one is a step up rather than a total.',
-          'Height'
+          `${i + 1}. ${LANDFORM_LABEL[land.source] || 'Shape'}  ·  ${(land.height ?? 0).toFixed(0)}m`
         ),
-        withHelp(
-          num(land.falloff ?? 0, 0.5, 0, 400, (v) => setLandformField(land.id, 'falloff', v)),
-          'How far out the slope runs before it meets the ground underneath. Zero is a sheer cliff at the outline you drew. Large is a swell you could drive up.',
-          'Falloff'
-        ),
-        withHelp(
-          h('button', { class: 'landform-del', onclick: () => removeLandform(land.id) }, '×'),
-          'Removes this shape. Undo brings it back.',
-          'Remove'
-        )
-      );
-    })
+        'Selects this shape. Its height and falloff appear in the panel on the right, and its control points appear in the viewport with the Curves layer on.',
+        'Select shape'
+      )
+    )
   );
 
   landformHint.textContent = list.length
     ? drawn
-      ? 'Top number is height, second is falloff. Later shapes layer over earlier ones.'
+      ? 'Click one to edit it on the right. Later shapes layer over earlier ones.'
       : 'Kept, but the ground is set to hills. Switch to drawn above to use these.'
     : 'Nothing placed. A shape you add becomes the ground, and the outline you draw is its flat top.';
 }

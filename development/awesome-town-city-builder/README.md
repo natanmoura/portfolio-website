@@ -707,6 +707,33 @@ Hovering highlights the individual handle under the pointer, not just the
 curve it belongs to. Colour alone is easy to miss on a nine-pixel dot, so it
 grows as well.
 
+### One panel for whatever is selected
+
+Selecting anything puts its settings in the panel on the right — a module, a
+building, a road, a landform, the boundary. That was already true of buildings
+and not of curves, which was not merely inconsistent: a road had no settings
+at all, and a landform's lived in a list in the World tab, so selecting a shape
+in the viewport meant then going to find it again in a panel holding every
+other shape.
+
+The pattern is what makes **per-road settings possible**. A width that applies
+to *this* road has nowhere to live in a panel of global sliders, so it did not
+exist; the Streets panel could only set every street at once. Now a road
+carries its own width and its own kind, and buildings re-front onto the new
+kerb — measured, widening a road from 5.2m to 9m moved its frontages back
+exactly 1.90m, half the change, on both sides.
+
+**Changing anything about a road takes hold of it**, exactly as dragging one
+of its control points does, and for the same reason: the pattern cannot be
+asked to keep proposing a road that is nine metres wide only here. The first
+change mints the hold from the current proposal, so the road's existing width
+and kind carry across rather than resetting.
+
+The landform list in the World tab is now names and heights only — a way in to
+the panel rather than a second place to edit. Every action in the panel routes
+through the same functions the keyboard and the drag already use, so there is
+one rule about what an edit means rather than two.
+
 ### Selection
 
 Click a module, shift-click a building. Double-click drops a fresh image on the

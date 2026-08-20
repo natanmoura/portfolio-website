@@ -509,21 +509,19 @@ input[type="checkbox"] { accent-color: var(--accent); }
    numbers stay the same width down the list — two columns of digits you can
    read straight down is the whole point of a list like this, and a name-width
    column would stagger them. */
-.landforms { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 6px; }
-.landform-row { display: grid; grid-template-columns: minmax(0, 1fr) 54px 54px 22px; gap: 4px; align-items: center; }
-/* Kept legible rather than hidden while the ground is set to hills. The
-   shapes are still there and still yours; they are just not what the town is
-   standing on this minute, and a row that vanished would read as deleted. */
-.landform-row.idle { opacity: 0.45; }
+/* A list of ways into the selection panel, not a row of controls. What a
+   landform *is* lives on the right with everything else that belongs to one
+   selected thing; this is only how you reach it. */
+.landforms { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 6px; }
 .landform-name {
   appearance: none;
-  border: 1px solid transparent;
-  background: none;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
   color: var(--text);
   font: inherit;
   font-size: 10px;
   text-align: left;
-  padding: 3px 4px;
+  padding: 4px 7px;
   border-radius: 3px;
   cursor: pointer;
   overflow: hidden;
@@ -531,19 +529,11 @@ input[type="checkbox"] { accent-color: var(--accent); }
   white-space: nowrap;
 }
 .landform-name:hover { border-color: var(--dim); }
-.landform-del {
-  appearance: none;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--dim);
-  font: inherit;
-  font-size: 11px;
-  line-height: 1;
-  padding: 4px 0;
-  border-radius: 3px;
-  cursor: pointer;
-}
-.landform-del:hover { border-color: #6d2a2a; color: #ff8f8f; }
+.landform-name.on { border-color: var(--accent); background: var(--wash-accent); }
+/* Kept legible rather than hidden while the ground is set to hills. The
+   shapes are still there and still yours; they are just not what the town is
+   standing on this minute, and a row that vanished would read as deleted. */
+.landform-name.idle { opacity: 0.45; }
 
 .swatches { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; align-items: center; }
 .sw {
