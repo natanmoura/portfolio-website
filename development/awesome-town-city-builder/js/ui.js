@@ -326,6 +326,29 @@ export const CONTROL_DEFS = [
     ],
   },
   {
+    section: 'Particles',
+    tab: 'world',
+    items: [
+      R('particleCount', 'Count', 0, 4000, 10, 'How many things are in the air. They are drawn from collage/particles/ -- drop your own stars and shapes in there and rerun the scan. Zero is off, which is where every scene starts.', { live: false, hard: [0, 60000] }),
+      R('particleSize', 'Size', 0.05, 6, 0.01, 'How big each one is, in metres. Each particle varies around this, so the field has near ones and far ones rather than reading as a single sheet.', { cheap: true, hard: [0.01, 60] }),
+      R('particleRise', 'Rise', 1, 200, 1, 'How far one climbs before it fades out and starts again from the ground. Around twice your tallest building keeps them in the skyline rather than above it.', { cheap: true, hard: [0.5, 2000] }),
+      R('particleFloor', 'Start height', -20, 60, 0.5, 'Where a life begins, measured from the ground under it. Raise it to have them appear at roof level rather than rising up past every window.', { cheap: true, hard: [-200, 600] }),
+      R('particleSpeed', 'Speed', 0.05, 6, 0.01, 'How fast they climb. Slow reads as dust or embers hanging in the air, fast as sparks going up.', { cheap: true, hard: [0, 60] }),
+      R('particleDrift', 'Drift', 0, 20, 0.1, 'How far they wander sideways on the way up. Zero rises dead straight; a few metres reads as air moving.', { cheap: true, hard: [0, 200] }),
+      R('particleSpin', 'Spin', 0, 3, 0.01, 'How fast each one turns on the spot. Half of them turn the other way.', { cheap: true, hard: [0, 30] }),
+      R('particleOpacity', 'Opacity', 0, 1, 0.01, 'How solid they are. Low is the hologram end -- present, but you can see the town straight through them.', { cheap: true, hard: [0, 1] }),
+      R('particleGlow', 'Glow', 0, 3, 0.01, 'How hard they push light into the bloom pass. This is what makes a small bright shape read as light rather than as a sticker. Follows the hour, so one setting works at noon and at midnight.', { cheap: true, hard: [0, 20] }),
+      {
+        key: 'particleTint',
+        label: 'Tint',
+        type: 'color',
+        cheap: true,
+        help: 'A colour to push them toward. Only applies as far as the amount below, so the sprite’s own colours can survive.',
+      },
+      R('particleTintAmount', 'Tint amount', 0, 1, 0.01, 'How far toward the tint they go. Zero keeps each sprite exactly as it was drawn; one paints the whole field one colour.', { cheap: true, hard: [0, 1] }),
+    ],
+  },
+  {
     section: 'Water',
     tab: 'world',
     items: [

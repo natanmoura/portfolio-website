@@ -32,6 +32,7 @@ import { PALETTES, PALETTE_KEYS, getPalette, glassTint } from './palettes.js';
 import { waveState, waveFrequency } from './wave.js';
 import { ROAD_PATTERNS, PATTERN_LABEL, NONE_PATTERN } from './layout.js';
 import { Traffic } from './traffic.js';
+import { Particles } from './particles.js';
 import { Flyby } from './flyby.js';
 import { randomParams } from './randomize.js';
 import { loadPresets } from './presets.js';
@@ -127,6 +128,20 @@ const ENV_DEFAULTS = {
   highlightTintOn: false,
   highlightTint: '#ffe6c0',
   showCars: true,
+  // Things in the air. Off by default at zero count, so a scene that predates
+  // them opens exactly as it did — and so the first thing anyone sees is
+  // still the town rather than a snowstorm.
+  particleCount: 0,
+  particleSize: 1.2,
+  particleRise: 40,
+  particleFloor: 0,
+  particleSpeed: 1,
+  particleDrift: 3,
+  particleSpin: 0.3,
+  particleOpacity: 0.7,
+  particleGlow: 0.6,
+  particleTint: '#8fd8ff',
+  particleTintAmount: 0,
   flybySpeed: 16,
   // Just above a windscreen. Low enough that the buildings tower, high enough
   // to see over a parked car — and paired with the new aim below, which
@@ -250,6 +265,11 @@ const redoBtn = document.getElementById('btn-redo');
 
 const pool = new ImagePool();
 const matPool = new ImagePool();
+// Its own pool rather than a range inside the collage one. A particle sprite
+// is picked from a different question ("what is in the air") than a facade
+// image, and a shared pool would mean every new star also became a possible
+// wall.
+const particlePool = new ImagePool();
 let stage;
 let materials;
 let builder;
@@ -257,6 +277,7 @@ let picker;
 let controls;
 let inspector;
 let traffic;
+let particles;
 let flyby;
 let tourButton;
 let wheels = {};
@@ -313,6 +334,7 @@ async function boot() {
       loadingEl.querySelector('.count').textContent = `${Math.min(done, total)} / ${total}`;
     });
     await matPool.loadMaterialManifest('collage');
+    await particlePool.loadParticleManifest('collage');
     presets = await presetsLoading;
     library = await libraryLoading;
   } catch (err) {
@@ -342,6 +364,9 @@ async function boot() {
   };
   traffic = new Traffic();
   stage.scene.add(traffic.group);
+  particles = new Particles();
+  particles.setPool(particlePool);
+  stage.scene.add(particles.group);
   curveView = new CurveView(stage.scene);
   curveView.setGroundAt(groundAt);
   curveEditor = new CurveEditor(stage, curveView, {
@@ -594,6 +619,10 @@ function rebuildAll() {
     stillThere ? [...curveEditor.selectedPoints] : []
   );
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
+  // Scattered over the town's real footprint, so a boundary you drew is the
+  // shape they rise out of. Rebuilt only when the count, the pool or the
+  // extent changed — everything expressive about them is a uniform.
+  particles.build(p, state.city.layout.region, groundAt);
   flyby.build(state.city.layout.roads, p, state.city.layout.region);
   builder.build(state.city);
   if (stage) builder.sortPending(stage.camera);
@@ -740,6 +769,7 @@ function applyEnv() {
   stage.setShadowQuality(p.softShadows, p.shadowLightSize, p.shadowSamples);
   materials.setOcclusion(p.occlusion, p.occlusionHeight);
   traffic.setNight(night);
+  particles.apply(p, night);
   statsEl.classList.toggle('on', !!p.showStats);
   applyLayerVisibility();
 
@@ -764,6 +794,7 @@ function applyLayerVisibility() {
   stage.setGridVisible(layers.visible('grid'));
   stage.ground.setRoadsVisible(layers.visible('roads'));
   traffic.setVisible(layers.visible('traffic'));
+  particles?.setVisible(layers.visible('particles'));
 
   builder.root.visible = layers.visible('buildings');
   // The city owns its own ghost material, because its meshes share one
@@ -785,6 +816,7 @@ function updateLayerCounts() {
     buildings: state.city.buildings.length,
     roads: state.city.layout.roads.length,
     traffic: Math.round(state.params.carCount + state.params.flyerCount),
+    particles: particles?.count || 0,
     curves: curves.length,
   });
 }
@@ -2412,6 +2444,9 @@ function animate() {
   waveState.time = waveClock;
   builder.update(waveClock);
   traffic.update(dt, waveClock, groundAt, state.params);
+  // One uniform write. Every particle's position, drift, spin and fade is a
+  // function of this number and the attributes rolled at build time.
+  particles.update(waveClock);
   flyby.update(dt, state.params, groundAt);
   if (state.params.waveHeight > 0 && state.selection) refreshHighlight();
   // Handles hold their size on screen rather than in the world, so this has
@@ -2440,7 +2475,7 @@ function animate() {
 // Console handle, for poking at the city by hand.
 Object.defineProperty(window, 'cc', {
   get: () => ({
-    state, stage, builder, materials, pool, matPool, picker, inspector, controls, wheels, traffic, flyby,
+    state, stage, builder, materials, pool, matPool, particlePool, picker, inspector, controls, wheels, traffic, particles, flyby,
     actions, flush, markAll, applyEnv, frameCity, history, presets, library, curveView, curveEditor, curves,
   }),
 });

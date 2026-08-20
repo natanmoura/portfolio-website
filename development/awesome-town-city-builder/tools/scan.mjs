@@ -23,19 +23,20 @@ async function scan(dir, ok) {
   return entries.filter((f) => ok.has(path.extname(f).toLowerCase())).sort();
 }
 
-const [images, cutouts, materials, sceneFiles] = await Promise.all([
+const [images, cutouts, materials, particles, sceneFiles] = await Promise.all([
   scan(path.join(collage, 'images'), OK),
   scan(path.join(collage, 'cutouts'), OK),
   scan(path.join(collage, 'materials'), OK),
+  scan(path.join(collage, 'particles'), OK),
   scan(presets, new Set(['.json'])),
 ]);
 
 await writeFile(
   path.join(collage, 'manifest.json'),
-  JSON.stringify({ images, cutouts, materials }, null, 2) + '\n'
+  JSON.stringify({ images, cutouts, materials, particles }, null, 2) + '\n'
 );
 console.log(
-  `collage/manifest.json -> ${images.length} images, ${cutouts.length} cutouts, ${materials.length} materials`
+  `collage/manifest.json -> ${images.length} images, ${cutouts.length} cutouts, ${materials.length} materials, ${particles.length} particles`
 );
 
 const files = sceneFiles.filter((f) => f !== 'manifest.json');

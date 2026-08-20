@@ -144,6 +144,23 @@ export function randomParams(current, locks = null) {
   p.terrainScale = range(0.3, 2.2);
   p.terrainDetail = rangeInt(1, 5);
 
+  // Things in the air, on the same "occasional accent" footing as hills and
+  // water: off four times in five, and when they do turn up, modest. A town
+  // that came up in a snowstorm every other roll would stop being a surprise
+  // very quickly. Sprites and colour are left alone — which sprites exist is
+  // a folder on disk, not a thing to roll.
+  if (chance(0.22)) {
+    p.particleCount = rangeInt(150, 1200);
+    p.particleSize = range(0.4, 2.2);
+    p.particleRise = range(20, 90);
+    p.particleSpeed = range(0.3, 1.6);
+    p.particleDrift = range(0, 8);
+    p.particleOpacity = range(0.35, 0.9);
+    p.particleGlow = range(0.3, 1.6);
+  } else {
+    p.particleCount = 0;
+  }
+
   const wet = !hilly && chance(0.12);
   p.waveHeight = wet ? range(0.15, 0.7) : 0;
   p.waveScale = range(0.6, 2.6);

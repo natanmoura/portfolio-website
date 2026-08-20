@@ -36,6 +36,7 @@ export const LAYERS = [
   { id: 'buildings', label: 'Buildings', help: 'Everything stacked on a lot.', ghostable: true },
   { id: 'roads', label: 'Roads', help: 'The tarmac. Hiding it leaves the massing alone.' },
   { id: 'traffic', label: 'Traffic', help: 'Cars and flyers. Hidden without being forgotten.' },
+  { id: 'particles', label: 'Particles', help: 'Whatever is rising out of the town. Hidden without losing the count.' },
   { id: 'curves', label: 'Curves', help: 'Roads, boundaries and every other linear thing, as the paths behind them.' },
   { id: 'ground', label: 'Ground', help: 'The terrain surface under everything.' },
   { id: 'grid', label: 'Grid', help: 'The reference grid.' },

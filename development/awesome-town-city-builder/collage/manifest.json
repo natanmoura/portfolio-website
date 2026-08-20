@@ -71,5 +71,15 @@
     "material_02.png",
     "material_03.png",
     "material_04.png"
+  ],
+  "particles": [
+    "particle_01.png",
+    "particle_02.png",
+    "particle_03.png",
+    "particle_04.png",
+    "particle_05.png",
+    "particle_06.png",
+    "particle_07.png",
+    "particle_08.png"
   ]
 }

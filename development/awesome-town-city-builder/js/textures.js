@@ -76,6 +76,19 @@ export class ImagePool {
     return this.items.length;
   }
 
+  // Loads particles/ into its own pool. Letterboxed like the collage rather
+  // than covering like a material, because a star is a shape with an edge and
+  // cropping it to fill a square would cut its points off. Treated as cutouts
+  // so the transparent padding stays transparent — see `addBlob`, where the
+  // stretched underlay that keeps mip levels from fading to black is exactly
+  // what would show through a sprite's own gaps as a second ghost image.
+  async loadParticleManifest(dir = 'collage', onProgress = () => {}) {
+    const manifest = await this.fetchManifest(dir);
+    const groups = [{ sub: 'particles', kind: 'cutout', names: manifest.particles || [] }];
+    await this.loadGroups(dir, groups, 'contain', onProgress);
+    return this.items.length;
+  }
+
   async fetchManifest(dir) {
     const res = await fetch(`${dir}/manifest.json`);
     if (!res.ok) throw new Error(`No ${dir}/manifest.json — run: node tools/scan.mjs`);
