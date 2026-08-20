@@ -123,6 +123,7 @@ precision highp sampler2DArray;
 uniform sampler2DArray uAtlas;
 uniform sampler2D uRects;
 uniform float uGlow;
+uniform float uAdditive;
 uniform float uOpacity;
 
 varying vec2 vUv;
@@ -147,14 +148,82 @@ void main() {
   float alpha = texel.a * vFade * uOpacity;
   if (alpha < 0.004) discard;
 
-  vec3 colour = vColor;
-  // Glow multiplies rather than adds, so a dark part of a sprite stays dark
-  // and a bright one runs past 1.0 into the bloom pass. That difference is
-  // what makes the shape legible while it glows instead of dissolving into a
-  // uniform blob of light.
-  gl_FragColor = vec4(colour * (1.0 + uGlow * 3.0) * alpha, alpha);
+  // **Scaling preserves hue, clipping destroys it.** The old line multiplied
+  // every channel by the same boost and let them run past 1.0, which is fine
+  // for one channel and fatal for three: a warm amber at 2.5x is (2.5, 2.1,
+  // 1.6), every channel clips to 1, and the particle renders pure white. That
+  // is the entire reason these looked white in daylight.
+  //
+  // So the boost is applied and then the whole colour is rescaled until its
+  // brightest channel sits at the ceiling. The ratio between channels — which
+  // is the hue — comes through untouched at any glow setting, and the ceiling
+  // still rises far enough past 1.0 to trip the bloom threshold.
+  // The brightest channel is allowed to reach one and no further, and that
+  // limit is the whole of the fix rather than a safety margin.
+  //
+  // A colour added to a background survives as a colour only while every
+  // channel stays under one. Push the peak to 2.3 — which an unclamped glow
+  // does easily — and a warm cream becomes (2.3, 2.1, 1.6), all three clip,
+  // and the result is white. Not *approximately* white: exactly it. Whether
+  // that happened in daylight or at midnight was only a question of which end
+  // the overshoot came from.
+  //
+  // So glow moves the ceiling *within* the usable range instead of past it.
+  // Dim at zero, full colour at one, and one is bright enough to trip bloom
+  // on its own — the threshold is 0.9 falling to 0.74 after dark. Brightness
+  // past that point has to come from the bloom pass, because the framebuffer
+  // has nowhere else to put it.
+  float ceiling = mix(0.45, 1.0, clamp(uGlow, 0.0, 1.0));
+  vec3 lit = vColor;
+  float peak = max(lit.r, max(lit.g, lit.b));
+  lit *= ceiling / max(peak, 0.0001);
+
+  // Premultiplied alpha, so the output alpha decides how this blends rather
+  // than the material having to pick one mode for the whole scene:
+  //
+  //   alpha kept   -> ordinary alpha blend, an object with a colour
+  //   alpha zeroed -> pure addition, a light
+  //
+  // Which means glow can slide between the two instead of choosing. That
+  // matters most in daylight, where pure addition onto a bright sky can only
+  // ever wash toward white however saturated the source is — a particle has
+  // to be *drawn over* the sky to read as a colour against it. At night,
+  // where addition is what makes light look like light, glow is high enough
+  // to be fully additive anyway.
+  gl_FragColor = vec4(lit * alpha, alpha * (1.0 - uAdditive));
 }
 `;
+
+// A palette colour, pushed into the band where it is unmistakably a colour.
+//
+// Two failure modes to close, and they are the same one at opposite ends: a
+// palette's paper white and its near-black ink are both perfectly good wall
+// colours and both useless on a two-metre mote in the air — one reads as no
+// colour and the other as no particle. Hue is never touched, so what comes
+// out is still recognisably the palette's; only how saturated and how light
+// it is are moved, and only when they are outside the band.
+//
+// The saturation floor is what makes a near-neutral come out tinted rather
+// than grey. That is deliberate: asked for the town's colours you should get
+// colours, and a monochrome palette should give a monochrome *hue*, not an
+// absence of one.
+function vivid(hex) {
+  const c = new THREE.Color(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  // The lightness ceiling is the load-bearing number. A pale colour cannot be
+  // saturated — `(max-min)/max` on a cream is under 0.2 however high its HSL
+  // saturation goes, because every channel is already near the top — so
+  // letting a paper white through at lightness 0.7 produces a particle that
+  // is technically tinted and reads as white anyway. Pulling the band down to
+  // the middle is what turns it into a tan you can name.
+  c.setHSL(
+    hsl.h,
+    Math.min(1, Math.max(0.55, hsl.s * 1.4)),
+    Math.min(0.6, Math.max(0.4, hsl.l))
+  );
+  return c;
+}
 
 export class Particles {
   constructor() {
@@ -174,6 +243,7 @@ export class Particles {
       uColors: { value: Array.from({ length: 8 }, () => new THREE.Color('#ffffff')) },
       uColorCount: { value: 1 },
       uGlow: { value: 0.6 },
+      uAdditive: { value: 0.6 },
       uOpacity: { value: 0.7 },
     };
 
@@ -187,7 +257,17 @@ export class Particles {
       depthWrite: false,
       // Depth *test* stays on: a mote behind a building is behind it.
       depthTest: true,
-      blending: THREE.AdditiveBlending,
+      // Premultiplied alpha rather than a fixed mode. `ONE, ONE_MINUS_SRC_ALPHA`
+      // is an ordinary alpha blend when the fragment reports its alpha and a
+      // pure add when it reports zero, so the shader gets to slide between
+      // "an object with a colour" and "a light" per fragment. See FRAG.
+      blending: THREE.CustomBlending,
+      blendEquation: THREE.AddEquation,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor,
+      blendEquationAlpha: THREE.AddEquation,
+      blendSrcAlpha: THREE.OneFactor,
+      blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
       side: THREE.DoubleSide,
     });
 
@@ -331,28 +411,54 @@ export class Particles {
     u.uSpin.value = params.particleSpin ?? 0.3;
     u.uFloor.value = params.particleFloor ?? 0;
     u.uOpacity.value = params.particleOpacity ?? 0.7;
-    // Glow rides the clock the way every other light in the town does: the
-    // same setting has to survive noon without washing the frame out and
-    // still register at midnight, and a fixed value cannot do both.
-    u.uGlow.value = (params.particleGlow ?? 0.6) * (0.45 + night * 0.9);
+    // Glow no longer rides the clock, and that is a correction rather than a
+    // simplification. It used to be scaled by night so one setting could work
+    // at noon and midnight — but with the ceiling capped at one, a scaled
+    // glow means the slider saturates at a different point every hour, and
+    // most of its range is dead after dark. The hour still decides how these
+    // read; it does it through `uAdditive` below, which is the mechanism that
+    // was actually doing the work all along.
+    u.uGlow.value = Math.min(1, Math.max(0, params.particleGlow ?? 0.6));
+
+    // How much this reads as light rather than as an object.
+    //
+    // Weighted hard toward night rather than left to follow glow alone. In
+    // daylight a particle has to be *drawn over* the sky to be a colour
+    // against it, so it stays mostly solid however high the glow is turned;
+    // after dark, addition is the whole reason light looks like light, so it
+    // goes fully additive. One slider, two behaviours, and the hour decides
+    // which — the same arrangement every other light in this town is under.
+    u.uAdditive.value = Math.min(1, Math.max(0, u.uGlow.value)) * (0.3 + night * 0.7);
 
     // One answer to "what colour is this", always: the palette's.
     //
-    // The palette's *glow* colours rather than its faces, because these are
-    // lights in the air and glow is already this palette's answer to "what
-    // colour is light in this town" — the same list the town's own lit
-    // windows draw from, which is what makes a particle field read as part of
-    // the place rather than as something laid over it. Each particle holds an
-    // index rather than a colour, so changing palette recolours the whole
-    // field with no rebuild.
+    // **Faces first, then glow.** Glow alone was the original choice and it
+    // was wrong for the plain reason that a palette's glow list is its
+    // *highlights* — newsprint's are `#ffd9a0`, `#fff4d6`, `#ff8f5e`, and the
+    // middle one is white to two decimal places. Asking for "the palette's
+    // colours" and getting three shades of hot cream is not what anybody
+    // means. The faces are the colours the town is actually built out of, so
+    // a particle sharing one is sharing a colour you can point at on a wall.
     //
-    // There was briefly a mode here, with a tint and a strength. It is gone
-    // on purpose: three ways to answer one question, two of which could put
-    // the field a colour the rest of the town is not.
-    const source = palette?.glow?.length ? palette.glow : ['#ffffff'];
-    const n = Math.min(8, source.length);
-    for (let i = 0; i < 8; i++) u.uColors.value[i].set(source[i % n]);
-    u.uColorCount.value = n;
+    // Each is pushed into a band of saturation and lightness on the way
+    // through, which is the step that guarantees the answer to "what colour
+    // is this particle" is never "white" or "black". A palette that is nearly
+    // monochrome — newsprint is — comes out as variations on its own single
+    // hue rather than as grey, which is right: it should look like that town.
+    const source = [...(palette?.faces || []), ...(palette?.glow || [])];
+    const seen = new Set();
+    const list = [];
+    for (const hex of source) {
+      const c = vivid(hex);
+      const key = c.getHexString();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      list.push(c);
+      if (list.length === 8) break;
+    }
+    if (!list.length) list.push(new THREE.Color('#ffffff'));
+    for (let i = 0; i < 8; i++) u.uColors.value[i].copy(list[i % list.length]);
+    u.uColorCount.value = list.length;
   }
 
   update(time) {

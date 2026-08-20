@@ -338,7 +338,7 @@ export const CONTROL_DEFS = [
       R('particleDrift', 'Drift', 0, 20, 0.1, 'How far they wander sideways on the way up. Zero rises dead straight; a few metres reads as air moving.', { cheap: true, hard: [0, 200] }),
       R('particleSpin', 'Spin', 0, 3, 0.01, 'How fast the ones from collage/particles/rotating/ turn on the spot. Each has its own rate and direction so they never turn in lockstep. Sprites from static/ ignore this entirely and stay upright.', { cheap: true, hard: [0, 30] }),
       R('particleOpacity', 'Opacity', 0, 1, 0.01, 'How solid they are. Low is the hologram end -- present, but you can see the town straight through them.', { cheap: true, hard: [0, 1] }),
-      R('particleGlow', 'Glow', 0, 3, 0.01, 'How hard they push light into the bloom pass. This is what makes a small bright shape read as light rather than as a sticker. Follows the hour, so one setting works at noon and at midnight.', { cheap: true, hard: [0, 20] }),
+      R('particleGlow', 'Glow', 0, 1, 0.01, 'How brightly they burn, and how much they read as light rather than as objects. At zero they are dim coloured shapes; at one they are as bright as the frame can hold without losing their colour, which is bright enough to bloom. The hour decides the rest: solid and colourful in daylight, pure light after dark.', { cheap: true, hard: [0, 1] }),
       // No colour control, on purpose. Particles always take one of the
       // palette's glow colours, so the only way to recolour them is to change
       // the palette -- which is the one place the whole scene's colour is

@@ -295,15 +295,37 @@ a static sprite's own up axis is world up projected into the screen plane, and
 it counter-rotates against a bank rather than tipping with it.
 
 **Colour is always the palette's, and there is no control for it.** Each
-particle takes one of the palette's *glow* colours — not its faces, because
-these are lights in the air, and glow is already the palette's answer to "what
-colour is light in this town". It is the same list the town's own lit windows
-draw from, which is what makes a field read as part of the place rather than
-as something laid over it, and changing palette recolours the whole field with
-no rebuild.
+particle takes one of the palette's face colours — the colours the town is
+literally built out of, so a mote shares a colour you can point at on a wall —
+with the glow colours after them. Changing palette recolours the whole field
+with no rebuild.
+
+Every one is pushed into a band of saturation and lightness on the way
+through, and that step is doing real work rather than tidying. A palette's
+paper white and its near-black ink are both fine wall colours and both useless
+on a mote in the air: one reads as no colour, the other as no particle. Hue is
+never touched, so the result is still recognisably the palette's — a nearly
+monochrome palette comes out as variations on its own hue rather than as grey,
+which is right, because it should look like that town.
 
 Which means **a sprite is a shape, not a picture**: only its alpha is read.
 Put a white silhouette in the folder and the town decides what colour it is.
+
+**Why they stopped coming out white.** Two things, and both are the same
+mistake. Glow used to multiply every channel and let them run past 1.0, which
+is fine for one channel and fatal for three — a warm amber at 2.5× is (2.5,
+2.1, 1.6), all three clip, and the particle renders exactly white. And in
+daylight, pure additive blending onto a bright sky can only ever wash toward
+white however saturated the source is, because a colour has to be *drawn over*
+the sky to read against it.
+
+So the brightest channel is now scaled to a ceiling and never allowed past
+one — scaling preserves hue, clipping destroys it — and the material uses
+premultiplied alpha, where the fragment's own output alpha decides whether it
+blends as an object or adds as a light. Glow slides between the two, weighted
+by the hour: solid and coloured at noon, pure light after dark. Brightness
+beyond the ceiling comes from the bloom pass, because the framebuffer has
+nowhere else to put it.
 
 **Speed spread** varies how fast each one climbs. Zero moves the whole field
 as one sheet, which reads as a scrolling texture rather than as objects. The
