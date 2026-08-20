@@ -58,6 +58,27 @@ that can be started independently. That reframing moves it up hard.
 
 ---
 
+## Where this is, in one paragraph
+
+Tiers 0 and 1 are done. Tier 4 is most of the way there (4.1–4.3 done, 4.4 is
+the recommendation below). Tier 5 has 5.1 and 5.2 plus an unplanned chunk of
+5.6 — roads have height, drape properly, and bridge ground they cannot climb.
+Tier 6 is half done from an unexpected direction: ground is drawable and
+queryable, but nothing conforms to a slope beyond standing on it. Tiers 2, 3,
+7, 8 are untouched. **The next thing to build is 4.4,
+distribute-along-curve**; the argument is at the bottom of this file under "If
+you do one week", and the short version is that every dependency it has landed
+as a side effect of other work.
+
+Three habits are worth inheriting along with the code. Run
+`node development/awesome-town-city-builder/tools/digest.mjs` after anything
+structural — it hashes every road, lot and module across four patterns, and
+"byte-identical" is the bar for a change that should not have moved the town.
+Drive the real gesture rather than calling the method under it; that
+difference has caught four separate bugs now. And when a metric says a fix
+failed, check the metric first — twice this week it was measuring the wrong
+thing and a working fix looked broken.
+
 ## Status
 
 **Tiers 0 and 1 are done. Tier 4 is started: 4.1 and 4.2 are done.** Every
@@ -479,6 +500,41 @@ same family — a value that was correct until the thing underneath it changed:
 - `profile.peak` was recomputed after bridging and wiped it, so eight bridged
   roads reported zero, counted as un-raised, and silently got no columns.
 
+**And a third round, on the tour and on aiming at things.** The pattern is the
+same as the second: no new capability, and each one a first version that was
+wrong in a way only using it could show.
+
+- **The tour left the roads.** Its route was stitched by walking one road end
+  to end and jumping to whichever unused road passed nearest — with no limit
+  on how near that had to be, so where the main roads did not meet, the jump
+  was a straight line across whatever stood between. Measured before the fix:
+  the camera passed inside a building on 10 of 600 samples on a grid town and
+  20 of 600 on old town, and wandered 18m off-road on radial. Replaced with a
+  walk of the road network as a graph — junctions from pairwise road
+  intersection, edges between them, shortest path home to close the loop — so
+  being on a road is structural rather than something to keep checking. Worst
+  off-road distance 11.3m to 1.0m on a grid, and zero samples inside a
+  building on three patterns of four.
+- **Hidden and ghosted layers were still taking clicks**, because raycasting
+  ignores `object.visible` entirely. Ghost is the case that mattered: it
+  exists to keep the town legible while you work on something else, so a
+  faded building that still swallows clicks aimed at a street is precisely
+  what it was meant to prevent.
+- **Curve hit tests were aiming at the wrong place.** They dropped the ray to
+  the plane `y = 0` and compared in plan, which is exact on flat ground at
+  origin height and wrong by the height of the hill otherwise. Aiming
+  *exactly* at control points eighteen metres up reported distances of 14.5
+  to 35.7 metres against a 6.4 metre threshold — 6 of 6 missed. This is what
+  "adding points is finicky" turned out to be: not imprecision, but a test
+  asking about a patch of ground beyond the hill.
+- **`flatten` emits nothing between two corner points**, so a two-point road
+  offered a hit test only its own ends. Same missing samples as the road
+  draping bug, in a second consumer, which is what finally moved `densify`
+  into curve.js to be shared.
+- **Shift-click adds a control point.** Double-click had a race no aiming
+  fixes: the first click of the pair runs the ordinary handler and can
+  deselect the curve, so the second arrives with nothing selected.
+
 **What is still missing from the road tier**: 5.3 junctions, 5.4 width
 profiles, 5.5 road types. 5.6 (roads conform to terrain) is now *mostly* done
 and from an unplanned direction — roads drape properly, and bridge what they
@@ -780,15 +836,32 @@ Slots into `algorithms.js` beside the nine arrangements already there, and
 needs nothing new from the component system. This is what puts lamp posts
 down a street, fence posts along a boundary, and pylons across a valley.
 
-**The strongest candidate on this list now**, and it moved up without being
-touched. Three things landed underneath it: `resample` in curve.js already
-spaces points evenly by arc length; the elevation work means a curve can
-answer "how high am I here" as well as "where am I here", so a distributed
-object on a viaduct lands on the deck rather than under it; and the assembly
-sizing fix means a lamp post asked for a size actually takes it. The
-railings, balustrades and pylons in the curve.js header have had nothing
-standing in their way for a while — this is the item that turns four
-consumers of the curve primitive into a reason to have built it.
+**This is the next thing to build**, and it moved up without ever being
+touched. Five things landed underneath it as side effects of other work:
+
+- `resample` in curve.js already spaces points evenly by arc length, which is
+  the whole algorithm's core and the part that would otherwise need writing.
+- `densify` is now shared and handles the case that breaks naive samplers — a
+  straight run between two corner points, which `flatten` correctly emits
+  nothing between.
+- Curves answer height as well as plan, so a post on a slope lands on the
+  slope.
+- `elevation.js` can say where a road's *deck* is, so a railing on a viaduct
+  goes on the viaduct rather than at the ground under it.
+- The assembly sizing fix means a component asked for a size actually takes
+  it, which is what stopped a lamp post rendering at its native two metres
+  whatever it was asked for.
+
+**Aim at viaduct railings first.** They are the case that needs a curve's
+height rather than its plan, which is the part that did not exist a week ago,
+and they are visibly missing right now — a raised road with no edge to it is
+the most obviously unfinished thing in the tool. Lamp posts down a street are
+the easier second, and prove the same code against a draped curve rather than
+a raised one.
+
+Four curves already exist to consume it: roads, the boundary, landform
+outlines and held roads. That is the argument for having built the primitive
+first, finally cashed.
 
 ### 4.5 Semantic anchors
 Promote `base`/`top`/`sides` into queryable tagged surfaces: "wall faces
@@ -1069,6 +1142,23 @@ Take the roads work as the pattern for all of it: an artifact stored in
 `params`, generated first and edited second, a frozen name at the moment of
 authoring, an explicit rule for every way it can contradict what is generated
 around it, and a digest run to prove the untouched case did not move.
+
+## Starting cold
+
+If you are picking this up in a fresh context, the fastest way in:
+
+1. `node development/awesome-town-city-builder/tools/serve.js 5182`, or the
+   `awesome-town` entry in `.claude/launch.json`.
+2. Read `README.md` under "How it fits together" — it is the system as it
+   stands, and it says at the top what belongs there and what does not.
+3. Read this file's "Where this is, in one paragraph" and then 4.4 above.
+4. `node development/awesome-town-city-builder/tools/digest.mjs` before you
+   start, so you have the baseline to compare against.
+
+`cc` in the browser console is the whole app — `cc.state.params`,
+`cc.markAll()`, `cc.flush()`, `cc.layers`, `cc.curveEditor`, `cc.liftAt`. It
+is how every measurement quoted in this file was taken, and it is faster than
+adding logging.
 
 ## The one to be impatient about
 

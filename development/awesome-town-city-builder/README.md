@@ -422,6 +422,40 @@ rolled once at build time, so ten thousand cost one uniform write a frame.
 Everything expressive is a uniform too, so only the count, the sprite pool and
 the town's extent ever rebuild the buffer.
 
+### The tour drives the streets
+
+`T` sends a camera down the roads rather than orbiting the town. The route is
+a walk of the **road network as a graph**: junctions found by intersecting
+every pair of roads, edges being the pieces of road between them. At a junction
+the walk turns down a different street; at a dead end the only edge available
+is the way back out; and when it has gone far enough, the shortest way home
+*along the streets* is appended, so the loop closes on real roads.
+
+That structure is the point, because the failure it replaces was not a tuning
+problem. The route used to be stitched by walking one road end to end and then
+jumping to whichever unused road passed nearest — with no limit on how near
+that had to be. Where the main roads happened to meet it looked fine; where
+they did not, the jump was a straight line drawn across whatever stood in
+between, and the camera flew through buildings. A graph removes the
+possibility rather than bounding it: every edge is a piece of an actual road,
+so any walk of it is on the network by construction and there is no hop left
+to get wrong.
+
+Three things then decide whether it reads as a shot rather than a debug
+flythrough, and all three are about smoothness rather than the path.
+Centripetal Catmull-Rom instead of uniform, because road points are junctions
+and not samples, and uniform parameterisation answers uneven spacing with
+cusps exactly where a junction is. The route resampled at a fixed spacing
+before it becomes a curve. And the eye and its aim low-passed rather than read
+raw — a camera operator's hand, arriving everywhere the curve goes slightly
+late and without the corner, with the aim lagging harder than the body so a
+turn reads as looking into it.
+
+**Aim** is metres of climb per ten metres of look-ahead, so one setting means
+the same thing whether the tour is creeping or racing. It defaults high enough
+to put the upper floors of a building in frame from windscreen height, because
+level with the tarmac a street mostly shows its own vanishing point.
+
 ### Holding things still
 
 The tool's whole reason to exist is that **authored decisions survive

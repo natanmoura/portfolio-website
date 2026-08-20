@@ -150,10 +150,14 @@ const ENV_DEFAULTS = {
   // climbs with distance instead of sitting level with the road, this is what
   // makes the default tour look up at the town rather than down the street at
   // the vanishing point.
-  flybyHeight: 2.6,
-  flybyLookAhead: 16,
+  flybyHeight: 2.4,
+  flybyLookAhead: 14,
   flybyBank: 0.8,
-  flybyPitch: 2.2,
+  // Metres of climb per ten metres of look-ahead. At this look-ahead that is
+  // about twenty-five degrees above the road, which puts the upper floors of
+  // a normal building in frame from a windscreen — the tour is for looking at
+  // the town, and level with the tarmac it mostly shows the vanishing point.
+  flybyPitch: 4.5,
   flybySmoothing: 6,
 };
 
