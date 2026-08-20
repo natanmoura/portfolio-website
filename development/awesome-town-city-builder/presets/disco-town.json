@@ -129,7 +129,7 @@
     "flybyLookAhead": 16,
     "flybyBank": 0.8,
     "flybyPitch": 1.5,
-    "groundCustom": false
+    "groundColor": "#b9a4d6"
   },
   "overrides": {}
 }

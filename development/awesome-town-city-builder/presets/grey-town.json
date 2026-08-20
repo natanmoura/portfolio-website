@@ -137,7 +137,7 @@
     "collageChance": 0.82,
     "materialChance": 0.16,
     "glassChance": 0.3,
-    "groundCustom": false
+    "groundColor": "#8f918c"
   },
   "overrides": {
     "b9_8_m5": {

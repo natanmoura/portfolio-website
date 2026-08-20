@@ -326,11 +326,10 @@ export const CONTROL_DEFS = [
       },
       {
         key: 'groundColor',
-        toggleKey: 'groundCustom',
         label: 'Ground colour',
-        type: 'colorToggle',
+        type: 'color',
         cheap: true,
-        help: 'The colour of the ground itself. Off, it follows the palette. On, it is whatever you pick -- green for a landscape, grey for a plate, sand for a desert. Night is this colour dimmed rather than a second swatch to keep in step.',
+        help: 'The colour of the ground itself -- grass green to start, grey for a plate, sand for a desert. Night is this colour dimmed rather than a second swatch to keep in step.',
       },
     ],
   },

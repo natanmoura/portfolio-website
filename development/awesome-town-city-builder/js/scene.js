@@ -473,16 +473,14 @@ export class Stage {
     this.scene.fog.near = base * mix(1.5, 0.02, amount);
     this.scene.fog.far = base * mix(7.0, 0.75, amount);
 
-    // The palette's ground, or one you chose. Same shape as the sky override
-    // above it, including how night is derived: a palette knows what its own
-    // ground looks like after dark, and a colour you picked does not, so the
-    // night version of a custom colour is that colour dimmed rather than a
-    // second swatch to keep in step with the first.
-    const groundDay = new THREE.Color(params.groundCustom ? params.groundColor : palette.ground.day);
-    const groundNight = params.groundCustom
-      ? groundDay.clone().multiplyScalar(0.14)
-      : new THREE.Color(palette.ground.night);
-    this.ground.setColor(groundNight.lerp(groundDay, day));
+    // The ground is whatever colour the scene says, full stop. It used to be
+    // the palette's unless a checkbox said otherwise, which made two controls
+    // out of one question — and the palette answer is still available, since
+    // every shipped preset now carries the exact colour its palette used to
+    // hand it. Night is that colour dimmed rather than a second swatch to
+    // keep in step with the first, the same as the sky and fog overrides.
+    const groundDay = new THREE.Color(params.groundColor || palette.ground.day);
+    this.ground.setColor(groundDay.clone().multiplyScalar(0.14).lerp(groundDay, day));
     // Tarmac darkens at night the same way, and takes the columns with it.
     const road = new THREE.Color(params.roadColor || '#2a2723');
     this.ground.setRoadColor(road.clone().multiplyScalar(0.22).lerp(road, day));

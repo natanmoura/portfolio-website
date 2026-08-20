@@ -75,14 +75,13 @@ const ENV_DEFAULTS = {
   fog: 0.22,
   fogCustom: false,
   fogColor: '#c8c2b2',
-  // Green by default, which is the one thing the palettes never gave you: all
-  // eight of them ship a ground somewhere between paper and sand, so a town in
-  // a landscape was not a look the tool could reach without editing a palette.
-  // On rather than off, because a default that has to be switched on is not
-  // really a default. Shipped presets carry `groundCustom: false` explicitly,
-  // so each one keeps the ground its palette always gave it.
-  groundCustom: true,
-  groundColor: '#6d8c4a',
+  // Grass green, which is the one thing the palettes never gave you: all of
+  // them ship a ground somewhere between paper and sand, so a town in a
+  // landscape was not a look the tool could reach without editing a palette.
+  // No paired "custom" switch — a colour with an off state that means "ask
+  // the palette instead" is two controls where one will do, and every shipped
+  // preset now carries the colour its palette used to hand it.
+  groundColor: '#5f8f3e',
   // The tarmac, which was a hardcoded hex in the material until now — no
   // palette carries a road colour, so this has no "off" state to fall back to
   // and starts on the exact shade it was baked at.
@@ -2324,7 +2323,10 @@ function refreshSceneMenu() {
 // meant *less* bridging. `roadEase` replaces it running the other way, so
 // zero is the identity. A stored value would be read as an easing amount and
 // mean something entirely different, which is worse than not being there.
-const RETIRED = ['particleColor', 'particleTint', 'particleTintAmount', 'roadGrade'];
+// `groundCustom` was the off switch beside the ground colour. Left in a saved
+// scene it would do nothing, which is the least harmful failure but still a
+// setting in a file that looks like it should matter.
+const RETIRED = ['particleColor', 'particleTint', 'particleTintAmount', 'roadGrade', 'groundCustom'];
 
 function loadParams(saved) {
   const params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(saved || {}) };

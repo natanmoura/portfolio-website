@@ -229,6 +229,14 @@ roads and the boundary already had.
 shelves with hard risers between them. One slider turns a swell into rice
 paddies, a strip mine or a stack of card.
 
+**Ground colour** is a plain swatch, grass green to start, with no paired
+"custom" switch. Every palette ships a ground somewhere between paper and
+sand, so a town in a landscape was not a look the tool could reach without
+editing one — and a colour whose off state means "ask the palette instead" is
+two controls where one will do. The palette answer is not lost: every shipped
+preset carries the exact colour its palette used to hand it. Night is that
+colour dimmed rather than a second swatch to keep in step.
+
 Under the hood the drawn field is rastered once at the ground mesh's own cell
 size rather than evaluated per query -- a point-in-polygon plus a
 distance-to-outline is fifty-odd edge tests and the mesh alone asks a quarter
