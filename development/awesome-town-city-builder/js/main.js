@@ -2319,7 +2319,12 @@ function refreshSceneMenu() {
 // Kept as a list rather than removed silently so the reason is written down:
 // particles briefly had a colour mode, a tint and a strength, and now take
 // the palette's glow colours and nothing else.
-const RETIRED = ['particleColor', 'particleTint', 'particleTintAmount'];
+// `roadGrade` was a maximum slope in degrees, which is the number the
+// algorithm wants and exactly backwards as a control — larger meant steeper
+// meant *less* bridging. `roadEase` replaces it running the other way, so
+// zero is the identity. A stored value would be read as an easing amount and
+// mean something entirely different, which is worse than not being there.
+const RETIRED = ['particleColor', 'particleTint', 'particleTintAmount', 'roadGrade'];
 
 function loadParams(saved) {
   const params = { ...DEFAULTS, ...ENV_DEFAULTS, ...(saved || {}) };

@@ -131,11 +131,12 @@ export const DEFAULTS = {
   // default and a no-op on flat terrain, so nothing that predates drawn
   // ground notices it. See elevation.js.
   roadBridging: true,
-  // The steepest a road may run, in degrees. One notion, used both for
-  // bridging ground it cannot climb and for the ramps at a raised road's
-  // ends. Eighteen is far steeper than a real road and about right for a town
-  // you look at rather than drive.
-  roadGrade: 18,
+  // How far a road is willing to leave the ground to keep its own slope
+  // reasonable. Zero glues it to the terrain exactly; higher refuses steeper
+  // ground, eases the descent over a longer run, and leaves a taller gap for
+  // the columns to fill. See elevation.js.
+  roadEase: 0.3,
+  roadColumnWidth: 0.5,
   // How steep the ground under a plot may be, in degrees, before nothing is
   // built there. Ninety is off — no slope can exceed it — which is what every
   // scene saved before this had.

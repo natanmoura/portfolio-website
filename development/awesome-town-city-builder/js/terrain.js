@@ -383,26 +383,67 @@ export class Ground {
     const pos = [];
     const nor = [];
     const spacing = Math.max(2, params.roadColumnSpacing || 8);
+    // One thickness for every pier in the town rather than scaling with the
+    // road. A highway is held up by two and a street by one, so letting the
+    // wide road also have fat columns would say the same thing twice and
+    // blunt the distinction the count is already making.
+    const radius = Math.max(0.05, (params.roadColumnWidth ?? 0.5) / 2);
     const sides = 6;
 
     for (const { road, dense } of decks) {
-      const radius = Math.max(0.12, Math.min(1.2, road.width * 0.12));
-      let travelled = spacing; // first bent one full span in, not at the ramp toe
+      // Arc length along the drawn centreline, so bents land at genuinely
+      // equal intervals. Walking vertices instead would crowd them wherever a
+      // short segment got subdivided, since the subdivision is per segment.
+      const run = [0];
       for (let i = 1; i < dense.length; i++) {
+        run.push(run[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]));
+      }
+      const total = run[run.length - 1];
+      if (!(total > 0)) continue;
+
+      // A whole number of bays across the whole road, so the spacing comes out
+      // exact and the end bents sit at the ends — rather than wherever the
+      // walk happened to have accumulated a full span, which put the first
+      // one at an arbitrary offset and left a ragged gap at the far end.
+      const bays = Math.max(1, Math.round(total / spacing));
+      // **A highway stands on a pair, one under each edge of its deck; a
+      // street stands on a single pier down the middle of its own path.**
+      // That is the whole difference between them, and it is enough: two thin
+      // legs under a wide deck reads as a viaduct, where one under the middle
+      // of it would read as a plank balanced on a stick.
+      const pair = Boolean(road.main);
+      const offset = pair ? Math.max(0, road.width / 2 - radius * 1.6) : 0;
+
+      for (let b = 0; b <= bays; b++) {
+        const d = (total * b) / bays;
+        let i = 1;
+        while (i < run.length - 1 && run[i] < d) i++;
         const a = dense[i - 1];
-        const b = dense[i];
-        const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        if (seg <= 1e-9) continue;
-        travelled += seg;
-        if (travelled < spacing) continue;
-        travelled = 0;
+        const c = dense[i];
+        const span = Math.max(1e-6, run[i] - run[i - 1]);
+        const t = Math.min(1, Math.max(0, (d - run[i - 1]) / span));
+        const x = a[0] + (c[0] - a[0]) * t;
+        const z = a[1] + (c[1] - a[1]) * t;
         // Nothing to hold up where the deck is already on the ground, which is
         // most of a ramp and all of a road that only rises in the middle.
-        if (b[2] <= GROUNDED) continue;
+        if (a[2] + (c[2] - a[2]) * t <= GROUNDED) continue;
         // Top from the deck's own surface height rather than recomputed from
         // the ground, so a pier always meets the underside of the road it is
         // holding up instead of ending a little under or through it.
-        prism(pos, nor, b[0], b[1], this.heightAt(b[0], b[1]) - 0.5, b[3] + deckLift, radius, sides);
+        const top = a[3] + (c[3] - a[3]) * t + deckLift;
+
+        // Across the road, from the direction of travel here.
+        const dx = c[0] - a[0];
+        const dz = c[1] - a[1];
+        const len = Math.hypot(dx, dz) || 1;
+        const nx = -dz / len;
+        const nz = dx / len;
+
+        for (const side of pair ? [-1, 1] : [0]) {
+          const px = x + nx * offset * side;
+          const pz = z + nz * offset * side;
+          prism(pos, nor, px, pz, this.heightAt(px, pz) - 0.5, top, radius, sides);
+        }
       }
     }
 

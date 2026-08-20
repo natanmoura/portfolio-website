@@ -210,19 +210,34 @@ const STEEPEST = 2;
 
 // --- bridging ---------------------------------------------------------------
 
-// The steepest a road may run, as a rise over run, from the scene's own
-// setting in degrees.
+// One slider decides everything about how a road meets a hill, and it runs
+// from "glued to the terrain" to "long gradual viaducts".
 //
-// This is the single most consequential number in the file and it wants to be
-// a control rather than a constant. Set it to a real road's limit — a tenth,
-// one in ten — and any terrain worth looking at exceeds it nearly everywhere,
-// so the whole town ends up on stilts: measured, ordinary noise hills bridged
-// ten roads out of eleven and stood up sixty-seven columns. The useful
-// setting is much steeper than a highway engineer would allow, because the
-// question here is "does this read as a road climbing a hill" and the answer
-// stays yes far past the point where a lorry would object.
-const gradeOf = (params) =>
-  Math.tan((Math.min(70, Math.max(1, params.roadGrade ?? 18)) * Math.PI) / 180);
+// It was a maximum grade in degrees before, which is the number the algorithm
+// actually wants but exactly backwards as a control: larger meant steeper
+// meant *less* bridging, and zero would have meant a road that cannot climb
+// at all. Turning it round so that zero is the identity — the road lies on
+// the ground, nothing is bridged, nothing is smoothed — makes every increase
+// mean one thing: the descent gets longer, gentler, and stands further off
+// the hill, with more column underneath it.
+//
+// Both halves of that come from the same number. The grade limit falls as the
+// slider rises, so the road refuses steeper and steeper ground; and the
+// smoothing radius rises with it, so the descent it substitutes is rounded
+// over a longer run.
+const EASE_MIN_DEG = 70; // just short of a cliff: effectively refuse nothing
+const EASE_MAX_DEG = 4;  // a motorway ramp: refuse almost everything
+// A smoothstep's steepest point is one and a half times its average slope.
+// Every ramp is built at the grade divided by this and then curved back up to
+// it, so the number the slider names is the slope the road actually reaches.
+const S_PEAK = 1.5;
+
+const easeOf = (params) => Math.min(1, Math.max(0, params.roadEase ?? 0.3));
+const gradeOf = (params) => {
+  const t = easeOf(params);
+  const deg = EASE_MIN_DEG + (EASE_MAX_DEG - EASE_MIN_DEG) * t;
+  return Math.tan((deg * Math.PI) / 180);
+};
 // How far apart the ground is sampled along a road. Finer than the terrain
 // mesh can express, so a cliff edge is never stepped over.
 const BRIDGE_STEP = 1;
@@ -289,10 +304,65 @@ function bridgeTerrain(road, groundAt, grade) {
     ground[k] = peak;
   }
 
-  const drop = grade * step;
+  // The sweeps run at a *gentler* grade than the one asked for, because the
+  // S below spends its slope unevenly: a smoothstep's steepest point is one
+  // and a half times its average, so a ramp built at two thirds of the limit
+  // comes out peaking at exactly the limit once it is curved. Building at the
+  // limit and then curving would overshoot it by half.
+  const drop = (grade / S_PEAK) * step;
   const surface = Float32Array.from(ground);
   for (let k = 1; k < n; k++) surface[k] = Math.max(surface[k], surface[k - 1] - drop);
   for (let k = n - 2; k >= 0; k--) surface[k] = Math.max(surface[k], surface[k + 1] - drop);
+
+  // **The two sweeps give the right line and the wrong shape.** What comes out
+  // is piecewise linear: flat along the top of a plateau, a dead-straight ramp
+  // at exactly the grade, then flat again, with a hard crease at each end. A
+  // road does not leave a hill that way. It eases out of the flat, runs at its
+  // steepest in the middle, and eases back in.
+  //
+  // The obvious repair — relax the surface toward its neighbours a few hundred
+  // times — does not work, and it is worth saying why, because it looks like
+  // it should. Averaging a straight line returns the same straight line, so
+  // the only thing it can touch is the two corners; and the upper corner sits
+  // exactly on the plateau, where the clamp that keeps the road above ground
+  // pins it. The result is a ramp with one slightly rounded foot and a crease
+  // at the top, which is what it produced: a slope profile reading 50°, 50°,
+  // 50°, 50°, 50°, 50°, 0°.
+  //
+  // So each straight run is replaced outright. Walk the surface, find every
+  // maximal stretch that climbs or falls without turning round, and rewrite
+  // its interior as a smoothstep between the two ends it already has. That
+  // gives zero slope at both ends by construction — no crease at the lip, no
+  // crease at the foot — and the peak lands in the middle where the ground is
+  // furthest below, which is exactly where a bridge wants its tallest columns.
+  //
+  // Nothing here has to cut into the hill to do it. The curve leaves the lip
+  // at plateau height and only starts falling once it is out over open air,
+  // where the ground is far below and no constraint is binding.
+  let i = 0;
+  while (i < n - 1) {
+    const dir = Math.sign(surface[i + 1] - surface[i]);
+    if (dir === 0) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < n - 1 && Math.sign(surface[j + 1] - surface[j]) === dir) j++;
+    const span = j - i;
+    if (span >= 2) {
+      const a = surface[i];
+      const b = surface[j];
+      for (let k = i + 1; k < j; k++) {
+        const t = (k - i) / span;
+        const eased = a + (b - a) * (t * t * (3 - 2 * t));
+        // Still never below the ground. The S sags under the straight line
+        // through the first half of a run, and while that stays clear of open
+        // air it can graze a rise the run was passing over.
+        surface[k] = eased > ground[k] ? eased : ground[k];
+      }
+    }
+    i = j;
+  }
 
   // Both arrays are kept: the surface is what gets interpolated (see
   // `sampleBridge`) and the ground is the fallback for callers that cannot
@@ -335,7 +405,11 @@ export function liftRoads(roads, params, groundAt = null) {
     // What the ground forces, independent of what anyone asked for. Runs even
     // on an authored road: raising a road by hand says how high you want it,
     // not that you are willing to have it dive through a cliff on the way.
-    if (groundAt && params.roadBridging !== false) {
+    // Zero easing is the identity: the road lies on the ground exactly as the
+    // terrain does, nothing is bridged and nothing is smoothed. Short-circuited
+    // rather than left to a very permissive grade, so "glued" means glued
+    // even against a sheer face.
+    if (groundAt && params.roadBridging !== false && easeOf(params) > 0) {
       const bridged = bridgeTerrain(road, groundAt, gradeOf(params));
       if (bridged) {
         road.profile.bridge = bridged.bridge;

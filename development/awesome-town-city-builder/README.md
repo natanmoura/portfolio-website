@@ -275,11 +275,18 @@ by itself -- that is what the difference between two neighbouring points is.
 ### Roads that cannot climb, bridge
 
 A road follows the ground while the ground is climbable and leaves it when it
-is not. **Max road slope** in the Streets panel is the only input: ground
-steeper than that gets a deck across it and columns underneath, ground gentler
-than it gets nothing at all. There is no threshold anywhere deciding "this is
-steep enough for a bridge" — a ravine, a cliff approach and a gentle hill are
-all the same rule producing different answers.
+is not. **Slope easing** in the Streets panel is the only input. At zero the
+road is glued to the terrain, over every bump and down every cliff. Raise it
+and the road refuses steeper and steeper ground: the descent off a hill
+stretches out, and the gap underneath fills with columns. There is no
+threshold anywhere deciding "this is steep enough for a bridge" — a ravine, a
+cliff approach and a gentle hill are all the same rule producing different
+answers.
+
+Measured across the slider on a mesa with 87° sides: at 0 the road runs at 87°
+with no gap and no columns; at 0.2 it runs at 57° with a 17.8m gap; at 1 it
+runs at 4° with a 29.2m gap. The slope it reaches is always exactly the figure
+the setting names.
 
 The mechanism is one classical sweep. Sample the ground along the road, walk
 forward limiting how fast the surface may drop, walk back doing the same
@@ -305,6 +312,47 @@ Three things about it are worth knowing because each was a bug first:
   ten roads of eleven. The useful setting is far steeper than a highway
   engineer would allow, because the question is whether it reads as a road
   climbing a hill.
+
+### The descent is an S, not a ramp
+
+The two sweeps give the right line and the wrong shape: flat along the top,
+a dead-straight ramp at exactly the grade, flat again, with a hard crease at
+each end. A road does not leave a hill that way.
+
+The obvious repair — relax the surface toward its neighbours a few hundred
+times — does not work, and it is worth knowing why because it looks like it
+should. Averaging a straight line returns the same straight line, so the only
+thing it can touch is the two corners; and the upper corner sits exactly on
+the plateau, where the clamp keeping the road above ground pins it. What comes
+out is a ramp with one slightly rounded foot and a crease at the top: a slope
+profile reading 50°, 50°, 50°, 50°, 50°, 50°, 0°.
+
+So each straight run is replaced outright. Walk the surface, find every
+maximal stretch that climbs or falls without turning round, and rewrite its
+interior as a smoothstep between the two ends it already has. That gives zero
+slope at both ends by construction and puts the peak in the middle, where the
+ground is furthest below and the columns are tallest. The same profile now
+reads 21°, 43°, 50°, 48°, 35°, 6°, 0°.
+
+A smoothstep's steepest point is one and a half times its average, so the
+sweeps run at two thirds of the limit and the curve brings it back to exactly
+the limit. And nothing has to cut into the hill: the curve leaves the lip at
+plateau height and only starts falling once it is out over open air, where no
+constraint is binding.
+
+### What holds a road up
+
+**Column spacing** divides each road into a whole number of equal bays, so
+supports always come out evenly spaced end to end rather than starting
+wherever a walk had accumulated a full span. **Column thickness** is one
+figure for the whole town.
+
+A **highway stands on a pair**, one under each edge of its deck. A **street
+stands on a single support down the middle** of its own path. That is the
+whole difference between them and it is enough: two thin legs under a wide
+deck reads as a viaduct, where one under the middle would read as a plank
+balanced on a stick. Letting the wide road also have fat columns would say the
+same thing twice and blunt the distinction the count is already making.
 
 ### Roads follow the ground they are on
 
