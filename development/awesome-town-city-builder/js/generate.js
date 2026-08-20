@@ -157,10 +157,20 @@ export const DEFAULTS = {
   scrollShare: 0.28,
   swapShare: 0.32,
   flickerShare: 0.16,
-  // Terrain
+  // Terrain. `terrainMode` picks which of the two kinds of ground is in
+  // effect — noise you tune, or shapes you place — and they never mix. See
+  // landform.js. A scene saved before this existed has neither field, reads
+  // as hills with no terracing, and generates exactly as it did.
+  terrainMode: 'hills',
   terrainHeight: 0,
   terrainScale: 0.6,
   terrainDetail: 3,
+  // Flat shelves with hard risers between them, applied to whichever kind of
+  // ground is in effect. Zero is off, which is what every existing scene has.
+  terrainStep: 0,
+  // The drawn ground itself: closed curves carrying a height and a falloff,
+  // stacked in order. Empty until you place one.
+  landforms: [],
   // How much of each module kind exists across the town.
   moduleMix: { box: 44, octagon: 13, cylinder: 11, pillars: 7, pillars8: 5, post: 5, sphere: 4, spin: 16 },
   roofMix: { flat: 28, pyramid: 18, gable: 20, cone: 16, dome: 18 },

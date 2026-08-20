@@ -128,7 +128,8 @@
     "flybyHeight": 3.2,
     "flybyLookAhead": 16,
     "flybyBank": 0.8,
-    "flybyPitch": 1.5
+    "flybyPitch": 1.5,
+    "groundCustom": false
   },
   "overrides": {}
 }

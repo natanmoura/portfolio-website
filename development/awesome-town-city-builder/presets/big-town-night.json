@@ -136,7 +136,8 @@
     "flybyPitch": 0.8,
     "collageChance": 0.82,
     "materialChance": 0.16,
-    "glassChance": 0.3
+    "glassChance": 0.3,
+    "groundCustom": false
   },
   "overrides": {
     "b9_8_m5": {

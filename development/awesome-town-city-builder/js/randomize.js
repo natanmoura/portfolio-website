@@ -134,6 +134,11 @@ export function randomParams(current, locks = null) {
   // --- world --------------------------------------------------------------
   // Both terrain relief and water are occasional accents, kept low even when
   // they do turn up, so the buildings stay the thing being looked at.
+  //
+  // `terrainMode` and `landforms` are deliberately absent: they carry through
+  // from `current` untouched, so the dice can never flatten ground somebody
+  // placed by hand. A drawn town rolls these three and simply does not use
+  // them, which is exactly what should happen to a slider that is not in play.
   const hilly = chance(0.2);
   p.terrainHeight = hilly ? range(1, 5) : 0;
   p.terrainScale = range(0.3, 2.2);

@@ -231,7 +231,10 @@ export class Stage {
     this.extent = Math.max(Math.max(params.cols, params.rows) * params.cell, townSpan);
     this.ground.update(params, townSpan);
 
-    this.shadowSpan = this.extent * 0.8 + 12 + (params.terrainHeight || 0) * 2;
+    // Whatever the ground actually does vertically, not the hill slider —
+    // drawn ground can be forty metres tall with `terrainHeight` at zero, and
+    // a shadow frustum that did not know would clip every cliff in town.
+    this.shadowSpan = this.extent * 0.8 + 12 + (this.ground.relief || 0) * 2;
     this.fitShadows();
   }
 
@@ -470,9 +473,16 @@ export class Stage {
     this.scene.fog.near = base * mix(1.5, 0.02, amount);
     this.scene.fog.far = base * mix(7.0, 0.75, amount);
 
-    this.ground.setColor(
-      new THREE.Color(palette.ground.night).lerp(new THREE.Color(palette.ground.day), day)
-    );
+    // The palette's ground, or one you chose. Same shape as the sky override
+    // above it, including how night is derived: a palette knows what its own
+    // ground looks like after dark, and a colour you picked does not, so the
+    // night version of a custom colour is that colour dimmed rather than a
+    // second swatch to keep in step with the first.
+    const groundDay = new THREE.Color(params.groundCustom ? params.groundColor : palette.ground.day);
+    const groundNight = params.groundCustom
+      ? groundDay.clone().multiplyScalar(0.14)
+      : new THREE.Color(palette.ground.night);
+    this.ground.setColor(groundNight.lerp(groundDay, day));
     this.ground.setGridOpacity(0.05 + day * 0.1);
 
     // Held so the render loop can refresh the pass every frame. Focus follows

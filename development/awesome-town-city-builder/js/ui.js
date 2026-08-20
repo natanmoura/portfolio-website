@@ -282,6 +282,12 @@ export const CONTROL_DEFS = [
     tab: 'world',
     items: [
       {
+        key: 'terrainTools',
+        label: 'Ground',
+        type: 'mount',
+        help: 'Which kind of ground the town stands on. Hills are rolled from a seed and tuned with the three sliders below. Drawn is shapes you place, each with its own height and its own falloff. They never mix -- one or the other, so a slider can never move ground you put down by hand.',
+      },
+      {
         key: 'terrainSeed',
         label: 'Terrain seed',
         type: 'seed',
@@ -292,6 +298,21 @@ export const CONTROL_DEFS = [
       R('terrainHeight', 'Hill height', 0, 20, 0.1, 'How far the ground rises and falls. Buildings stay planted on a slope.', { live: false, hard: [0, 300] }),
       R('terrainScale', 'Hill size', 0.1, 4, 0.01, 'How wide the bumps are. Large gives a few broad hills the town drapes over.', { live: false, hard: [0.02, 40] }),
       R('terrainDetail', 'Roughness', 1, 5, 1, 'Layers of noise. One is smooth swells, five adds fine crumple on top.', { live: false, hard: [1, 8] }),
+      R('terrainStep', 'Terracing', 0, 8, 0.1, 'Cuts the ground into flat shelves this far apart, with a hard riser between each. Zero is off. Works on hills and on drawn ground alike, so one slider turns any slope into rice paddies, a strip mine or a stack of card.', { live: false, hard: [0, 80] }),
+      {
+        key: 'landformTools',
+        label: 'Drawn ground',
+        type: 'mount',
+        help: 'Shapes you place, stacked in the order they were added. The outline you draw is the flat top and the falloff is the slope down to whatever is underneath, so a falloff near zero is a cliff. Show the Curves layer to drag the points.',
+      },
+      {
+        key: 'groundColor',
+        toggleKey: 'groundCustom',
+        label: 'Ground colour',
+        type: 'colorToggle',
+        cheap: true,
+        help: 'The colour of the ground itself. Off, it follows the palette. On, it is whatever you pick -- green for a landscape, grey for a plate, sand for a desert. Night is this colour dimmed rather than a second swatch to keep in step.',
+      },
     ],
   },
   {

@@ -51,6 +51,14 @@ import { CurveView } from './curveview.js';
 import { CurveEditor } from './curveedit.js';
 import { curveFromPolyline } from './curve.js';
 import { BOUNDARY_ID, BOUNDARY_SHAPES, BOUNDARY_LABEL, boundaryShape, defaultHalf, regionFor } from './region.js';
+import {
+  LANDFORM_SHAPES,
+  LANDFORM_LABEL,
+  landformShape,
+  landformKey,
+  landformRadius,
+} from './landform.js';
+import { HILLS, DRAWN, TERRAIN_MODE_LABEL } from './terrain.js';
 
 const APP_NAME = 'City Builder';
 
@@ -65,6 +73,14 @@ const ENV_DEFAULTS = {
   fog: 0.22,
   fogCustom: false,
   fogColor: '#c8c2b2',
+  // Green by default, which is the one thing the palettes never gave you: all
+  // eight of them ship a ground somewhere between paper and sand, so a town in
+  // a landscape was not a look the tool could reach without editing a palette.
+  // On rather than off, because a default that has to be switched on is not
+  // really a default. Shipped presets carry `groundCustom: false` explicitly,
+  // so each one keeps the ground its palette always gave it.
+  groundCustom: true,
+  groundColor: '#6d8c4a',
   bloomOn: true,
   bloomStrength: 1,
   shadows: true,
@@ -333,6 +349,7 @@ async function boot() {
     },
     onDelete: (curve) => {
       if (curve.id === BOUNDARY_ID) return setBoundary(null);
+      if (curve.kind === 'landform') return removeLandform(curve.id);
       removeRoad(curve.id);
     },
     // Editing a curve is editing the town. Which curve decides what that
@@ -354,6 +371,22 @@ async function boot() {
         markAll();
         syncBoundaryTools();
         noteStatus('Boundary edited');
+        return;
+      }
+      if (curve.kind === 'landform') {
+        // Same `source` rule as the boundary and for the same reason: a shape
+        // you have dragged is no longer the round one the button minted, and
+        // the list row should stop claiming it is. The height and falloff ride
+        // through the generic curve edits untouched, since every one of them
+        // spreads the whole object.
+        state.params.landforms = (state.params.landforms || []).map((l) =>
+          l.id === curve.id ? { ...structuredClone(curve), source: null } : l
+        );
+        history?.record('landform');
+        extentKey = '';
+        markAll();
+        syncLandformTools();
+        noteStatus('Ground edited');
         return;
       }
       holdRoad(curve, 'moved');
@@ -486,6 +519,13 @@ function rebuildAll() {
     // seed does not would otherwise leave this key unchanged and the ground
     // never rebuilt.
     p.terrainSeed,
+    p.terrainMode,
+    p.terrainStep,
+    // Drawn ground is rastered inside `setExtent`, so moving one point of one
+    // landform has to reach this key or the raster the whole town stands on
+    // never gets rebuilt. Hashed rather than stringified: the answer has to
+    // change for half a metre of drag and must not carry a kilobyte of points.
+    landformKey(p.landforms),
     Math.ceil(span),
   ].join('|');
   if (key !== extentKey) {
@@ -514,8 +554,12 @@ function rebuildAll() {
       kind: 'road',
     });
   });
-  // The boundary goes in last so it draws over the roads, and it is the one
-  // curve in the list that came from the scene rather than from a generator.
+  // Landforms next, then the boundary last, so both draw over the roads. Both
+  // came from the scene rather than from a generator, and both are things you
+  // reach for while the streets are in the way rather than the other way
+  // round. Drawn ground only: a landform the town is not standing on is not
+  // something to trip over a handle for.
+  if (state.params.terrainMode === DRAWN) curves.push(...(state.params.landforms || []));
   if (state.params.boundary) curves.push(state.params.boundary);
   curveView?.set(curves);
   curveEditor?.setCurves(curves);
@@ -1492,6 +1536,8 @@ function buildUI() {
 
   buildSceneTools();
   buildBoundaryTools();
+  buildTerrainTools();
+  buildLandformTools();
   buildTourTools();
   refreshSceneMenu();
   updateStatus();
@@ -1585,6 +1631,213 @@ function syncBoundaryTools() {
   for (const [shape, chip] of Object.entries(boundaryChips)) {
     chip.classList.toggle('on', drawn?.source === shape);
   }
+}
+
+// --- terrain ---------------------------------------------------------------
+
+// Two kinds of ground, and you are standing on exactly one of them.
+//
+// The chips are not a view filter — switching genuinely changes what the town
+// is built on, and the sliders above and the shapes below are each dead while
+// the other kind is chosen. Shown as two chips rather than a checkbox because
+// neither is the "off" state of the other: rolled ground and placed ground are
+// two ways of answering the same question, and a checkbox would have to name
+// one of them as the exception.
+let terrainChips = {};
+let terrainHint = null;
+
+function buildTerrainTools() {
+  const mount = controls.mounts.get('terrainTools');
+  if (!mount) return;
+  terrainChips = {};
+
+  const chips = [HILLS, DRAWN].map((mode) => {
+    const chip = h('button', { class: 'chip' }, TERRAIN_MODE_LABEL[mode].toLowerCase());
+    chip.addEventListener('click', () => setTerrainMode(mode));
+    terrainChips[mode] = chip;
+    return withHelp(
+      chip,
+      mode === HILLS
+        ? 'Noise from a seed, shaped by the three sliders under this. Nothing to place and nothing to lose, but nothing you can put in a particular spot either.'
+        : 'Shapes you place, each with its own height and falloff. The sliders under this stop applying — drawn ground is drawn ground, and mixing the two would mean a slider could move a hill you put down by hand.',
+      TERRAIN_MODE_LABEL[mode]
+    );
+  });
+
+  terrainHint = h('div', { class: 'hint' });
+  setChildren(mount, h('div', { class: 'chips' }, ...chips), terrainHint);
+  syncTerrainTools();
+}
+
+function setTerrainMode(mode) {
+  if (state.params.terrainMode === mode) return;
+  state.params.terrainMode = mode;
+  history?.record('terrain-mode');
+  extentKey = '';
+  markAll();
+  syncTerrainTools();
+  syncLandformTools();
+}
+
+function syncTerrainTools() {
+  const mode = state.params.terrainMode === DRAWN ? DRAWN : HILLS;
+  for (const [key, chip] of Object.entries(terrainChips)) chip.classList.toggle('on', key === mode);
+  if (!terrainHint) return;
+  const n = (state.params.landforms || []).length;
+  terrainHint.textContent =
+    mode === DRAWN
+      ? n
+        ? `${n} shape${n === 1 ? '' : 's'} making the ground. The hill sliders are not in play.`
+        : 'Nothing placed yet, so the ground is flat. Add a shape below.'
+      : 'Rolled from the terrain seed. Anything you draw below is kept but not in play.';
+}
+
+// --- landforms -------------------------------------------------------------
+
+// The list of drawn shapes, with the two numbers that decide what each one
+// actually is: how high its top sits, and how far its slope runs before
+// meeting whatever is underneath. Everything else about a landform — where it
+// is, what shape it is — is edited by dragging it in the viewport, which is
+// the whole reason it is a curve rather than a row of sliders.
+let landformMount = null;
+let landformList = null;
+let landformHint = null;
+
+function buildLandformTools() {
+  landformMount = controls.mounts.get('landformTools');
+  if (!landformMount) return;
+
+  const chips = LANDFORM_SHAPES.map((shape) =>
+    withHelp(
+      h('button', { class: 'chip', onclick: () => addLandform(shape) }, LANDFORM_LABEL[shape].toLowerCase()),
+      shape === 'square'
+        ? 'Four corners. A mesa, a plinth, a raised block of town.'
+        : shape === 'round'
+          ? 'Twelve points on a circle. Pull it into a ridge, a crater rim or an island.'
+          : 'A circle with its radius pushed about, from the seed. Ground that grew rather than ground that was planned.',
+      `Add a ${LANDFORM_LABEL[shape].toLowerCase()} landform`
+    )
+  );
+
+  landformList = h('div', { class: 'landforms' });
+  landformHint = h('div', { class: 'hint' });
+  setChildren(landformMount, h('div', { class: 'chips' }, ...chips), landformList, landformHint);
+  syncLandformTools();
+}
+
+// A fresh shape lands offset from the ones already there, in a widening
+// spiral. Dropping every new landform on the origin would put the second one
+// exactly inside the first, where it is invisible and reads as the button
+// having done nothing.
+function addLandform(shape) {
+  const half = defaultHalf(state.params);
+  const list = state.params.landforms || [];
+  const angle = list.length * 2.399;
+  const spread = list.length ? half * 0.42 : 0;
+  const curve = landformShape(shape, landformRadius(half), (state.params.seed >>> 0) + list.length, {
+    x: Math.cos(angle) * spread,
+    z: Math.sin(angle) * spread,
+  });
+  state.params.landforms = [...list, curve];
+  // Placing ground is the unambiguous statement that you want drawn ground.
+  // Adding a shape and watching nothing happen because a chip two rows up is
+  // still on "hills" would be the tool being right and useless at once.
+  state.params.terrainMode = DRAWN;
+  history?.record('landform-add');
+  extentKey = '';
+  markAll();
+  curveEditor?.select(curve.id, []);
+  syncTerrainTools();
+  syncLandformTools();
+}
+
+function removeLandform(id) {
+  state.params.landforms = (state.params.landforms || []).filter((l) => l.id !== id);
+  history?.record('landform-remove');
+  extentKey = '';
+  markAll();
+  syncTerrainTools();
+  syncLandformTools();
+}
+
+// Height and falloff, written straight through. Both rebuild the raster and
+// therefore the whole ground, so neither is live while you drag — the same
+// call the terrain sliders already make.
+function setLandformField(id, field, value) {
+  state.params.landforms = (state.params.landforms || []).map((l) =>
+    l.id === id ? { ...l, [field]: value } : l
+  );
+  history?.record(`landform-${field}`);
+  extentKey = '';
+  markAll();
+}
+
+function syncLandformTools() {
+  if (!landformList) return;
+  const list = state.params.landforms || [];
+  const drawn = state.params.terrainMode === DRAWN;
+
+  setChildren(
+    landformList,
+    ...list.map((land, i) => {
+      const num = (value, step, min, max, onCommit) => {
+        const input = h('input', { type: 'number', class: 'num', step, value });
+        input.addEventListener('change', () => {
+          const v = Math.min(max, Math.max(min, Number(input.value)));
+          if (!Number.isFinite(v)) return;
+          input.value = v;
+          onCommit(v);
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') input.blur();
+          e.stopPropagation();
+        });
+        return input;
+      };
+
+      // The name says which shape it started as and how far up the stack it
+      // is, because "landform 3" tells you nothing and the stack order is the
+      // one property of a landform you cannot see by looking at it.
+      const label = h(
+        'button',
+        {
+          class: 'landform-name',
+          onclick: () => {
+            curveEditor?.select(land.id, []);
+            noteStatus('Show the Curves layer to drag its points');
+          },
+        },
+        `${i + 1}. ${LANDFORM_LABEL[land.source] || 'Shape'}`
+      );
+
+      return h(
+        'div',
+        { class: `landform-row${drawn ? '' : ' idle'}` },
+        withHelp(label, 'Selects this shape so its control points show in the viewport. Turn on the Curves layer to drag them.', 'Select'),
+        withHelp(
+          num(land.height ?? 0, 0.5, -400, 400, (v) => setLandformField(land.id, 'height', v)),
+          'How high the flat top of this shape sits. Negative digs a pit instead. Each shape lands at exactly this height whatever it is standing on, so a small one inside a big one is a step up rather than a total.',
+          'Height'
+        ),
+        withHelp(
+          num(land.falloff ?? 0, 0.5, 0, 400, (v) => setLandformField(land.id, 'falloff', v)),
+          'How far out the slope runs before it meets the ground underneath. Zero is a sheer cliff at the outline you drew. Large is a swell you could drive up.',
+          'Falloff'
+        ),
+        withHelp(
+          h('button', { class: 'landform-del', onclick: () => removeLandform(land.id) }, '×'),
+          'Removes this shape. Undo brings it back.',
+          'Remove'
+        )
+      );
+    })
+  );
+
+  landformHint.textContent = list.length
+    ? drawn
+      ? 'Top number is height, second is falloff. Later shapes layer over earlier ones.'
+      : 'Kept, but the ground is set to hills. Switch to drawn above to use these.'
+    : 'Nothing placed. A shape you add becomes the ground, and the outline you draw is its flat top.';
 }
 
 // What picking a curve up should tell you, which is always the same two
@@ -1957,6 +2210,8 @@ function syncPanels() {
   wheels.roofMix.set(state.params.roofMix);
   wheels.surfaceMix.set(state.params.surfaceMix);
   syncBoundaryTools();
+  syncTerrainTools();
+  syncLandformTools();
 }
 
 // --- scenes ----------------------------------------------------------------

@@ -136,7 +136,8 @@
     "flybyPitch": 1.5,
     "collageChance": 0.9471944947085893,
     "materialChance": 0.007399614192292514,
-    "glassChance": 0.30248645622511383
+    "glassChance": 0.30248645622511383,
+    "groundCustom": false
   },
   "overrides": {
     "b3_3": {

@@ -35,6 +35,9 @@ const LINE_BOUNDARY = 0x63e0b6;
 // visible at a glance, and it is the difference the whole tool turns on, so it
 // gets a colour of its own rather than a dash pattern or an outline.
 const LINE_HELD = 0xff8a3d;
+// Drawn ground. Not a thing in the town but the thing the town stands on, so
+// it gets earth rather than any of the colours that mean "street" or "edge".
+const LINE_LANDFORM = 0xc0894a;
 const HANDLE = 0xe9e3d4;
 const HANDLE_CORNER = 0xff2e6a;
 const HANDLE_SELECTED = 0xffd166;
@@ -83,6 +86,7 @@ export class CurveView {
     this.lineSelMat = new THREE.LineBasicMaterial({ color: LINE_SELECTED, depthTest: false, transparent: true });
     this.lineBoundaryMat = new THREE.LineBasicMaterial({ color: LINE_BOUNDARY, depthTest: false, transparent: true });
     this.lineHeldMat = new THREE.LineBasicMaterial({ color: LINE_HELD, depthTest: false, transparent: true });
+    this.lineLandformMat = new THREE.LineBasicMaterial({ color: LINE_LANDFORM, depthTest: false, transparent: true });
     this.handleGeo = new THREE.CircleGeometry(0.5, 16);
 
     this.selectedCurve = null;
@@ -163,11 +167,13 @@ export class CurveView {
         // on one curve.
         const material = curve.kind === 'boundary'
           ? this.lineBoundaryMat
-          : curve.held
-            ? this.lineHeldMat
-            : curve.id === this.selectedCurve
-              ? this.lineSelMat
-              : this.lineMat;
+          : curve.kind === 'landform'
+            ? this.lineLandformMat
+            : curve.held
+              ? this.lineHeldMat
+              : curve.id === this.selectedCurve
+                ? this.lineSelMat
+                : this.lineMat;
         const line = new (curve.closed ? THREE.LineLoop : THREE.Line)(geo, material);
         line.frustumCulled = false;
         line.renderOrder = 900;

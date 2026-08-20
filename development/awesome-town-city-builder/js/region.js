@@ -78,6 +78,12 @@ export function boxRegion(minX, minZ, maxX, maxZ) {
     bounds: { minX, minZ, maxX, maxZ },
     contains: (x, z) => x >= minX && x <= maxX && z >= minZ && z <= maxZ,
     clip,
+    distanceToEdge: (x, z) => {
+      const dx = Math.max(minX - x, 0, x - maxX);
+      const dz = Math.max(minZ - z, 0, z - maxZ);
+      if (dx > 0 || dz > 0) return Math.hypot(dx, dz);
+      return Math.min(x - minX, maxX - x, z - minZ, maxZ - z);
+    },
   });
 }
 
@@ -182,7 +188,32 @@ export function polygonRegion(points, opts = {}) {
     return spans;
   };
 
-  return finish({ kind: 'polygon', bounds, contains, clip, ring });
+  // How far the outline is, ignoring which side of it you are on. Callers
+  // that need a signed answer ask `contains` as well — separate because the
+  // two questions have very different costs and most callers want only one.
+  //
+  // Landforms are the customer: the whole idea of a falloff is "how far past
+  // the edge am I", and there was no way to ask it. Kept here rather than in
+  // landform.js so the ring being walked is the same deduped ring `contains`
+  // answers against, which is the only way the two can agree at the edge.
+  const distanceToEdge = (x, z) => {
+    let best = Infinity;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j];
+      const b = ring[i];
+      const ex = b.x - a.x;
+      const ez = b.z - a.z;
+      const len2 = ex * ex + ez * ez;
+      const t = len2 < 1e-18 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * ex + (z - a.z) * ez) / len2));
+      const dx = x - (a.x + ex * t);
+      const dz = z - (a.z + ez * t);
+      const d = dx * dx + dz * dz;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  };
+
+  return finish({ kind: 'polygon', bounds, contains, clip, distanceToEdge, ring });
 }
 
 // A closed curve is a boundary. Flattened once at region-build time rather
