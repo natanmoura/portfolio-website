@@ -23,20 +23,31 @@ async function scan(dir, ok) {
   return entries.filter((f) => ok.has(path.extname(f).toLowerCase())).sort();
 }
 
-const [images, cutouts, materials, particles, sceneFiles] = await Promise.all([
+// Particles are split by how they move rather than by what they are, which is
+// why the folder name is the whole of the setting: a star that should spin
+// goes in `rotating/`, a lens flare that must stay upright goes in `static/`,
+// and nothing about either has to be configured anywhere else. Loose files
+// dropped straight into `particles/` are treated as static, so the folder
+// still does something sensible before anyone has read this.
+const [images, cutouts, materials, pStatic, pRotating, pLoose, sceneFiles] = await Promise.all([
   scan(path.join(collage, 'images'), OK),
   scan(path.join(collage, 'cutouts'), OK),
   scan(path.join(collage, 'materials'), OK),
+  scan(path.join(collage, 'particles', 'static'), OK),
+  scan(path.join(collage, 'particles', 'rotating'), OK),
   scan(path.join(collage, 'particles'), OK),
   scan(presets, new Set(['.json'])),
 ]);
+
+const particles = { static: pStatic, rotating: pRotating, loose: pLoose };
 
 await writeFile(
   path.join(collage, 'manifest.json'),
   JSON.stringify({ images, cutouts, materials, particles }, null, 2) + '\n'
 );
 console.log(
-  `collage/manifest.json -> ${images.length} images, ${cutouts.length} cutouts, ${materials.length} materials, ${particles.length} particles`
+  `collage/manifest.json -> ${images.length} images, ${cutouts.length} cutouts, ` +
+    `${materials.length} materials, ${pStatic.length + pLoose.length} static + ${pRotating.length} rotating particles`
 );
 
 const files = sceneFiles.filter((f) => f !== 'manifest.json');

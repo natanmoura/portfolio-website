@@ -136,12 +136,18 @@ const ENV_DEFAULTS = {
   particleRise: 40,
   particleFloor: 0,
   particleSpeed: 1,
+  particleSpeedVariance: 0.5,
   particleDrift: 3,
   particleSpin: 0.3,
   particleOpacity: 0.7,
   particleGlow: 0.6,
+  // Following the palette is the default because it is the answer that makes
+  // a particle field look like it belongs to this town rather than like
+  // something laid over it — and because the palette is already the one place
+  // the whole scene's colour is decided.
+  particleColor: 'palette',
   particleTint: '#8fd8ff',
-  particleTintAmount: 0,
+  particleTintAmount: 0.85,
   flybySpeed: 16,
   // Just above a windscreen. Low enough that the buildings tower, high enough
   // to see over a parked car — and paired with the new aim below, which
@@ -769,7 +775,7 @@ function applyEnv() {
   stage.setShadowQuality(p.softShadows, p.shadowLightSize, p.shadowSamples);
   materials.setOcclusion(p.occlusion, p.occlusionHeight);
   traffic.setNight(night);
-  particles.apply(p, night);
+  particles.apply(p, night, palette);
   statsEl.classList.toggle('on', !!p.showStats);
   applyLayerVisibility();
 

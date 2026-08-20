@@ -82,11 +82,41 @@ export class ImagePool {
   // so the transparent padding stays transparent — see `addBlob`, where the
   // stretched underlay that keeps mip levels from fading to black is exactly
   // what would show through a sprite's own gaps as a second ghost image.
+  //
+  // Two folders, and the folder is the whole of the setting: `static/` never
+  // rotates and stays upright, `rotating/` spins. That is deliberately not a
+  // per-sprite flag stored somewhere — a lens flare that must stay level and
+  // a star that should tumble are different *kinds* of thing, and sorting
+  // them by dropping a file in one folder or the other is the shortest
+  // possible way to say which. `ranges` records where each landed so the
+  // particle system can look up how a layer behaves.
   async loadParticleManifest(dir = 'collage', onProgress = () => {}) {
     const manifest = await this.fetchManifest(dir);
-    const groups = [{ sub: 'particles', kind: 'cutout', names: manifest.particles || [] }];
+    const p = manifest.particles || {};
+    // An array here is a manifest written before the split. Everything in it
+    // is static, which is the safe reading: a sprite nobody said should spin
+    // should not start spinning because the loader changed.
+    const groups = Array.isArray(p)
+      ? [{ sub: 'particles', kind: 'static', names: p, opaque: false }]
+      : [
+          { sub: 'particles', kind: 'static', names: p.loose || [], opaque: false },
+          { sub: 'particles/static', kind: 'static', names: p.static || [], opaque: false },
+          { sub: 'particles/rotating', kind: 'rotating', names: p.rotating || [], opaque: false },
+        ];
     await this.loadGroups(dir, groups, 'contain', onProgress);
     return this.items.length;
+  }
+
+  // Which layers are of a given kind, as a list of indices. Cheap enough to
+  // walk — this is asked once per rebuild, not once per particle — and a list
+  // rather than a range because the loose folder and `static/` both produce
+  // static sprites and there is no reason to demand they be contiguous.
+  layersOfKind(kind) {
+    const out = [];
+    this.items.forEach((item, i) => {
+      if (item.kind === kind) out.push(i);
+    });
+    return out;
   }
 
   async fetchManifest(dir) {
@@ -95,6 +125,12 @@ export class ImagePool {
     return res.json();
   }
 
+  // `opaque` says whether a group's sources fill their own frame. It used to
+  // be inferred from `kind === 'cutout'`, which quietly broke the moment
+  // particles arrived with kinds of their own: the underlay below is drawn
+  // for anything not literally called a cutout, and a particle sprite is as
+  // transparent as a sticker is. Naming the property rather than the kind is
+  // the fix, and it is the property the code actually cares about.
   async loadGroups(dir, groups, fit, onProgress) {
     const total = groups.reduce((n, g) => n + g.names.length, 0) || 1;
     let done = 0;
@@ -110,7 +146,7 @@ export class ImagePool {
           )
         );
         for (let k = 0; k < slice.length; k++) {
-          if (blobs[k]) await this.addBlob(blobs[k], slice[k], { kind: g.kind, fit });
+          if (blobs[k]) await this.addBlob(blobs[k], slice[k], { kind: g.kind, fit, opaque: g.opaque });
         }
         done += slice.length;
         onProgress(done, total);
@@ -122,6 +158,11 @@ export class ImagePool {
 
   async addBlob(blob, name, opts = {}) {
     const { kind = 'image', fit = 'contain' } = opts;
+    // Photographs and materials fill their frame; stickers and particle
+    // sprites do not. Defaulted from the kind so every existing caller keeps
+    // the behaviour it had, and overridable so a new kind of transparent
+    // thing does not have to be called "cutout" to be treated as one.
+    const opaque = opts.opaque ?? kind !== 'cutout';
     // texture.flipY does nothing for bitmap and raw-data sources, so the flip
     // happens at decode time. Drawing a flipped bitmap into the canvas puts
     // row 0 of the pixel data at v = 0, which is what the sampler expects.
@@ -153,7 +194,7 @@ export class ImagePool {
       // is meant to stay fully transparent, and a stretched copy of the same
       // source showed straight through the sticker's own transparent gaps as
       // a second, distorted exposure of the same picture.
-      if (kind !== 'cutout') ctx.drawImage(bitmap, 0, 0, LAYER, LAYER);
+      if (opaque) ctx.drawImage(bitmap, 0, 0, LAYER, LAYER);
       ctx.drawImage(bitmap, x, y, w, h);
       rect = [x / LAYER, y / LAYER, w / LAYER, h / LAYER];
     }

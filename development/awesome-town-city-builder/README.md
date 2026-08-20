@@ -276,8 +276,36 @@ by itself -- that is what the difference between two neighbouring points is.
 
 Whatever is in `collage/particles/` drifts up out of the streets and fades out
 above the roofline, with controls for size, rise, speed, drift, spin, opacity,
-glow and tint. Drop your own stars and small shapes in and rerun the scan;
-eight placeholders ship.
+glow and colour. Drop your own stars and small shapes in and rerun the scan.
+
+**Two folders, and the folder is the whole of the setting.** A sprite in
+`particles/static/` never turns and stays upright; one in
+`particles/rotating/` spins, each at its own rate and direction so they never
+turn in lockstep. That is deliberately not a per-sprite flag stored somewhere:
+a lens flare that must stay level and a star that should tumble are different
+*kinds* of thing, and dropping a file in one folder or the other is the
+shortest way to say which. Sprites are picked uniformly across the pool and
+then behave according to where they came from, so putting more files in
+`rotating/` makes more of the field spin — which is what anyone would predict
+from the folders alone.
+
+Upright means upright *in the world*, not on screen. Those are the same thing
+right up until the camera rolls, which the tour does every time it banks — so
+a static sprite's own up axis is world up projected into the screen plane, and
+it counter-rotates against a bank rather than tipping with it.
+
+**Colour** comes from one of three places. *From the palette* gives each
+particle one of the palette's glow colours — the same list the town's own lit
+windows draw from, which is what makes a field read as part of the place
+rather than as something laid over it, and it follows the palette when you
+change it. *One colour* uses the swatch. *The sprite's own* leaves each image
+exactly as drawn. Colour strength decides how far toward that colour they go,
+so an image with tones of its own can keep some of them.
+
+**Speed spread** varies how fast each one climbs. Zero moves the whole field
+as one sheet, which reads as a scrolling texture rather than as objects. The
+spread is centred, so turning it up never changes the average — a variance
+control that also moved the mean would be two controls fighting.
 
 Every particle is animated entirely in the vertex shader -- position, drift,
 spin, fade and size are all functions of one time uniform and attributes

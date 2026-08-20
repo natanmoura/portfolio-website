@@ -44,11 +44,18 @@ attribute vec3 aBase;       // where this one lives, in world XZ plus ground Y
 attribute vec4 aRoll;       // phase, speed scale, size scale, drift phase
 attribute vec2 aCorner;     // which corner of the quad, in [-0.5, 0.5]
 attribute float aLayer;
-attribute float aSpinDir;
+// Which way it turns, and how fast relative to the others. Zero means this
+// sprite came out of the static folder and must not turn at all.
+attribute float aSpin;
+attribute float aColor;     // index into uColors
 
 varying vec2 vUv;
 flat varying float vLayer;
 varying float vFade;
+varying vec3 vColor;
+
+uniform vec3 uColors[8];
+uniform float uColorCount;
 
 void main() {
   // One life, wrapped. Every particle is at a different point in the same
@@ -73,17 +80,38 @@ void main() {
 
   vec4 view = viewMatrix * vec4(world, 1.0);
 
-  // Billboard in view space, where right and up are the axes by definition,
-  // so no camera basis has to be passed in and no matrix inverted.
+  // Billboard in view space, where the screen plane is XY by definition, so
+  // no camera basis has to be passed in and no matrix inverted.
+  //
+  // **Upright means upright in the world, not upright on screen.** Those are
+  // the same thing right up until the camera rolls, which the tour does every
+  // time it banks into a turn — and a "static" sprite that rolled with it
+  // would be the one thing static is supposed to rule out. So the quad's own
+  // up axis is world up projected into the screen plane, rather than the
+  // screen's up. Looking straight down there is no projection to speak of and
+  // it falls back to the screen, which is the only sensible answer.
+  vec3 upView = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+  vec2 up2 = upView.xy;
+  float upLen = length(up2);
+  up2 = upLen > 0.001 ? up2 / upLen : vec2(0.0, 1.0);
+  vec2 right2 = vec2(up2.y, -up2.x);
+
   float size = uSize * aRoll.z;
-  float angle = uTime * uSpin * aSpinDir + aRoll.x * 6.283;
-  float s = sin(angle);
-  float c = cos(angle);
-  vec2 corner = vec2(aCorner.x * c - aCorner.y * s, aCorner.x * s + aCorner.y * c) * size;
-  view.xy += corner;
+  // A static sprite takes no rotation at all, not even its phase offset —
+  // half a turn of "no rotation" is still not upright.
+  vec2 corner = aCorner;
+  if (aSpin != 0.0) {
+    float angle = uTime * uSpin * aSpin + aRoll.x * 6.283;
+    float s = sin(angle);
+    float c = cos(angle);
+    corner = vec2(corner.x * c - corner.y * s, corner.x * s + corner.y * c);
+  }
+  view.xy += (right2 * corner.x + up2 * corner.y) * size;
 
   vUv = aCorner + 0.5;
   vLayer = aLayer;
+  int ci = int(min(aColor, max(0.0, uColorCount - 1.0)));
+  vColor = uColors[ci];
   gl_Position = projectionMatrix * view;
 }
 `;
@@ -94,7 +122,6 @@ precision highp sampler2DArray;
 
 uniform sampler2DArray uAtlas;
 uniform sampler2D uRects;
-uniform vec3 uTint;
 uniform float uTintAmount;
 uniform float uGlow;
 uniform float uOpacity;
@@ -102,6 +129,7 @@ uniform float uOpacity;
 varying vec2 vUv;
 flat varying float vLayer;
 varying float vFade;
+varying vec3 vColor;
 
 void main() {
   int index = int(vLayer + 0.5);
@@ -118,7 +146,10 @@ void main() {
   float alpha = texel.a * vFade * uOpacity;
   if (alpha < 0.004) discard;
 
-  vec3 colour = mix(texel.rgb, uTint, uTintAmount);
+  // vColor is whichever colour this particle drew: one of the palette's glow
+  // colours, or the tint, depending on the mode. uTintAmount decides how far
+  // it goes, so a sprite with colour of its own can keep some of it.
+  vec3 colour = mix(texel.rgb, vColor, uTintAmount);
   // Glow multiplies rather than adds, so a dark part of a sprite stays dark
   // and a bright one runs past 1.0 into the bloom pass. That difference is
   // what makes the shape legible while it glows instead of dissolving into a
@@ -139,7 +170,11 @@ export class Particles {
       uFloor: { value: 0 },
       uAtlas: { value: null },
       uRects: { value: null },
-      uTint: { value: new THREE.Color('#8fd8ff') },
+      // Eight slots, filled from the palette's glow colours or from a single
+      // tint. Fixed length because a GLSL array has to have one; eight is
+      // twice what any palette carries, so the cap has never been reached.
+      uColors: { value: Array.from({ length: 8 }, () => new THREE.Color('#ffffff')) },
+      uColorCount: { value: 1 },
       uTintAmount: { value: 0 },
       uGlow: { value: 0.6 },
       uOpacity: { value: 0.7 },
@@ -192,6 +227,10 @@ export class Particles {
       count,
       layers,
       params.seed,
+      // Baked into the attributes rather than read as a uniform, because it
+      // is a property of each particle rather than of the field. So it has to
+      // reach the key, unlike Speed itself.
+      params.particleSpeedVariance,
       Math.round(bounds.minX),
       Math.round(bounds.maxX),
       Math.round(bounds.minZ),
@@ -211,12 +250,19 @@ export class Particles {
     this.mesh.visible = true;
 
     const rng = new Rng(((params.seed >>> 0) ^ 0x5bf03635) >>> 0);
+    // Which layers spin, decided by which folder the file was in. A sprite is
+    // picked uniformly across the whole pool and then *behaves* according to
+    // where it came from, rather than the count being split by a ratio
+    // somewhere: put more files in `rotating/` and more of the field spins,
+    // which is the behaviour anyone would predict from the folders alone.
+    const rotating = new Set(this.pool?.layersOfKind('rotating') || []);
     const verts = count * 6;
     const base = new Float32Array(verts * 3);
     const roll = new Float32Array(verts * 4);
     const corner = new Float32Array(verts * 2);
     const layer = new Float32Array(verts);
     const spin = new Float32Array(verts);
+    const colour = new Float32Array(verts);
 
     // Two triangles, as six loose vertices. Indexing would save a third of the
     // buffer and cost a shared attribute per corner, which is the one thing
@@ -232,12 +278,20 @@ export class Particles {
       const y = groundAt ? groundAt(x, z) : 0;
       const phase = rng.float();
       // Speed and size vary per particle, or the whole field moves as one
-      // sheet and reads as a texture scrolling rather than as objects.
-      const speed = 0.55 + rng.float() * 0.9;
+      // sheet and reads as a texture scrolling rather than as objects. The
+      // spread is centred on one so that turning it down converges on exactly
+      // the Speed slider's value rather than on some fraction of it — a
+      // variance control that also changes the average is two controls
+      // fighting.
+      const spread = Math.min(1, Math.max(0, params.particleSpeedVariance ?? 0.5));
+      const speed = 1 + spread * (rng.float() * 2 - 1) * 0.85;
       const scale = 0.45 + rng.float() * 1.1;
       const driftPhase = rng.float();
       const which = Math.floor(rng.float() * layers);
-      const dir = rng.float() < 0.5 ? -1 : 1;
+      // Zero is the flag for "never turn". A rotating sprite gets a direction
+      // and its own rate, so a field of them does not turn in lockstep.
+      const dir = rotating.has(which) ? (rng.float() < 0.5 ? -1 : 1) * (0.4 + rng.float() * 1.2) : 0;
+      const tone = Math.floor(rng.float() * 8);
 
       for (let v = 0; v < 6; v++) {
         const o = i * 6 + v;
@@ -252,6 +306,7 @@ export class Particles {
         corner[o * 2 + 1] = CORNERS[v][1];
         layer[o] = which;
         spin[o] = dir;
+        colour[o] = tone;
       }
     }
 
@@ -264,11 +319,13 @@ export class Particles {
     geo.setAttribute('aRoll', new THREE.BufferAttribute(roll, 4));
     geo.setAttribute('aCorner', new THREE.BufferAttribute(corner, 2));
     geo.setAttribute('aLayer', new THREE.BufferAttribute(layer, 1));
-    geo.setAttribute('aSpinDir', new THREE.BufferAttribute(spin, 1));
+    geo.setAttribute('aSpin', new THREE.BufferAttribute(spin, 1));
+    geo.setAttribute('aColor', new THREE.BufferAttribute(colour, 1));
     this.mesh.geometry = geo;
+    this.spinning = Array.from(spin).filter((v, i) => i % 6 === 0 && v !== 0).length;
   }
 
-  apply(params, night = 0) {
+  apply(params, night = 0, palette = null) {
     const u = this.uniforms;
     u.uRise.value = params.particleRise ?? 40;
     u.uSpeed.value = (params.particleSpeed ?? 1) * 0.05;
@@ -277,12 +334,30 @@ export class Particles {
     u.uSpin.value = params.particleSpin ?? 0.3;
     u.uFloor.value = params.particleFloor ?? 0;
     u.uOpacity.value = params.particleOpacity ?? 0.7;
-    u.uTintAmount.value = params.particleTintAmount ?? 0;
-    u.uTint.value.set(params.particleTint || '#8fd8ff');
     // Glow rides the clock the way every other light in the town does: the
     // same setting has to survive noon without washing the frame out and
     // still register at midnight, and a fixed value cannot do both.
     u.uGlow.value = (params.particleGlow ?? 0.6) * (0.45 + night * 0.9);
+
+    // Three answers to "what colour is this", and only the middle one needed
+    // anything new. The palette's *glow* colours rather than its faces: these
+    // are lights in the air, and glow is already this palette's answer to
+    // "what colour is light in this town" — the same list the town's own lit
+    // windows draw from, which is what makes a particle field read as part of
+    // the place rather than as something laid over it.
+    const mode = params.particleColor || 'sprite';
+    const source =
+      mode === 'palette'
+        ? palette?.glow?.length
+          ? palette.glow
+          : ['#ffffff']
+        : [params.particleTint || '#8fd8ff'];
+    const n = Math.min(8, source.length);
+    for (let i = 0; i < 8; i++) u.uColors.value[i].set(source[i % n]);
+    u.uColorCount.value = n;
+    // Sprite mode is the tint amount going to zero rather than a branch in the
+    // shader: there is nothing to colour toward, so nothing moves.
+    u.uTintAmount.value = mode === 'sprite' ? 0 : params.particleTintAmount ?? 1;
   }
 
   update(time) {
