@@ -702,6 +702,17 @@ export class Inspector {
         'How far out the slope runs before it meets the ground underneath. Zero is a sheer cliff at the outline you drew. Large is a swell you could drive up.',
         [0, 400]),
 
+      label('Surface'),
+      this.slider('Roughness', view.rough, 0, 8, 0.05, (v) => a.setLandform('rough', v),
+        'Crumples this shape’s own surface. A drawn hill is glassy smooth without it, which reads as a model rather than as ground. Fades out where the shape does, so it never leaves a rim of noise standing on ground this shape has finished influencing.',
+        [0, 100]),
+      this.slider('Rough size', view.roughScale, 0.1, 6, 0.05, (v) => a.setLandform('roughScale', v),
+        'How wide the crumple is. Small is gravel, large is a few broad swells across the top.',
+        [0.05, 40]),
+      this.slider('Terracing', view.step, 0, 8, 0.1, (v) => a.setLandform('step', v),
+        'Cuts this shape into flat shelves this far apart, with a hard riser between each. Zero is off. Per shape, so one mesa can be stepped while another stays smooth — the Terrain panel’s terracing only ever applies to rolled hills.',
+        [0, 80]),
+
       label('Stack'),
       withHelp(
         h('div', { class: 'chips' },

@@ -249,9 +249,32 @@ draggable points forever, saves as four lines of JSON, undoes cleanly, and
 inherits the view, the editor, the drag, the halo and the delete key that
 roads and the boundary already had.
 
-**Terracing** is separate and applies to both: it cuts any slope into flat
-shelves with hard risers between them. One slider turns a swell into rice
-paddies, a strip mine or a stack of card.
+**Every setting in the Terrain panel describes the rolled ground only.** Hill
+height, hill size, roughness and terracing are all parameters *of the noise*,
+and none of them reaches a shape somebody placed. Terracing used to be the
+exception, applied after both branches on the reasoning that it is a property
+of a surface rather than of how the surface was made — which sounds right and
+is wrong in the way that matters: one slider silently restepped every drawn
+shape in the scene, and there was no way to terrace one mesa and leave the
+next one smooth.
+
+So a landform carries **its own terracing and its own roughness**, on the
+selection panel with the rest of what belongs to it. Roughness is new rather
+than moved: a drawn hill was glassy smooth with no way to break it up, which
+reads as a model rather than as ground. It fades out exactly where the shape
+does, so it never leaves a rim of noise standing on ground the shape has
+finished influencing, and each shape seeds its own from its own id so two
+identical settings do not produce the same crumple.
+
+Within a shape the order is roughness, then terracing — the same order the
+noise ground uses, so stepping a rough shape gives stepped crumple rather than
+crumpled steps. Terracing applies wherever the shape has any say at all,
+including its flat top, which therefore lands on the nearest shelf rather than
+exactly on its stated height; stepping only the slope would leave a riser of
+some leftover height at the one place a terrace should not have one.
+
+The one terrain setting that does apply to both kinds is **Buildable slope**,
+because it is a rule about the ground rather than a description of it.
 
 **Ground colour** is a plain swatch, grass green to start, with no paired
 "custom" switch. Every palette ships a ground somewhere between paper and

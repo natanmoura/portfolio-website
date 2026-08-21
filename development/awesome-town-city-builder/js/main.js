@@ -1200,6 +1200,9 @@ function showCurveInspector() {
       total: list.length,
       height: land.height ?? 0,
       falloff: land.falloff ?? 0,
+      rough: land.rough ?? 0,
+      roughScale: land.roughScale ?? 1,
+      step: land.step ?? 0,
       actions: {
         ...shared,
         setLandform: (field, value) => setLandformField(id, field, value),

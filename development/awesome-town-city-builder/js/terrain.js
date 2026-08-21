@@ -162,19 +162,24 @@ export class Ground {
   // the tour, which is why drawn ground answers from a raster rather than from
   // the shapes themselves. See landform.js.
   heightAt(x, z) {
-    let h;
-    if (this.mode === DRAWN) {
-      h = this.raster ? this.raster.sample(x, z) : 0;
-    } else if (this.amplitude > 0) {
-      h = fbm2D(this.seed, x * this.frequency, z * this.frequency, this.octaves) * this.amplitude;
-    } else {
-      h = 0;
-    }
-    // Terracing, applied last and to both kinds. One slider that turns any
-    // slope into flat shelves with hard risers between them — rice paddies, a
-    // strip mine, a stack of card. Rounding rather than flooring so the
-    // stepped surface sits on the same average level as the smooth one it
-    // replaced instead of sinking by half a step.
+    // Drawn ground answers entirely from its own raster, and none of the hill
+    // parameters reach it.
+    //
+    // Terracing used to be applied here, after both branches, on the reasoning
+    // that it is a property of a *surface* rather than of how the surface was
+    // made. That was wrong in the way that matters: it meant one slider in the
+    // Terrain panel silently restepped every shape somebody had drawn, and
+    // there was no way to terrace one mesa and leave another smooth. A
+    // landform carries its own terracing now — and its own roughness, which
+    // the global controls never offered it at all. See landform.js.
+    if (this.mode === DRAWN) return this.raster ? this.raster.sample(x, z) : 0;
+
+    let h = this.amplitude > 0
+      ? fbm2D(this.seed, x * this.frequency, z * this.frequency, this.octaves) * this.amplitude
+      : 0;
+    // Rounding rather than flooring, so the stepped surface sits on the same
+    // average level as the smooth one it replaced instead of sinking by half
+    // a step.
     if (this.step > 0) h = Math.round(h / this.step) * this.step;
     return h;
   }

@@ -37,6 +37,7 @@
 // on a more precise one nobody can see.
 
 import { newCurve } from './curve.js';
+import { fbm2D } from './noise.js';
 import { regionFromCurve } from './region.js';
 import { Rng } from './rng.js';
 import { mintId } from './ids.js';
@@ -119,10 +120,25 @@ function prepare(landform) {
   const region = regionFromCurve(landform, { perSegment: 8, fallbackHalf: 1 });
   const falloff = Math.max(0, landform.falloff ?? LANDFORM_FALLOFF);
   const b = region.bounds;
+  // Its own seed, from its own name, so two shapes with the same roughness
+  // do not wear the same crumple and a shape keeps its own when another is
+  // added or removed.
+  let seed = 2166136261;
+  for (let i = 0; i < landform.id.length; i++) {
+    seed ^= landform.id.charCodeAt(i);
+    seed = Math.imul(seed, 16777619);
+  }
   return {
     region,
     falloff,
     height: landform.height ?? 0,
+    // Per shape rather than global, which is the whole point: the Terrain
+    // panel's roughness and terracing describe how the *noise* is made and
+    // have no business reaching ground somebody placed by hand.
+    rough: Math.max(0, landform.rough ?? 0),
+    roughScale: Math.max(0.05, landform.roughScale ?? 1),
+    step: Math.max(0, landform.step ?? 0),
+    seed: seed >>> 0,
     minX: b.minX - falloff,
     maxX: b.maxX + falloff,
     minZ: b.minZ - falloff,
@@ -151,7 +167,27 @@ export function landformHeightAt(shapes, x, z) {
   let h = 0;
   for (const shape of shapes) {
     const w = weightAt(shape, x, z);
-    if (w > 0) h += (shape.height - h) * w;
+    if (w <= 0) continue;
+    h += (shape.height - h) * w;
+
+    // Roughness, then terracing — the same order the noise ground uses, so
+    // stepping a rough shape gives stepped crumple rather than crumpled steps.
+    //
+    // Scaled by the weight so it fades out exactly where the shape does. Any
+    // other choice leaves a rim of noise standing on ground this landform is
+    // supposed to have finished influencing, which is visible as a ring of
+    // static around a smooth hill.
+    if (shape.rough > 0) {
+      const f = 0.06 / shape.roughScale;
+      h += fbm2D(shape.seed, x * f, z * f, 4) * shape.rough * w;
+    }
+    // Terracing applies wherever this shape has any say at all, including its
+    // flat top — which therefore lands on the nearest shelf rather than
+    // exactly on its stated height. That is the consistent choice: stepping
+    // only the slope would leave a riser of some leftover height where the
+    // slope meets the top, which is the one place a terrace should not have
+    // one.
+    if (shape.step > 0) h = Math.round(h / shape.step) * shape.step;
   }
   return h;
 }
@@ -219,6 +255,11 @@ export function landformKey(landforms) {
     mix(Math.round((l.height ?? 0) * 1000));
     mix(Math.round((l.falloff ?? 0) * 1000));
     mix(Math.round((l.tension ?? 0) * 1000));
+    // The per-shape terrain settings have to reach the key too, or typing a
+    // roughness changes nothing until something else happens to move.
+    mix(Math.round((l.rough ?? 0) * 1000));
+    mix(Math.round((l.roughScale ?? 0) * 1000));
+    mix(Math.round((l.step ?? 0) * 1000));
     for (const p of l.points || []) {
       mix(Math.round(p.x * 1000));
       mix(Math.round(p.z * 1000));
