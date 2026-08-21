@@ -54,9 +54,11 @@ const PARS_VERTEX = `
   varying vec2 vAtlasUv;
   varying float vUp;
   varying float vFacing;
-  varying float vCloud;
+  // World XZ, handed down for the fragment shader to sample the cloud field
+  // at. Interpolating a position is exact across a triangle; interpolating the
+  // noise read off that position is not. See clouds.js.
+  varying vec2 vWorldXZ;
   ${WAVE_GLSL}
-  ${CLOUDS_GLSL}
 `;
 
 const SPIN_POSITION = `
@@ -113,11 +115,12 @@ const PARS_FRAGMENT = `
   varying vec2 vAtlasUv;
   varying float vUp;
   varying float vFacing;
-  varying float vCloud;
+  varying vec2 vWorldXZ;
   uniform float uAo;
   uniform float uAoHeight;
   float ccLum(vec3 c) { return clamp(dot(c, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0); }
   float ccHash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+  ${CLOUDS_GLSL}
 `;
 
 // Sample the array, pull the result toward the palette's ink and paper pair,
@@ -231,8 +234,10 @@ const EMISSIVE = `
 
   // A lit face is unbothered by a cloud passing overhead — its light comes
   // from within, not from the sun this dims. Only the surface reading light
-  // back darkens.
-  diffuseColor.rgb *= vCloud;
+  // back darkens. Sampled per pixel off the interpolated world position, so a
+  // facade takes the shape of the field crossing it rather than one flat tone
+  // per wall. See clouds.js.
+  diffuseColor.rgb *= ccCloudAt(vWorldXZ);
 
   // Contact shade. Darkest at the base of a building and on anything facing
   // the ground, fading out as it climbs. Emissive is left alone, so a lit sign
@@ -347,7 +352,7 @@ export class CityMaterial {
            // convincing contact shade without an occlusion pass.
            vUp = position.y - aBaseY;
            vFacing = normal.y;
-           vCloud = ccCloudAt(position.xz);
+           vWorldXZ = position.xz;
            ${WIND_BODY}
            ${SPIN_POSITION}
            ${WAVE_BODY}`

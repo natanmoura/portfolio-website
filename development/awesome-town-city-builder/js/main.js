@@ -1332,13 +1332,14 @@ function bindPointer() {
     // grab that point, not pick the curve. A grip reports itself under its own
     // curve's id, since that is what taking it selects.
     const handle = curveEditor?.pickHandle(e);
+    let near = null;
     if (handle) {
       curveView?.hover(handle.curveId, handle.grip ? handle.curveId : handle.pointId);
     } else {
-      const near = curveEditor?.pickCurve(e, state.params.cell);
+      near = curveEditor?.pickCurve(e, state.params.cell);
       curveView?.hover(near?.curve.id ?? null, null);
     }
-    canvas.style.cursor = near ? 'pointer' : '';
+    canvas.style.cursor = handle || near ? 'pointer' : '';
   });
 
   canvas.addEventListener('pointerleave', () => {

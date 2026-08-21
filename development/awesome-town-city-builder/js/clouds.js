@@ -45,13 +45,32 @@ export const CLOUDS_GLSL = `
     }
     return v;
   }
-  // 1 in the clear, down to 1 - uCloudAmount under the thickest cover.
-  // Shaped with smoothstep rather than used raw, so the ground reads as
+  // 1 in the clear, down to 1 - uCloudAmount * CEILING under the thickest
+  // cover. Shaped with smoothstep rather than used raw, so the ground reads as
   // soft-edged patches drifting past rather than a rippling grey wash.
+  //
+  // **Call this from the fragment shader, never the vertex shader.** The first
+  // version evaluated it per vertex and passed the result down as a varying,
+  // which is correct on the ground — a dense grid samples the noise finely —
+  // and quietly wrong on the town, because a module is a box. Four corners a
+  // few metres apart got four samples of a metre-scale noise field and the
+  // interpolation stretched them flat across the facade, so each face took one
+  // near-uniform tone that disagreed with its neighbour: hard-edged dark
+  // squares, one per wall, changing abruptly as the field drifted. Interpolate
+  // the world position instead, which is exact across a triangle, and evaluate
+  // the noise at the pixel.
+  //
+  // **The ceiling is what keeps this a cloud rather than a hole.** This scales
+  // albedo, so at full strength an unclamped term multiplies the surface by
+  // zero — and a surface with no albedo is black, not overcast. A real cloud
+  // occludes the sun and leaves the sky bouncing light into everything under
+  // it. Capping the darkening keeps the ambient term legible, which is the
+  // difference between a patch of shade and a void.
   float ccCloudAt(vec2 worldXZ) {
     if (uCloudAmount <= 0.0) return 1.0;
+    const float CEILING = 0.55;
     vec2 p = worldXZ / max(4.0, uCloudScale) - uCloudDir * uTime * uCloudSpeed;
     float shadow = smoothstep(0.38, 0.66, ccCloudFbm(p));
-    return 1.0 - shadow * uCloudAmount;
+    return 1.0 - shadow * uCloudAmount * CEILING;
   }
 `;

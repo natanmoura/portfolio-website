@@ -74,14 +74,14 @@ function patchWaves(material, withNormals, withClouds = false) {
     Object.entries(shared).forEach(([k, v]) => {
       shader.uniforms[k] = v;
     });
-    const cloudDecl = withClouds ? `${CLOUDS_GLSL}\nvarying float vCloud;\n` : '';
+    const cloudDecl = withClouds ? 'varying vec2 vWorldXZ;\n' : '';
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', `uniform float uTime;\n${WAVE_GLSL}\n${cloudDecl}void main() {`)
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
          transformed.y += ccWaveAt(position.xz);
-         ${withClouds ? 'vCloud = ccCloudAt(position.xz);' : ''}`
+         ${withClouds ? 'vWorldXZ = position.xz;' : ''}`
       );
     if (withNormals) {
       shader.vertexShader = shader.vertexShader.replace(
@@ -95,11 +95,14 @@ function patchWaves(material, withNormals, withClouds = false) {
     }
     if (withClouds) {
       shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', 'varying float vCloud;\nvoid main() {')
+        .replace(
+          'void main() {',
+          `uniform float uTime;\nvarying vec2 vWorldXZ;\n${CLOUDS_GLSL}\nvoid main() {`
+        )
         .replace(
           '#include <color_fragment>',
           `#include <color_fragment>
-           diffuseColor.rgb *= vCloud;`
+           diffuseColor.rgb *= ccCloudAt(vWorldXZ);`
         );
     }
   };
@@ -139,11 +142,6 @@ export class Ground {
     this.roads = new THREE.Mesh(new THREE.BufferGeometry(), this.roadMaterial);
     this.roads.receiveShadow = true;
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
     // The piers under a raised road. Its own material rather than the road's,
     // for one reason that matters: the tarmac carries a polygon offset so it
     // does not fight the ground for the same pixels, and a column is a solid
@@ -155,19 +153,11 @@ export class Ground {
       roughness: 0.9,
       metalness: 0,
     });
-<<<<<<< Updated upstream
-    patchWaves(this.columnMaterial, true);
-=======
     patchWaves(this.columnMaterial, true, true);
->>>>>>> Stashed changes
     this.columns = new THREE.Mesh(new THREE.BufferGeometry(), this.columnMaterial);
     this.columns.castShadow = true;
     this.columns.receiveShadow = true;
 
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
     this.group = new THREE.Group();
     this.group.add(this.mesh, this.roads, this.columns, this.grid);
 

@@ -676,9 +676,17 @@ input[type="checkbox"] { accent-color: var(--accent); }
   /* The other thing floating on the town, kept at the same weight as the
      layers strip so the two read as one class of object rather than as two
      panels that happen to be in opposite corners. */
-  background: rgba(16, 15, 11, 0.46);
+  /* No `backdrop-filter`. It is the right effect and Chrome cannot be trusted
+     to composite it over this particular thing: a backdrop filter makes the
+     browser promote the region into its own layer and read back whatever is
+     behind it, and behind this is a large GPU-accelerated WebGL canvas. On
+     Chrome's ANGLE/D3D11 backend that readback intermittently fails and the
+     compositor paints the *backdrop root* black — which is why the artifact
+     was a rectangle far larger than this panel, with the panel itself drawn
+     correctly on top of it, and why it never appeared in Firefox. The fill
+     carries the contrast instead, helped by the halo on the text below. */
+  background: rgba(16, 15, 11, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(14px) saturate(0.85);
   border-radius: 3px;
   /* Brighter than `--dim`, which is tuned for a solid panel and disappears
      the moment the thing behind it is a pale sky. */
@@ -1031,10 +1039,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
      floating over it — a dark slab in the corner of every wide shot. The blur
      is what keeps the text legible over whatever it happens to be covering,
      so the fill can go most of the way out and the label still reads. */
-  background: rgba(18, 18, 20, 0.46);
+  /* See `.stats` for why there is no `backdrop-filter` here either. The blur
+     was what let the fill go this light, so the labels take over the job the
+     same way the stats readout already did: a dark halo per label reads over
+     a white sky and a black building alike, which is what the blur was buying
+     and costs the compositor nothing. */
+  background: rgba(18, 18, 20, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 4px;
-  backdrop-filter: blur(14px) saturate(0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.9);
   max-width: 190px;
   transition: right 0.16s cubic-bezier(0.3, 0, 0.2, 1);
 }

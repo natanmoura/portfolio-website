@@ -30,9 +30,20 @@ export class Stage {
     this.container = container;
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      // No `antialias`. Every frame goes through the composer, so the canvas
+      // MSAA is resolved and then thrown away — the FXAA pass at the end of
+      // the chain is what actually antialiases this scene, and has been all
+      // along. Asking for it anyway made Chrome allocate a 4x multisampled
+      // drawing buffer and resolve it once a frame for nothing, which at a
+      // maximised window on a hi-dpi screen is a very large allocation on the
+      // ANGLE/D3D11 backend. Confirmed live: `gl.getParameter(gl.SAMPLES)`
+      // reported 4 while the composer discarded every one of them.
       powerPreference: 'high-performance',
-      preserveDrawingBuffer: true, // so snapshots can read the canvas back
+      // No `preserveDrawingBuffer`. `snapshot()` renders synchronously
+      // immediately before `toBlob`, so the buffer is already valid at capture
+      // time without asking the driver to keep a copy of every frame — which
+      // on Chrome's ANGLE/D3D11 backend costs a full-size blit per frame and
+      // is a known source of intermittent black rectangles at high resolution.
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -533,6 +544,10 @@ export class Stage {
   // every frame.
   fitFarPlane() {
     const dist = this.camera.position.distanceTo(this.controls.target);
+    // Recorded on every frame rather than only when framing runs, because
+    // `fitShadows` sizes the shadow box from it and a stale distance spends
+    // the texel budget for a zoom level the camera left some time ago.
+    this.viewDist = dist;
     const want = Math.max(800, (dist + this.extent) * 3);
     if (Math.abs(want - this.camera.far) < this.camera.far * 0.05) return;
     this.camera.far = want;
@@ -551,6 +566,26 @@ export class Stage {
     // limits — sizing the far plane from an unclamped position would chase a
     // distance the camera is never allowed to reach.
     this.fitFarPlane();
+    // And the shadow box follows the pivot, for exactly the reason the far
+    // plane follows the eye.
+    //
+    // `fitShadows` deliberately spends the shadow map on a small square around
+    // `controls.target` rather than on the whole town, which is what makes
+    // zooming in buy real resolution. That is only true while the square is
+    // actually under the camera — and it was only ever refitted from `apply`
+    // and `setExtent`, neither of which runs when you pan. So the box stayed
+    // wherever it was last put, the town slid out of it, and everything beyond
+    // its edge sampled outside the shadow map and drew fully shadowed: hard
+    // square-edged black patches that flicker as you move, because the edge is
+    // the frustum's own boundary rather than anything in the scene. Measured
+    // before the fix: panning the pivot to 40, 80, 160 and 320 units left the
+    // shadow centre pinned at the origin every time, against a half-extent of
+    // 256.
+    //
+    // Every-frame refitting is what the function was written for — the
+    // power-of-two extent and the texel-grid snapping in it exist precisely so
+    // that calling it continuously does not make the shadows shimmer.
+    this.fitShadows();
     // The sky dome travels with the eye, so it never clips or falls behind.
     this.sky.position.copy(this.camera.position);
     // Depth of field is refreshed here rather than on parameter change,
