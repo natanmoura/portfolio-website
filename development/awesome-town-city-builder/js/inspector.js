@@ -46,6 +46,8 @@ const HELP = {
   glow: 'Lights this module from within. The image itself does the glowing, so a lit face reads like a lightbox rather than a lamp. Setting it here pins the module lit or unlit regardless of where the global lit-modules slider sits.',
   glowColour: 'Base colour of the light. How much of it survives depends on the glow-takes-image-colour slider, since a lit picture mostly glows with its own colours.',
   strength: 'How hard this one module pushes, on top of the global glow strength.',
+  lockBuilding: 'Holds every module of this building exactly as it stands — shape, size, surface and light, all of it copied into the scene so a reroll cannot reach it. One caveat worth knowing: how many floors a building has is decided before any module exists, so this cannot hold the floor count. Lock the seed as well if you need the building to survive a reroll of the town itself.',
+  held: 'Held keeps the picture you put on this module exactly where it is. Only lit faces animate, so lighting a module you have just chosen an image for can start it scrolling or cutting to a different picture every few seconds — this pins it out of reach of the Billboards sliders without giving up the glow.',
   scheme: 'The two colours this module is allowed. They come from the building three, which is what keeps a block reading as one object.',
   faces: 'Which face the image and colour controls below are aimed at. Number keys do the same. Turn on all faces to hit every side at once.',
   images: 'Swap the image on the selected face. Reframe keeps the same picture and picks a new crop of it.',
@@ -103,8 +105,17 @@ export class Inspector {
     // focus, so a redraw never interrupts typing into the crop box mid-edit.
     setInterval(() => {
       if (this.locked || !this.actions.refresh) return;
+      // Nothing on screen is cycling, so there is nothing to keep honest. This
+      // used to run unconditionally and rebuild the whole panel every second,
+      // which reset the image grid's scroll position on a timer and made the
+      // pool below the fold effectively unreachable.
+      if (!this.swapping) return;
       const active = document.activeElement;
       if (active && active.tagName === 'INPUT' && this.root.contains(active)) return;
+      // A pointer inside the panel means someone is reaching for something.
+      // Redrawing it out from under them is how a click lands on the wrong
+      // thumbnail.
+      if (this.root.matches(':hover')) return;
       this.actions.refresh();
     }, 1000);
 
@@ -365,6 +376,25 @@ export class Inspector {
           },
           module.glow ? 'lit' : 'unlit'
         ),
+        // Lighting a face is what switches the billboard animations on: the
+        // shader only scrolls, swaps or flickers a face that is lit, by
+        // comparing this module's three tickets against the global shares. So
+        // putting one picture on a face and lighting it could start cycling it
+        // through the whole pool a few seconds later — which is the opposite
+        // of what someone who just chose that picture wants.
+        //
+        // Held pins the tickets outside 0..1, the same way an explicit `lit`
+        // or `unlit` pins the glow ticket, so no share can ever reach them.
+        // The module stays lit and keeps the image it was given.
+        h(
+          'button',
+          {
+            class: `chip${isHeld(module) ? ' on' : ''}`,
+            onclick: () =>
+              actions.setModule(id, { anim: isHeld(module) ? [Math.random(), Math.random(), Math.random()] : HELD_ANIM }),
+          },
+          isHeld(module) ? 'held' : 'animated'
+        ),
         palette.glow.map((c) =>
           h('button', {
             class: `sw${module.glowColor === c ? ' on' : ''}`,
@@ -373,7 +403,7 @@ export class Inspector {
           })
         )
       ),
-      `${HELP.glow} ${HELP.glowColour}`,
+      `${HELP.glow} ${HELP.glowColour} ${HELP.held}`,
       'Glow'
     );
 
@@ -476,6 +506,13 @@ export class Inspector {
         'Module actions'
       )
     );
+    // After the insert, not before: `setChildren` re-appends the cached grid
+    // and a detached node comes back scrolled to the top.
+    if (this.thumbs && this.thumbScroll) this.thumbs.scrollTop = this.thumbScroll;
+    // Only a face that is actually cycling needs the panel redrawn under it.
+    // Everything else was being rebuilt once a second for nothing, which is
+    // what made the grid impossible to scroll.
+    this.swapping = swapping;
   }
 
   randomImage() {
@@ -489,14 +526,27 @@ export class Inspector {
         { class: 'thumbs' },
         this.pool.items.map((item, i) =>
           h('button', {
-            class: 'thumb',
+            // A cutout is mostly transparent, so on the grid's dark ground it
+            // showed as a few floating fragments and read as a broken
+            // thumbnail. Its own class gives it something to sit on.
+            class: `thumb${item.kind === 'cutout' ? ' cut' : ''}`,
             style: `background-image:url(${item.url})`,
-            title: item.name,
+            title: `${item.name}${item.kind === 'cutout' ? ' (cutout)' : ''}`,
             'data-i': i,
           })
         )
       );
+      // The panel rebuilds itself once a second to keep a swapping billboard's
+      // highlight honest, and this grid is cached and re-appended each time —
+      // which resets its scroll to the top. Losing your place every second is
+      // the whole of "the scroll wheel snaps back up": with sixty-odd pictures
+      // four to a row, most of the pool is below the fold and unreachable.
+      // Remembered here and restored after each render.
+      this.thumbs.addEventListener('scroll', () => {
+        this.thumbScroll = this.thumbs.scrollTop;
+      });
     }
+    if (this.thumbScroll) this.thumbs.scrollTop = this.thumbScroll;
     this.thumbs.onclick = (e) => {
       const btn = e.target.closest('.thumb');
       if (btn) setFace({ image: Number(btn.dataset.i), color: '#ffffff' });
@@ -588,6 +638,22 @@ export class Inspector {
       this.slider('Nudge X', over.offsetX || 0, -4, 4, 0.01, (v) => actions.setBuilding(id, { offsetX: v }), HELP.nudge),
       this.slider('Nudge Z', over.offsetZ || 0, -4, 4, 0.01, (v) => actions.setBuilding(id, { offsetZ: v }), HELP.nudge),
       label('Whole building'),
+      withHelp(
+        h(
+          'div',
+          { class: 'chips' },
+          h(
+            'button',
+            {
+              class: `chip${actions.buildingLocked?.(id) ? ' on' : ''}`,
+              onclick: () => actions.lockBuilding(id),
+            },
+            actions.buildingLocked?.(id) ? 'locked' : 'lock this building'
+          )
+        ),
+        HELP.lockBuilding,
+        'Lock'
+      ),
       withHelp(
         h(
           'div',
@@ -787,6 +853,13 @@ export class Inspector {
     return withHelp(row, help, name);
   }
 }
+
+// Tickets pinned past the top of the range the shader compares against, so no
+// share can reach them however far its slider is pushed. 2 rather than 1
+// because a share of exactly 1 means "every face", and 1 would still be caught
+// by it — the same reason the glow ticket pins to 2 for unlit.
+const HELD_ANIM = [2, 2, 2];
+const isHeld = (module) => (module.anim || []).every((t) => t > 1);
 
 function label(text) {
   return h('h3', { class: 'grp' }, text);

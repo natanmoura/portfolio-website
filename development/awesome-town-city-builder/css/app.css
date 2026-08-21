@@ -568,10 +568,14 @@ input[type="checkbox"] { accent-color: var(--accent); }
 
 .thumbs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Sized rather than counted, so a wider panel shows more per row instead of
+     four ever-larger tiles. The pool runs to dozens of pictures and the old
+     four-column grid put most of them below a 210px fold. */
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
   gap: 3px;
-  max-height: 210px;
+  max-height: 320px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 2px;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -585,6 +589,14 @@ input[type="checkbox"] { accent-color: var(--accent); }
   background-size: cover;
   background-position: center;
   cursor: pointer;
+}
+/* A cutout is a shape on transparency. `cover` crops it and the dark ground
+   behind it swallows the dark parts, so it read as an empty or broken tile —
+   it needs to be shown whole, on something it can be seen against. */
+.thumb.cut {
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-color: #6a6f78;
 }
 .thumb:hover { border-color: var(--dim); }
 .thumb.on { outline: 2px solid var(--accent); outline-offset: -2px; }

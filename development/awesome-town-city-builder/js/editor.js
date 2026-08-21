@@ -34,9 +34,12 @@ import {
   slotIsChoice,
   pickSlot,
   newAssembly,
+  slug,
+  canonicalSize,
   newPart,
   dependents,
 } from './library.js';
+import { litFromBothSides } from './material.js';
 import { ALGORITHMS, DEFAULT_ALGORITHM, algorithmOf } from './algorithms.js';
 import { MODIFIERS } from './modifiers.js';
 import { renderThumb } from './thumbs.js';
@@ -157,6 +160,10 @@ const pickMat = new THREE.MeshStandardMaterial({
   color: 0x6f9ff0, roughness: 0.5, metalness: 0.05,
   side: THREE.DoubleSide, flatShading: true, emissive: 0x14305e,
 });
+// Both are already double-sided; without this the back faces draw black,
+// which is indistinguishable from not drawing. See litFromBothSides.
+litFromBothSides(baseMat, 'ed-base');
+litFromBothSides(pickMat, 'ed-pick');
 
 const shown = new THREE.Group();
 scene.add(shown);
@@ -166,6 +173,21 @@ scene.add(boundsBox);
 
 const raycaster = new THREE.Raycaster();
 const statsEl = document.getElementById('ed-stats');
+
+// The meshes that are turning, and how fast, in radians a second.
+//
+// Pinning `spinSpeed` is the one authored parameter whose whole meaning is
+// motion, so a still preview was the only control in the editor that could not
+// show you what you had just set — you pinned a number and had to go and look
+// at the town to find out what it did.
+//
+// **A spin turns the piece it was pinned on and nothing else.** Each of these
+// rotates about its own vertical axis, through the offset it was placed at,
+// which is what lets the lamp of a lamp-post turn on a post that stays put.
+// The piece's placement is applied as a position plus a local rotation rather
+// than baked into a parent, so turning it cannot drag its neighbours round
+// with it.
+let spinning = [];
 
 function clearShown() {
   for (const child of [...shown.children]) {
@@ -184,16 +206,9 @@ function clearShown() {
 // have nothing to do with this component's own composition. Pinning it to
 // the midpoint of whatever range was declared holds the footprint still so
 // the scrub reads as local variance, the way it is meant to.
-function canonicalSize(doc) {
-  const out = {};
-  for (const [key, value] of Object.entries(doc.params || {})) {
-    if (value?.mode === 'fixed') continue;
-    const min = value?.min ?? 0;
-    const max = value?.max ?? 1;
-    out[key] = (min + max) / 2;
-  }
-  return out;
-}
+// Moved into library.js, because the town now reads the same frame to work out
+// how big an assembly is relative to a box. Two copies of this would mean the
+// scene quietly disagreeing with the preview about what "canonical" means.
 
 function refreshViewport() {
   const doc = current();
@@ -205,6 +220,11 @@ function refreshViewport() {
 
   const r = resolveComponent(doc, library, seed, `editor:${doc.id}`, canonicalSize(doc));
   if (!r) return;
+
+  // Rebuilt from the resolved pieces below, so unpinning a spin drops the
+  // mesh out of the list and it stops where it is rather than being left
+  // turning by a stale entry.
+  spinning = [];
 
   for (const piece of r.pieces) {
     if (!piece.geometry) continue;
@@ -220,6 +240,16 @@ function refreshViewport() {
     mesh.position.set(piece.offset[0], piece.offset[1], piece.offset[2]);
     if (piece.rotY) mesh.rotation.y = piece.rotY;
     mesh.userData.partIndex = piece.partIndex;
+    // A part's own pinned spin, or failing that the component's own — a leaf
+    // carries its spin in `params` rather than on the piece, because that is
+    // the copy the city reads. See the note in `resolveComponent`.
+    const pieceSpin = Number.isFinite(piece.spinSpeed) ? piece.spinSpeed : r.params?.spinSpeed;
+    if (Number.isFinite(pieceSpin) && pieceSpin !== 0) {
+      // The placement angle is where this piece faces at rest, so the spin is
+      // measured from there rather than from zero — otherwise switching a spin
+      // on would snap a turned part back to facing front.
+      spinning.push({ mesh, speed: pieceSpin, rest: piece.rotY || 0 });
+    }
     shown.add(mesh);
   }
 
@@ -277,8 +307,15 @@ function resize() {
 new ResizeObserver(resize).observe(viewportEl);
 // Named, because the shell stops it while this view is off screen. A
 // renderer drawing behind the town is pure heat.
-function tick() {
+// `setAnimationLoop` hands the callback the frame's own timestamp, so the
+// angle is a function of elapsed time rather than of how many frames have gone
+// by. That is what keeps a spin the speed it says it is on a slow frame, and
+// it matches the city, where the angle comes from a `uTime` uniform for the
+// same reason.
+function tick(timeMs = 0) {
   controls.update();
+  const t = timeMs / 1000;
+  for (const s of spinning) s.mesh.rotation.y = s.rest + t * s.speed;
   renderer.render(scene, camera);
 }
 
@@ -611,12 +648,33 @@ function saveComponent() {
   const out = { ...doc, version: (doc.version || 1) + 1 };
   const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const a = h('a', { href: url, download: `${doc.id}.json` });
+  // Named after the label, not the id.
+  //
+  // An id is minted once from whatever the label was at creation and then
+  // frozen, because it is the identity everything else refers to: a part names
+  // its component by id, `dependents` walks those names, every saved scene
+  // stores one in `m.kind`, and the trait tables are keyed on them. Renaming
+  // cannot follow, so a component created as "New Component" and renamed to
+  // "Water Tower" kept downloading as `new-component.json` — the id is doing
+  // its job and the filename was reporting the wrong thing.
+  //
+  // The filename is the half nothing references, so it is the half that gets
+  // to track the label. The id inside the file is unchanged and still what the
+  // library keys on, which is why renaming the file is harmless.
+  const name = slug(doc.label);
+  const a = h('a', { href: url, download: `${name}.json` });
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  setStatus(`Downloaded ${doc.id}.json — drop it in library/components and rescan.`);
+  // The id is named explicitly when it differs, because that mismatch is
+  // invisible everywhere else in the editor and is exactly what makes a
+  // dropped-in file look like it did not take.
+  setStatus(
+    name === doc.id
+      ? `Downloaded ${name}.json — drop it in library/components and add it to manifest.json.`
+      : `Downloaded ${name}.json (id stays "${doc.id}") — drop it in library/components and add it to manifest.json.`
+  );
 }
 
 function revertComponent() {

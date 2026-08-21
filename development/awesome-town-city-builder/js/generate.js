@@ -17,7 +17,7 @@ import { buildLayout } from './layout.js';
 import { defaultHalf } from './region.js';
 import { MAX_SLOTS, slotCount, flatSlots } from './geometry.js';
 import { resolveParamsWith } from './constraints.js';
-import { resolveComponent } from './library.js';
+import { resolveComponent, canonicalSize } from './library.js';
 import { note } from './provenance.js';
 
 // The kind vocabulary and the role definitions live in roles.js; what a given
@@ -441,8 +441,6 @@ function makeModule(t, params, palette, ctx, index, id) {
     });
   }
 
-  const spins = kind === 'spin' || (kind === 'cylinder' && t.spinIs < 0.45);
-
   // A building wears at most one material, and every eligible module in it
   // wears the same one — that consistency is the whole point, so this is a
   // straight shape check against the building's single choice rather than a
@@ -465,7 +463,25 @@ function makeModule(t, params, palette, ctx, index, id) {
     // off (modSeed, modPath) same as any other authored parameter — see
     // spin.json and modifiers.js. `t.blades` stays drawn above so nothing
     // later in the ticket block shifts.
-    spinSpeed: spins ? mix(0.18, 0.85, t.spinSpeed) * (t.spinDir < 0.5 ? 1 : -1) : 0,
+    // **Spin is authored on the component, and only there.**
+    //
+    // This used to roll a speed here — 0.18 to 0.85, either direction, for a
+    // `spin` or a lucky `cylinder` — and hand it to `applyComponents` as a
+    // proposal. That made the component's own `spinSpeed` a *leash* rather
+    // than a decision: a range wide enough to be interesting (spin.json ships
+    // -4 to 7) simply permitted the roll it was given, so authoring the range
+    // changed nothing and the town kept turning at its own generated speed.
+    // `fixed` was the only mode that actually took effect.
+    //
+    // Left undefined instead, so `resolveParamsWith` has no proposal to leash
+    // and samples the authored range for real. A component that declares no
+    // `spinSpeed` now does not spin at all, which is the other half of the
+    // same rule: nothing turns unless a component says it turns.
+    //
+    // `t.spinSpeed`, `t.spinDir` and `t.spinIs` are still drawn in the ticket
+    // block above and deliberately unused, because removing a draw shifts
+    // every ticket after it and would regenerate the whole town.
+    spinSpeed: undefined,
     glowTicket: t.glow,
     glowColor: palette.glow[Math.floor(t.glowColour * palette.glow.length)],
     glowStrength: mix(0.6, 1.4, t.glowStrength),
@@ -493,8 +509,29 @@ function makeModule(t, params, palette, ctx, index, id) {
 // anything is locked; the component keeps its opinions in one place. Nothing
 // is cached, so unlocking a parameter in the editor and regenerating is the
 // whole update path — there is no baked state to invalidate.
+// How much bigger the town is than the frame the library was drawn in.
+//
+// Every component was authored beside a box at its canonical size — the middle
+// of the range `box.json` declares — so that box is the measuring stick, and a
+// component's size *relative to it* is what its author actually decided. The
+// town hands a module a footprint; the ratio between that footprint and the
+// stick's is the amount the stick had to grow, and applying the same amount to
+// an assembly puts it on the roof at the size it has in the editor.
+//
+// Taken off the footprint as the square root of the area ratio, which is the
+// linear scale that maps one rectangle onto the other and treats width and
+// depth alike. Height is not consulted: a roof slot's height is a cap's
+// height, and letting it in is what flattened tall components.
+function measuringStick(library) {
+  const dims = canonicalSize(library?.components?.get('box'));
+  return Number.isFinite(dims.w) && Number.isFinite(dims.d) && dims.w > 0 && dims.d > 0
+    ? dims
+    : null;
+}
+
 function applyComponents(modules, params, library, seed, id) {
   if (!library) return;
+  const stick = measuringStick(library);
   for (const m of modules) {
     const component = library.components.get(m.kind);
     if (!component) continue;
@@ -519,8 +556,34 @@ function applyComponents(modules, params, library, seed, id) {
       // same (seed, path) `m.modSeed`/`m.modPath` are about to be set to, so
       // the real resolve in `build.js` lands on this exact number and the
       // assembly's own scale-to-fit leaves height untouched (a scale of 1).
-      const measured = resolveComponent(component, library, seed, path, { w: m.w, d: m.d, ...motion });
-      if (measured && Number.isFinite(measured.bounds?.h)) m.h = measured.bounds.h;
+      // The scale is handed over directly, and the lot's own size is not.
+      //
+      // Offering `w`/`d` asks the assembly to fit inside the module, which is
+      // the wrong question: a spinner's mast is what stands on the roof and
+      // its disc is meant to hang well past the building, so fitting the disc
+      // to the lot shrank the whole object to a fraction of its drawn size.
+      // What the town actually knows is how much larger it is than the frame
+      // the component was drawn in, and that is the one number it should say.
+      //
+      // A component with no stick to measure against — a library with no box
+      // in it — falls back to the old footprint fit rather than guessing.
+      const fit = stick && m.w > 0 && m.d > 0
+        ? Math.sqrt((m.w * m.d) / (stick.w * stick.d))
+        : undefined;
+      // Kept on the module so `build.js` scales the geometry by the very same
+      // number rather than deriving it a second time from sizes that have
+      // since been written back.
+      m.fitScale = fit;
+      const measured = resolveComponent(component, library, seed, path, { fit, ...motion });
+      // All three written back, not just the height. Everything downstream —
+      // stacking, the chunk a module lands in, the inspector, and the second
+      // resolve in `build.js` — reads these, and a module reporting a size the
+      // triangles disagree with is the bug this is fixing.
+      if (measured && Number.isFinite(measured.bounds?.h)) {
+        m.w = measured.bounds.w;
+        m.h = measured.bounds.h;
+        m.d = measured.bounds.d;
+      }
       if (Number.isFinite(measured?.params?.turn)) m.rotY = measured.params.turn;
       if (Number.isFinite(measured?.params?.spinSpeed)) m.spinSpeed = measured.params.spinSpeed;
     } else {
@@ -700,7 +763,19 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   );
   const pull = Math.pow(1 - dist, 1.6) * (site.main ? 1.15 : 0.85);
   const shape = clamp(mix(shapeRoll, clamp(pull, 0, 1), params.centerBias), 0, 1);
-  const floors = Math.max(1, Math.round(mix(params.minFloors, params.maxFloors, shape)));
+  // How tall this building is, unless it has been pinned.
+  //
+  // `floorsDelta` was the only say a scene had over this and it is a relative
+  // one — it adds a floor to whatever was rolled, so it moves with the roll
+  // rather than holding it. That is right for "one more storey than the
+  // generator wanted" and useless for "this building does not change", which
+  // is what locking one has to mean: floor count is decided here, before a
+  // single module exists, so no amount of per-module locking can reach it.
+  // Locking a building writes this, and then the stack it is holding is the
+  // stack it keeps.
+  const floors = Number.isFinite(bOver.floors)
+    ? Math.max(1, Math.round(bOver.floors))
+    : Math.max(1, Math.round(mix(params.minFloors, params.maxFloors, shape)));
 
   let w = site.w * (1 + (sizeRollW * 2 - 1) * params.lotJitter * 0.4);
   let d = site.d * (1 + (sizeRollD * 2 - 1) * params.lotJitter * 0.4);
@@ -736,13 +811,21 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
   // include list the roof module will draw from, or a town with roofs
   // switched off would still reserve a storey for one.
   const roofKeys = includedFor(params, 'roof');
-  const roofKind = pickWeighted(
-    params.roofMix,
-    roofKeys,
-    roofRoll,
-    roofAllowFor(roofKeys, family),
-    'the roof mix'
-  );
+  // Pinned by a locked building for the same reason its floor count is: a cap
+  // is an extra module rather than a property of one, so a reroll that lands
+  // on a gable where it previously landed on flat *adds* a module, and no
+  // per-module lock can refuse it. Measured before this: a fully locked
+  // four-module building came back with five, the original four untouched and
+  // a roof on top that nobody asked for.
+  const roofKind = bOver.roofKind
+    ? bOver.roofKind
+    : pickWeighted(
+        params.roofMix,
+        roofKeys,
+        roofRoll,
+        roofAllowFor(roofKeys, family),
+        'the roof mix'
+      );
   if (roofKind !== 'flat') {
     const i = modules.length;
     const t = tickets(new Rng(hashIdModule(seed, id, i)));
@@ -860,6 +943,11 @@ export function generateLot(site, params, overrides, imageCount, cutoutCount, ma
     // adds on top of that rather than replacing it.
     rotY: site.angle + (bOver.rotY || 0),
     height,
+    // What this building was built from, so locking it can write the same
+    // decisions back rather than counting modules afterwards and having to
+    // guess which of them were floors and which were the cap and its spire.
+    floors,
+    roofKind,
     main: site.main,
     signature,
     family,

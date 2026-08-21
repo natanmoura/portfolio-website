@@ -1,0 +1,42 @@
+{
+  "id": "column-grids",
+  "version": 2,
+  "label": "Column Grids",
+  "tags": [],
+  "algorithm": "grid",
+  "algorithmParams": {
+    "count": {
+      "mode": "fixed",
+      "value": 9
+    },
+    "spacingX": {
+      "mode": "fixed",
+      "value": 0.5
+    },
+    "spacingZ": {
+      "mode": "fixed",
+      "value": 0.5
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "pbjec0",
+      "component": "box",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.1
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 1.45
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.1
+        }
+      }
+    }
+  ]
+}

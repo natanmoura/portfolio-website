@@ -1,11 +1,13 @@
 {
   "files": [
     "box.json",
+    "column-grids.json",
     "cone.json",
     "cylinder.json",
     "dome.json",
     "empty.json",
     "flag.json",
+    "flat-sign.json",
     "gable.json",
     "lamp-post.json",
     "octagon.json",
@@ -13,8 +15,12 @@
     "pillars8.json",
     "post.json",
     "pyramid.json",
-    "signed-tower.json",
     "sphere.json",
-    "spin.json"
+    "spin.json",
+    "spinner-sign.json",
+    "spinner.json",
+    "spiral.json",
+    "tower.json",
+    "triangle-box.json"
   ]
 }

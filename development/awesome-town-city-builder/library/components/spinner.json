@@ -1,0 +1,58 @@
+{
+  "id": "spinner",
+  "version": 2,
+  "label": "Spinner",
+  "tags": [],
+  "algorithm": "stack-y",
+  "algorithmParams": {
+    "overlap": {
+      "mode": "fixed",
+      "value": 0.19
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "pg33l6",
+      "component": "cone",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.3
+        },
+        "h": {
+          "mode": "range",
+          "min": 3.7,
+          "max": 30
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.3
+        }
+      }
+    },
+    {
+      "id": "plods7",
+      "component": "spin",
+      "params": {
+        "w": {
+          "mode": "range",
+          "min": 5,
+          "max": 15
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 0.18
+        },
+        "spinSpeed": {
+          "mode": "fixed",
+          "value": 1.265
+        },
+        "turn": {
+          "mode": "fixed",
+          "value": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "id": "flat-sign",
+  "version": 2,
+  "label": "Flat Sign",
+  "tags": [],
+  "algorithm": "stack-y",
+  "algorithmParams": {
+    "overlap": {
+      "mode": "fixed",
+      "value": 0
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "pqb9h3",
+      "component": "cylinder",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.1
+        },
+        "h": {
+          "mode": "range",
+          "min": 1,
+          "max": 2.85
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.1
+        }
+      }
+    },
+    {
+      "id": "pp4c51",
+      "component": "box",
+      "params": {
+        "h": {
+          "mode": "fixed",
+          "value": 0.05
+        },
+        "w": {
+          "mode": "fixed",
+          "value": 0.4
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 1.75
+        }
+      }
+    },
+    {
+      "id": "psksa4",
+      "component": "box",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "h": {
+          "mode": "range",
+          "min": 0.9,
+          "max": 2.8
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 1.75
+        }
+      }
+    }
+  ]
+}

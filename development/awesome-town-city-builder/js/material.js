@@ -34,6 +34,39 @@ export const shared = {
   uCloudDir: { value: new THREE.Vector2(1, 0.4).normalize() },
 };
 
+// Flat shading and double-sided lighting do not combine on their own.
+//
+// `normal_fragment_begin` derives a flat normal from screen-space derivatives
+// and applies `faceDirection` only on the *other* branch:
+//
+//   #ifdef FLAT_SHADED
+//     vec3 normal = normalize( cross( fdx, fdy ) );   // never flipped
+//   #else
+//     #ifdef DOUBLE_SIDED
+//       normal *= faceDirection;                       // only here
+//     #endif
+//   #endif
+//
+// So a back face on a flat-shaded double-sided material keeps a normal
+// pointing away from the eye and lights as though it faced away — it draws,
+// in black, which reads as not drawing at all. That is the whole of "faces
+// are missing from the back" in the editor and the thumbnails.
+//
+// Guarded on FLAT_SHADED rather than applied unconditionally, so turning flat
+// shading off later does not flip the normal twice.
+export function litFromBothSides(material, cacheKey) {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_begin>',
+      `#include <normal_fragment_begin>
+       #ifdef FLAT_SHADED
+         normal *= faceDirection;
+       #endif`
+    );
+  };
+  material.customProgramCacheKey = () => cacheKey;
+}
+
 const PARS_VERTEX = `
   attribute float aLayer;
   attribute float aMatLayer;

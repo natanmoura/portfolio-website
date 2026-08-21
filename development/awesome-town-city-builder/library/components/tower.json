@@ -1,7 +1,7 @@
 {
-  "id": "signed-tower",
-  "version": 2,
-  "label": "Signed Tower",
+  "id": "tower",
+  "version": 3,
+  "label": "Tower",
   "tags": [
     "structural",
     "sign"
@@ -12,19 +12,17 @@
       "component": "box",
       "params": {
         "w": {
-          "mode": "range",
-          "min": 0.85,
-          "max": 1
+          "mode": "fixed",
+          "value": 0.05
         },
         "h": {
           "mode": "range",
-          "min": 1.2,
-          "max": 2.2
+          "min": 0.95,
+          "max": 2.9
         },
         "d": {
-          "mode": "range",
-          "min": 0.85,
-          "max": 1
+          "mode": "fixed",
+          "value": 0.05
         }
       }
     },
@@ -40,7 +38,7 @@
         "h": {
           "mode": "range",
           "min": 0.8,
-          "max": 1.6
+          "max": 1.45
         },
         "d": {
           "mode": "range",
@@ -55,31 +53,39 @@
       "params": {
         "w": {
           "mode": "fixed",
-          "value": 0.7
+          "value": 0.75
         },
         "h": {
           "mode": "range",
-          "min": 0.5,
-          "max": 1.1
+          "min": 2.45,
+          "max": 5.65
         },
         "d": {
           "mode": "fixed",
-          "value": 0.7
+          "value": 0.75
         }
       }
     },
     {
       "id": "p3",
-      "component": "flag",
+      "component": {
+        "oneOf": [
+          "flag",
+          "empty"
+        ],
+        "mix": {
+          "empty": 10,
+          "flag": 10
+        }
+      },
       "params": {
         "w": {
           "mode": "fixed",
           "value": 0.5
         },
         "h": {
-          "mode": "range",
-          "min": 0.4,
-          "max": 0.9
+          "mode": "fixed",
+          "value": 0.65
         },
         "d": {
           "mode": "fixed",
@@ -92,7 +98,7 @@
   "algorithmParams": {
     "overlap": {
       "mode": "fixed",
-      "value": 0.08
+      "value": 0
     }
   },
   "params": {}

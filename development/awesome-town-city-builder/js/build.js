@@ -301,7 +301,13 @@ export class CityBuilder {
         this.library,
         m.modSeed ?? 0,
         m.modPath || `mod:${m.id}`,
-        { w: m.w, h: m.h, d: m.d, blades: m.blades }
+        // `fit` is the uniform scale generate.js already worked out from the
+        // measuring stick, carried across rather than derived again — the two
+        // resolves have to agree exactly or the triangles come out a different
+        // size from the bounds every other system was told about. An assembly
+        // ignores the `w`/`h`/`d` beside it whenever a fit is present; a leaf
+        // has no use for the fit and reads only those.
+        { fit: m.fitScale, w: m.w, h: m.h, d: m.d, blades: m.blades }
       );
       const drop = resolved.pieces.length === 1 ? resolved.pieces[0].offset[1] : resolved.bounds.h / 2;
       const merged = mergeResolved(resolved);
@@ -425,7 +431,31 @@ export class CityBuilder {
         const cg = c.g;
         const cb = c.b;
         // The axle of a spinning module stays put while its cards turn.
-        const speed = labels[si] === 'axle' ? 0 : m.spinSpeed || 0;
+        //
+        // A slot that carries its own speed is a piece of an assembly that was
+        // given a spin of its own, and it turns about its own axis rather than
+        // the module's centre — that is what keeps a spin pinned on the lamp
+        // of a lamp-post from taking the post round with it. Everything else
+        // falls back to the module-wide spin, which is still how a spinner's
+        // cards all turn together.
+        const ownSpin = Number.isFinite(slot.spinSpeed) ? slot.spinSpeed : null;
+        const speed = labels[si] === 'axle' ? 0 : ownSpin !== null ? ownSpin : m.spinSpeed || 0;
+        // **The axis stays the module's own centre, and that is a deliberate
+        // limit rather than an oversight.** `aSpin.xz` is read twice: as the
+        // axle to turn about, and by `WAVE_BODY` as the anchor a module is
+        // lifted and tilted around, which is what makes a stack ride the swell
+        // as one rigid body instead of shearing apart. Giving a piece its own
+        // axle here would also give it its own wave anchor, so on water the
+        // parts of one module would start pulling away from each other.
+        //
+        // It costs nothing for the arrangement this is actually wanted on: a
+        // stacked assembly places every part on x = z = 0, so a part's own
+        // axle *is* the module's centre and the two answers agree exactly. It
+        // only diverges for an arrangement that spreads parts sideways — a
+        // ring, a grid, a scatter — where a spinning part would orbit the
+        // module's middle rather than turn on the spot. Fixing that properly
+        // means a second attribute for the axle so the wave can keep its own
+        // anchor, which is a real change and not one to make blind.
 
         for (let i = slot.start; i < slot.start + slot.count; i++) {
           const px = shape.pos[i * 3];

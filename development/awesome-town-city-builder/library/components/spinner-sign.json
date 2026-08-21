@@ -1,0 +1,68 @@
+{
+  "id": "spinner-sign",
+  "version": 2,
+  "label": "Spinner Sign",
+  "tags": [],
+  "algorithm": "stack-y",
+  "algorithmParams": {
+    "overlap": {
+      "mode": "fixed",
+      "value": 0.52
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "pc64i0",
+      "component": "post",
+      "params": {
+        "d": {
+          "mode": "fixed",
+          "value": 0.4
+        },
+        "h": {
+          "mode": "range",
+          "min": 3.4,
+          "max": 4.65
+        },
+        "w": {
+          "mode": "fixed",
+          "value": 0.4
+        }
+      }
+    },
+    {
+      "id": "pca4e1",
+      "component": {
+        "oneOf": [
+          "octagon",
+          "cylinder"
+        ],
+        "mix": {
+          "cylinder": 15,
+          "octagon": 10
+        }
+      },
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 1.4
+        },
+        "h": {
+          "mode": "range",
+          "min": 1,
+          "max": 1.8
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 1.4
+        },
+        "spinSpeed": {
+          "mode": "range",
+          "min": -2.04,
+          "max": -0.32
+        }
+      }
+    }
+  ]
+}

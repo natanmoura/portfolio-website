@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { resolveComponent } from './library.js';
+import { litFromBothSides } from './material.js';
 
 const SIZE = 96;
 
@@ -36,6 +37,8 @@ function init() {
     side: THREE.DoubleSide,
     flatShading: true,
   });
+  // Or every back face in a thumbnail renders black. See litFromBothSides.
+  litFromBothSides(material, 'thumb');
 }
 
 // A preview is only useful if every part is in frame at a readable size, so

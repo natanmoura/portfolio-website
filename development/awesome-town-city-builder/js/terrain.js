@@ -134,6 +134,12 @@ export class Ground {
       color: '#2a2723',
       roughness: 0.95,
       metalness: 0,
+      // A road ribbon is a single sheet of triangles with no underside of its
+      // own, so front-facing only meant looking up at a viaduct from the
+      // ravine it crosses showed nothing there at all — the deck vanished and
+      // its columns stood holding up empty air. Free everywhere else, since a
+      // road lying on the ground is never seen from below.
+      side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
@@ -168,6 +174,10 @@ export class Ground {
     this.mode = HILLS;
     this.raster = null;
     this.step = 0;
+    // Matches the flat-ground value `setRoads` computes, so traffic is on the
+    // road on the very first frame rather than for every frame after the first
+    // rebuild.
+    this.roadLift = 0.06;
     // How far the ground travels vertically, whichever way it was made. The
     // lifts below (grid, tarmac) and the shadow frustum both want this, and
     // before drawn ground existed `amplitude` was the only answer there was.
@@ -331,6 +341,11 @@ export class Ground {
     const pos = [];
     const nor = [];
     const lift = 0.06 + this.relief * 0.004;
+    // Published, because anything that drives on the road has to be raised by
+    // the same amount the tarmac was. It scales with relief — a hillier town
+    // needs a bigger nudge to stop the ribbon z-fighting the ground it drapes
+    // over — so a constant on the other side would only be right on the flat.
+    this.roadLift = lift;
     // Whether the ground under the town moves at all. Terracing counts even
     // at zero relief, because a riser is a cliff however short the hill is.
     const drapes = this.relief > 0 || this.step > 0;
@@ -525,6 +540,31 @@ export class Ground {
     // never separated by anything; a shade down is still plainly the same
     // material and lets the two be told apart.
     this.columnMaterial.color.copy(color).multiplyScalar(0.82);
+  }
+
+  // Light coming out of the tarmac itself.
+  //
+  // Emissive rather than a brighter colour, for the thing that makes it worth
+  // having: emissive is what the bloom pass reads, so a lit road blooms into
+  // the air above it instead of just being a paler stripe. It is also why this
+  // is not folded into `setRoadColor` — a road's colour is what it reflects
+  // and this is what it emits, and the two want to be set independently.
+  //
+  // **The columns take it at a fraction, not in full.** A viaduct whose piers
+  // glow as hard as its deck reads as a solid slab of light with no structure
+  // in it; holding them back keeps the deck as the source and the columns as
+  // something standing under it.
+  //
+  // Unaffected by the day/night curve on purpose, unlike the tarmac colour
+  // above. A lit window is a fact about the hour, and the tool already ties
+  // building glow to it; a glowing road is an art direction, and one that
+  // switched itself off at noon would be a control that appears not to work.
+  setRoadGlow(strength, color) {
+    const amount = Math.max(0, strength || 0);
+    this.roadMaterial.emissive.set(color || '#ffcc66');
+    this.roadMaterial.emissiveIntensity = amount;
+    this.columnMaterial.emissive.set(color || '#ffcc66');
+    this.columnMaterial.emissiveIntensity = amount * 0.35;
   }
 
   setColor(color) {

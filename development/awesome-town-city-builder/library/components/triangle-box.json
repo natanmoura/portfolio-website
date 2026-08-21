@@ -1,0 +1,42 @@
+{
+  "id": "triangle-box",
+  "version": 2,
+  "label": "Triangle Box",
+  "tags": [],
+  "algorithm": "ring",
+  "algorithmParams": {
+    "count": {
+      "mode": "fixed",
+      "value": 4
+    },
+    "radius": {
+      "mode": "fixed",
+      "value": 0.7
+    },
+    "spread": {
+      "mode": "fixed",
+      "value": 0.75
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "pohh40",
+      "component": "gable",
+      "params": {
+        "w": {
+          "mode": "fixed",
+          "value": 0.01
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 1.4
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 1.35
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "id": "gable",
-  "version": 1,
+  "version": 2,
   "label": "Gable",
   "shape": "gable",
   "tags": [
@@ -23,5 +23,33 @@
       "max": 2.4
     }
   },
-  "modifiers": []
+  "modifiers": [
+    {
+      "type": "lattice",
+      "enabled": true,
+      "params": {
+        "skewX": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "skewZ": {
+          "mode": "range",
+          "min": -0.1,
+          "max": 0.1
+        },
+        "taper": {
+          "mode": "fixed",
+          "value": 0.13
+        },
+        "twist": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "jitter": {
+          "mode": "fixed",
+          "value": 0
+        }
+      }
+    }
+  ]
 }

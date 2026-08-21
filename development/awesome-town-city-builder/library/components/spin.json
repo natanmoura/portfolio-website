@@ -1,6 +1,6 @@
 {
   "id": "spin",
-  "version": 1,
+  "version": 2,
   "label": "Spin",
   "shape": "spin",
   "tags": [
@@ -22,13 +22,53 @@
       "mode": "free",
       "min": 0.4,
       "max": 2.4
+    },
+    "spinSpeed": {
+      "mode": "range",
+      "min": -4,
+      "max": 7
+    },
+    "turn": {
+      "mode": "free",
+      "min": 0,
+      "max": 6.283185307179586
     }
   },
   "modifiers": [
     {
       "type": "radial",
       "params": {
-        "count": { "mode": "range", "min": 1, "max": 4 }
+        "count": {
+          "mode": "range",
+          "min": 1,
+          "max": 4
+        }
+      }
+    },
+    {
+      "type": "lattice",
+      "enabled": false,
+      "params": {
+        "skewX": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "skewZ": {
+          "mode": "fixed",
+          "value": 0.05
+        },
+        "taper": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "twist": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "jitter": {
+          "mode": "fixed",
+          "value": 0
+        }
       }
     }
   ]

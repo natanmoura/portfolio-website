@@ -318,7 +318,12 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
   }
   const tags = doc.tags || [];
 
-  if (isAssembly(doc)) return resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen);
+  // `fit` is a uniform scale stated outright, rather than a target size to be
+  // worked backwards from. It is how the town says "you are being placed at
+  // this scale" without also saying how big that makes you, which is the
+  // component's own business. Never a param, so no component can declare it
+  // and nothing on disk changes shape.
+  if (isAssembly(doc)) return resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen, proposals?.fit);
 
   const w = dims.w ?? 1;
   const h = dims.h ?? 1;
@@ -366,12 +371,30 @@ export function resolveComponent(doc, lib, seed, path, proposals, depth = 0, see
     params: dims,
     geometry,
     pieces: [
-      { id: doc.id, geometry, bounds: tight, box, offset: [0, lift, 0], rotY: 0, scale: 1, path: p, partIndex: -1 },
+      {
+        id: doc.id,
+        geometry,
+        bounds: tight,
+        box,
+        offset: [0, lift, 0],
+        rotY: 0,
+        scale: 1,
+        path: p,
+        partIndex: -1,
+        // No `spinSpeed` here, deliberately. A leaf's own spin is already
+        // reported in `params`, and `applyComponents` in generate.js reads it
+        // from there into the module's `spinSpeed` — where the city constrains
+        // it. Putting it on the piece as well made the renderer prefer this
+        // raw, unconstrained resolve over the city's: a `spin` declaring a
+        // -4..7 range drove the GPU at 6.8 rad/s while the module it belonged
+        // to had settled on 0.84. Whole-component spin travels by `params`;
+        // the piece field is only ever for a *part* of an assembly.
+      },
     ],
   };
 }
 
-function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
+function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen, fitScale) {
   const nextSeen = new Set(seen).add(doc.id);
   const list = doc.parts || [];
 
@@ -473,6 +496,15 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
         scale: (piece.scale ?? 1) * s,
         partIndex: part.partIndex,
         instanceIndex: part.instanceIndex,
+        // Spin belongs to the part that pinned it, and travels down to that
+        // part's own pieces only. A piece that already carries one keeps it,
+        // so a spin pinned deep in a nested assembly is not overwritten by an
+        // outer part that happens to spin too.
+        spinSpeed: Number.isFinite(piece.spinSpeed)
+          ? piece.spinSpeed
+          : Number.isFinite(part.params?.spinSpeed)
+            ? part.params.spinSpeed
+            : undefined,
       });
     }
   }
@@ -490,11 +522,44 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   // so an assembly can be told how big it is from outside — a template, a
   // slot pin, or the city's own generator handing every module a size before
   // it is drawn.
-  const bounds = {
-    w: Number.isFinite(dims.w) ? dims.w : tight.w,
-    h: Number.isFinite(dims.h) ? dims.h : tight.h,
-    d: Number.isFinite(dims.d) ? dims.d : tight.d,
-  };
+  // **One factor for all three axes, taken from the footprint.**
+  //
+  // A component is authored against the shape it sits next to — a box at the
+  // size the town gives a module is the measuring stick everything else was
+  // drawn to. So "make this fit the lot" has to mean the amount a box would
+  // have been scaled by, applied whole, not three independent stretches. Three
+  // was what turned a spinner's 11.8m disc into a 4m one while leaving its
+  // 27m mast alone: every number matched what was asked for and the object
+  // was no longer the object.
+  //
+  // Driven by width and depth rather than height, and by the *smaller* of the
+  // two, so the assembly sits within the ground its module was given. Height
+  // is then whatever the proportion makes it, which is the point: a tall thing
+  // stays tall relative to its own width, and the variation an author built
+  // into its parts survives at every size.
+  //
+  // Height only gets a say when it is the only thing asked for, which is the
+  // case for a component pinned by height alone rather than placed on a lot.
+  //
+  // **A stated `fitScale` skips all of that.** Squeezing an assembly inside
+  // the footprint it was handed is the wrong question for something like a
+  // spinner, where the mast that meets the roof is small and the disc is
+  // deliberately enormous — fitting the disc to the lot shrinks the whole
+  // object to a fraction of the size it was drawn at. The town works out the
+  // scale from the measuring stick instead and says it plainly here, and the
+  // assembly is free to overhang whatever it is standing on.
+  let k = 1;
+  if (Number.isFinite(fitScale) && fitScale > 0) {
+    k = fitScale;
+  } else {
+    const fit = [];
+    if (Number.isFinite(dims.w) && tight.w > 1e-6) fit.push(dims.w / tight.w);
+    if (Number.isFinite(dims.d) && tight.d > 1e-6) fit.push(dims.d / tight.d);
+    if (!fit.length && Number.isFinite(dims.h) && tight.h > 1e-6) fit.push(dims.h / tight.h);
+    if (fit.length) k = Math.min(...fit);
+  }
+
+  const bounds = { w: tight.w * k, h: tight.h * k, d: tight.d * k };
 
   // Baked into the geometry here, not left as `bounds` reporting a number the
   // triangles do not agree with. That used to be the entire bug: an assembly
@@ -508,29 +573,27 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
   // different size while keeping the same composition actually has to mean —
   // stretching every part in proportion to how the assembly as a whole
   // needs to change, not re-authoring each part's own independent size.
-  const scale = {
-    x: tight.w > 1e-6 ? bounds.w / tight.w : 1,
-    y: tight.h > 1e-6 ? bounds.h / tight.h : 1,
-    z: tight.d > 1e-6 ? bounds.d / tight.d : 1,
-  };
-  const rescaled =
-    scale.x === 1 && scale.y === 1 && scale.z === 1 ? pieces : pieces.map((piece) => scalePiece(piece, scale));
+  const scale = { x: k, y: k, z: k };
+  const rescaled = k === 1 ? pieces : pieces.map((piece) => scalePiece(piece, scale));
 
-  // Spin is a single speed for the whole merged mesh — there is no such
-  // thing as one part of a rigid assembly spinning without the rest, the
-  // same way a spinner's own cards all turn together as one module. An
-  // assembly can still declare its own `spinSpeed` param to opt every
-  // instance of it in by default; short of that, a part whose own component
-  // pinned a spin (the "lamp" on a lamp-post, say) carries the assembly it
-  // is part of along with it, first one found winning since there is only
-  // the one speed to give.
-  let spinSpeed = dims.spinSpeed;
-  if (!Number.isFinite(spinSpeed)) {
-    for (const part of placed) {
-      if (Number.isFinite(part.params?.spinSpeed)) {
-        spinSpeed = part.params.spinSpeed;
-        break;
-      }
+  // **Spin turns the part it was pinned on, and nothing else.**
+  //
+  // This used to resolve one speed for the whole merged mesh, on the reasoning
+  // that no part of a rigid assembly turns without the rest — which is true of
+  // a spinner's own cards and false of an assembly, where the parts are
+  // separate objects that happen to be stacked. The consequence was that
+  // pinning a spin on the lamp of a lamp-post span the post and its base too,
+  // and there was no way to express the thing anyone actually wants: one piece
+  // turning on a fixed mount.
+  //
+  // So the speed rides on the piece (see the flatten above) and each piece
+  // turns about its own axis. An assembly may still declare `spinSpeed` on
+  // itself, which now means "every piece of me that has not been given one of
+  // its own", so opting a whole component in is still one pin.
+  const ownSpin = dims.spinSpeed;
+  if (Number.isFinite(ownSpin)) {
+    for (const piece of rescaled) {
+      if (!Number.isFinite(piece.spinSpeed)) piece.spinSpeed = ownSpin;
     }
   }
 
@@ -541,7 +604,7 @@ function resolveAssembly(doc, lib, seed, p, dims, tags, depth, seen) {
     box: scaleBox(box, scale),
     anchors: anchorsFor(bounds.w, bounds.h, bounds.d),
     tags,
-    params: Number.isFinite(spinSpeed) ? { ...dims, spinSpeed } : dims,
+    params: dims,
     parts: placed,
     pieces: rescaled,
     algorithm: doc.algorithm || DEFAULT_ALGORITHM,
@@ -638,8 +701,19 @@ export function mergeResolved(r) {
 
     // Slot starts shift by however many vertices came before, so every
     // sub-shape keeps its own faces and the caller can still address them.
+    //
+    // Each slot also carries the spin of the piece it came out of, and the
+    // axis to turn about — the piece's own placement, in the merged shape's
+    // local frame. Without both, the city could only turn a whole module about
+    // its centre, which is the behaviour that made a pinned spin drag every
+    // other part of an assembly round with it.
     for (const slot of g.slots || []) {
-      out.slots.push({ ...slot, start: slot.start + base });
+      out.slots.push({
+        ...slot,
+        start: slot.start + base,
+        spinSpeed: piece.spinSpeed,
+        pivot: [ox, oz],
+      });
     }
   }
   return finishMerge(out);
@@ -657,12 +731,41 @@ function finishMerge(out) {
 
 // --- authoring --------------------------------------------------------------
 
-export function makeId(label, taken) {
-  const base =
-    label
+// A label reduced to something safe for an id or a filename. One definition,
+// because the two have to agree about what "water tower" becomes or a
+// component's file stops matching the id it was minted with.
+export function slug(label) {
+  return (
+    (label || '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'component';
+      .replace(/^-|-$/g, '') || 'component'
+  );
+}
+
+// The size a component sits at when nothing is asking it to be anything: the
+// middle of every range it declares, and nothing at all for what it does not.
+//
+// This is the frame the component editor previews in, which makes it the frame
+// every component in the library was authored against — an assembly is drawn
+// next to a box at *its* canonical size, so the ratio between the two is the
+// author's own statement of how big the thing is. `generate.js` reads that
+// ratio back out to place assemblies at the size they were drawn at. If this
+// ever stops matching what the editor shows, the town stops matching the
+// editor with it.
+export function canonicalSize(doc) {
+  const out = {};
+  for (const [key, value] of Object.entries(doc?.params || {})) {
+    if (value?.mode === 'fixed') continue;
+    const min = value?.min ?? 0;
+    const max = value?.max ?? 1;
+    out[key] = (min + max) / 2;
+  }
+  return out;
+}
+
+export function makeId(label, taken) {
+  const base = slug(label);
   let id = base;
   let n = 2;
   while (taken.has(id)) id = `${base}-${n++}`;

@@ -15,6 +15,21 @@ import { waveAt } from './wave.js';
 import { shaderVersion } from './pcss.js';
 import { liftAt } from './elevation.js';
 
+// How far a car's centre sits above the surface it is driving on, as a share
+// of its own size. The body spans half its height either side of its origin,
+// so anything above 0.25 is genuine clearance: 0.26 was the hairline this
+// started at, tight enough that any disagreement about where the road was put
+// the car through it, and 0.3 cleared the tarmac but still read as sitting on
+// its belly. At 0.38 there is about a seventh of a car's height of daylight
+// under it — enough to read as wheels from a low camera without the car
+// looking like it is hovering.
+const CAR_RIDE = 0.38;
+
+// The steepest a car will be tipped, about 34 degrees. The two samples either
+// side of it straddle the join where a ramp meets the floor, and the honest
+// answer there is a step rather than a slope.
+const MAX_PITCH = 0.6;
+
 // --- shapes ----------------------------------------------------------------
 
 class Mesh {
@@ -429,7 +444,10 @@ export class Traffic {
     for (const car of this.cars) if (car.flying) car.ahead = null;
   }
 
-  update(dt, time, groundAt, params) {
+  // `roadLift` is how far the tarmac sits above the terrain it drapes over,
+  // published by Ground so this can put its cars on the road rather than in
+  // it. See the note where it is used.
+  update(dt, time, groundAt, params, roadLift = 0) {
     if (!this.cars.length) return;
     const step = Math.min(0.05, dt);
     this.queue();
@@ -563,12 +581,52 @@ export class Traffic {
       // deck; a ground car drives on whatever its road is doing, which is the
       // terrain until the road leaves it.
       const deck = car.flying || !car.route.road ? 0 : liftAt(car.route.road, this._hit.at, base);
-      const y = base + deck + waveAt(x, z) + (car.flying ? lift : car.size * 0.26 * tall);
+      // **Ground cars ride the tarmac, not the terrain under it.** The ribbon
+      // is drawn a little above the ground it drapes over so it does not
+      // z-fight — `roadLift` in terrain.js, which grows with relief — and a
+      // car placed on the raw ground therefore drives through the road it is
+      // supposed to be on. Invisible on the flat, where the offset is 6cm, and
+      // obvious on a hilly town where it reaches nearly 20.
+      const surface = car.flying ? 0 : roadLift;
+      const y = base + deck + surface + waveAt(x, z) + (car.flying ? lift : car.size * CAR_RIDE * tall);
       this._last = { x, z };
 
-      // Roll about the car's own forward axis, and nothing else: a car on the
-      // road must not pitch or it reads as spinning.
-      this._e.set(car.flying ? roll : 0, -car.heading, 0, 'YXZ');
+      // **A car points along the road, up a hill as well as round a bend.**
+      //
+      // The heading takes care of the bend; this is the climb. Measured as a
+      // real rise over a real run — the surface a short way ahead against the
+      // surface the same distance behind — rather than from the terrain
+      // gradient, because a car on a viaduct is on a deck that has its own
+      // grade and no relationship to the ground beneath it.
+      //
+      // It is the *Z* euler, not the X one. The body is modelled nose-first
+      // along local +X (see the geometry above), so turning about X rolls it
+      // and turning about Z lifts the nose — which is also why the flyers'
+      // roll is the X term and the two do not collide.
+      let pitch = 0;
+      if (!car.flying && groundAt) {
+        const fx = Math.cos(car.heading);
+        const fz = Math.sin(car.heading);
+        const run = Math.max(0.6, car.size * 0.9);
+        // `at` advances with the road, which is backwards from the car when it
+        // is driving the other way down the same polyline.
+        const along = car.dir < 0 ? -run : run;
+        const surfaceAt = (px, pz, at) => {
+          const g = groundAt(px, pz);
+          return g + (car.route.road ? liftAt(car.route.road, at, g) : 0) + waveAt(px, pz);
+        };
+        const rise =
+          surfaceAt(x + fx * run, z + fz * run, this._hit.at + along) -
+          surfaceAt(x - fx * run, z - fz * run, this._hit.at - along);
+        // Clamped, because the two samples straddle the end of a ramp at the
+        // moment a road meets the floor and the raw angle there is a cliff.
+        pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Math.atan2(rise, run * 2)));
+      }
+
+      // Roll about the car's own forward axis for a flyer, pitch about its
+      // lateral one for a car on the road. Never both, and never yaw here —
+      // that is the heading.
+      this._e.set(car.flying ? roll : 0, -car.heading, pitch, 'YXZ');
       this._q.setFromEuler(this._e);
       this._v.set(x, y, z);
       this._s.set(car.size, car.size * tall, car.size);

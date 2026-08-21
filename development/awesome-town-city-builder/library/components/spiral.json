@@ -1,0 +1,42 @@
+{
+  "id": "spiral",
+  "version": 2,
+  "label": "Spiral",
+  "tags": [],
+  "algorithm": "spiral",
+  "algorithmParams": {
+    "count": {
+      "mode": "fixed",
+      "value": 12
+    },
+    "radius": {
+      "mode": "fixed",
+      "value": 1
+    }
+  },
+  "params": {},
+  "parts": [
+    {
+      "id": "prnfo1",
+      "component": "sphere",
+      "params": {
+        "spinSpeed": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "w": {
+          "mode": "fixed",
+          "value": 1.3
+        },
+        "h": {
+          "mode": "fixed",
+          "value": 1.4
+        },
+        "d": {
+          "mode": "fixed",
+          "value": 0.4
+        }
+      }
+    }
+  ]
+}

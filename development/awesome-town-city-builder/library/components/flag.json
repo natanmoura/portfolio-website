@@ -1,6 +1,6 @@
 {
   "id": "flag",
-  "version": 1,
+  "version": 2,
   "label": "Flag",
   "shape": "flag",
   "tags": [
@@ -23,5 +23,34 @@
       "max": 2.4
     }
   },
-  "modifiers": []
+  "modifiers": [
+    {
+      "type": "lattice",
+      "enabled": true,
+      "params": {
+        "skewX": {
+          "mode": "range",
+          "min": -0.2,
+          "max": 0.2
+        },
+        "skewZ": {
+          "mode": "range",
+          "min": -0.05,
+          "max": 0.05
+        },
+        "taper": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "twist": {
+          "mode": "fixed",
+          "value": 0
+        },
+        "jitter": {
+          "mode": "fixed",
+          "value": 0
+        }
+      }
+    }
+  ]
 }

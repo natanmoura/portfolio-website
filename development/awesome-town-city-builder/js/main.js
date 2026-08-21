@@ -86,14 +86,31 @@ const ENV_DEFAULTS = {
   // palette carries a road colour, so this has no "off" state to fall back to
   // and starts on the exact shade it was baked at.
   roadColor: '#2a2723',
+  // Off by default, so a scene saved before this existed opens exactly as it
+  // did. The colour is the same warm default a lit module falls back to, which
+  // reads as sodium street lighting rather than as a graphic stripe — change
+  // it for the Tron reading.
+  roadGlow: 0,
+  roadGlowColor: '#ffcc66',
   bloomOn: true,
   bloomStrength: 1,
   shadows: true,
   softShadows: true,
   shadowLightSize: 0.015,
   shadowSoftness: 1,
-  shadowSamples: 32,
-  shadowDetail: 8192,
+  // Shadows are the single most expensive thing this renderer does, and these
+  // two defaults were most of it. Measured with GPU timer queries on a 22x22
+  // town at 4000x2800: 40.9ms a frame, of which shadows were 23.8 — 58% —
+  // against 4.4ms for all five post-processing passes put together. Contact
+  // hardening is the bulk of that rather than the map size, because it takes a
+  // tap per sample per shadowed pixel.
+  //
+  // 32 -> 16 samples and 8192 -> 2048 together take the same frame from 25fps
+  // to 43, and the map from 256MB of video memory to 16. The penumbra is a
+  // blur either way, so half the taps is very hard to see; both controls are
+  // still there for a hero render.
+  shadowSamples: 16,
+  shadowDetail: 2048,
   ao: 0,
   aoRadius: 2.4,
   aoSmoothing: 2,
@@ -521,6 +538,17 @@ function markLot(id) {
 // holding up.
 function wasAnchored(plotId) {
   return Boolean(state.city?.layout?.sites?.find((s) => s.id === plotId)?.anchored);
+}
+
+// Every module of this building holding every facet, which is what the panel
+// shows as "locked".
+function isBuildingLocked(id) {
+  const building = byBuilding.get(id);
+  if (!building || !building.modules.length) return false;
+  return building.modules.every((m) => {
+    const held = locksOf(state.overrides[m.id]);
+    return FACET_KEYS.every((f) => held.includes(f));
+  });
 }
 
 function markLotOfModule(moduleId) {
@@ -986,6 +1014,54 @@ const actions = {
     history?.record(`lock:${id}:${facet}`);
   },
 
+  // Not `this.buildingLocked`: the history wrapper below re-exports every
+  // action as a plain arrow that calls the original unbound, so `this` inside
+  // one of these is undefined. Both callers go through the free function.
+  buildingLocked: (id) => isBuildingLocked(id),
+
+  // Freeze a whole building, or hand all of it back.
+  //
+  // A facet lock is per module and answers "keep this one a sphere". It is the
+  // right shape for editing and the wrong shape for the thing people actually
+  // ask for after they have got a building looking right, which is "stop
+  // touching this". Doing that by hand meant selecting every module in the
+  // stack and pressing four buttons on each.
+  //
+  // It captures rather than flags, the same as any single facet: the values
+  // are copied out of the modules as they stand right now and into the
+  // overrides, so what is frozen is what is on screen rather than a promise
+  // about what the generator would produce next time.
+  //
+  // **Floor count is pinned alongside the modules, because it is not one.**
+  // How many storeys a building has is decided before a single module exists,
+  // so per-module locks cannot reach it — measured before this: a locked
+  // building rerolled from four modules to two, and the two that survived were
+  // byte-identical while the other two were simply gone. The count goes into
+  // the building's own override so the stack it is holding is the stack it
+  // keeps.
+  lockBuilding(id) {
+    const building = byBuilding.get(id);
+    if (!building) return;
+    const on = !isBuildingLocked(id);
+    for (const m of building.modules) {
+      let over = state.overrides[m.id];
+      for (const facet of FACET_KEYS) over = withFacet(over, m, facet, on);
+      setOverride(m.id, over);
+    }
+    // `floorsDelta` is relative and would ride on top of a pinned count, which
+    // is not what anyone means by locking, so it is cleared on the way in and
+    // the absolute count takes over.
+    if (on) patchOverride(id, { floors: building.floors, roofKind: building.roofKind, floorsDelta: 0 });
+    else patchOverride(id, { floors: undefined, roofKind: undefined });
+    markLot(building.id);
+    history?.record(`lock-building:${id}`);
+    noteStatus(
+      on
+        ? `Locked ${building.modules.length} modules and ${building.floors} floors.`
+        : `Unlocked ${building.modules.length} modules.`
+    );
+  },
+
   setFace(id, slot, patch, all, count = 1) {
     const current = state.overrides[id] || {};
     const faces = current.faces ? current.faces.slice() : [];
@@ -1083,6 +1159,7 @@ const HISTORY_DISCRETE = [
   'glowBuilding',
   'deleteBuilding',
   'clearBuilding',
+  'lockBuilding',
 ];
 
 for (const name of [...Object.keys(HISTORY_KEYS), ...HISTORY_DISCRETE]) {
@@ -2571,13 +2648,37 @@ function exportBlender(proxy) {
   );
 }
 
+// A PNG of the current view, captured at full device resolution rather than at
+// the ratio the live viewport runs at.
+//
+// The viewport is capped below the display's own ratio because every
+// screen-space cost scales with it squared and the tour has to stay smooth
+// (see `setPixelRatio` in scene.js). A still has no frame budget to keep, so
+// the cap is lifted for exactly the one frame being captured and put back
+// afterwards — otherwise tuning the viewport for motion would quietly cost a
+// quarter of the resolution of every picture taken out of it.
+//
+// The restore happens inside the `toBlob` callback, never before it: the
+// buffer is not preserved between frames, so resizing the canvas while the
+// encode is still pending would capture a torn or empty image.
 function snapshot() {
   picker.clear();
+  const renderer = stage.renderer;
+  const live = renderer.getPixelRatio();
+  const full = Math.min(devicePixelRatio, 2);
+  if (full !== live) {
+    renderer.setPixelRatio(full);
+    stage.resize();
+  }
   stage.render();
-  stage.renderer.domElement.toBlob((blob) => {
+  renderer.domElement.toBlob((blob) => {
     const a = h('a', { href: URL.createObjectURL(blob), download: `awesome-town-${Date.now()}.png` });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    if (full !== live) {
+      renderer.setPixelRatio(live);
+      stage.resize();
+    }
     refreshHighlight();
   });
 }
@@ -2616,6 +2717,83 @@ let statsAt = 0;
 // nobody, and the frames cost the same as the visible ones.
 let onScreen = true;
 
+// TEMPORARY DIAGNOSTIC — delete once the black-flash report is settled.
+//
+// Press F9 while the black is on screen. It reads the drawing buffer back and
+// reports how much of it is actually black, which is the one question that
+// separates the two possible causes and cannot be answered from this end:
+// every render probe run locally comes back with correct pixels, so either
+// the artifact is in the buffer on that machine and it is ours, or the buffer
+// is clean and the browser is failing to put it on screen, in which case no
+// change to the scene or the shaders can reach it.
+addEventListener('keydown', (e) => {
+  if (e.key !== 'F9') return;
+  e.preventDefault();
+  const gl = stage.renderer.getContext();
+  const c = stage.renderer.domElement;
+  const w = c.width;
+  const h = c.height;
+  const row = new Uint8Array(w * 4);
+  let black = 0;
+  let total = 0;
+  let longestRun = 0;
+  for (let k = 1; k <= 24; k++) {
+    const y = Math.floor((h * k) / 25);
+    gl.readPixels(0, y, w, 1, gl.RGBA, gl.UNSIGNED_BYTE, row);
+    let run = 0;
+    for (let x = 0; x < w; x++) {
+      const j = x * 4;
+      const lum = (row[j] + row[j + 1] + row[j + 2]) / 3;
+      total++;
+      if (lum < 12) {
+        black++;
+        run++;
+        if (run > longestRun) longestRun = run;
+      } else {
+        run = 0;
+      }
+    }
+  }
+  const pct = (100 * black) / total;
+  const verdict = pct > 8 || longestRun > w * 0.15 ? 'IN-BUFFER' : 'BUFFER-CLEAN';
+
+  // Everything this scene sets differently from a fresh one. The report is
+  // scene-specific, so the difference between the scene that shows it and the
+  // ones that do not *is* the bug, and it is far quicker to read it off than
+  // to guess at which control is responsible.
+  const base = { ...DEFAULTS, ...ENV_DEFAULTS };
+  const p = state.params;
+  const changed = {};
+  for (const k of Object.keys(p)) {
+    const v = p[k];
+    if (v && typeof v === 'object') {
+      // Summarise rather than dump — a mix wheel or a landform list would
+      // bury the scalars that actually matter.
+      const n = Array.isArray(v) ? v.length : Object.keys(v).length;
+      if (n) changed[k] = Array.isArray(v) ? `[${n} items]` : v;
+      continue;
+    }
+    if (v !== base[k]) changed[k] = v;
+  }
+
+  const report = {
+    verdict,
+    blackPercent: +pct.toFixed(2),
+    longestBlackRunPx: longestRun,
+    canvas: [w, h],
+    pixelRatio: stage.renderer.getPixelRatio(),
+    buildings: state.city ? state.city.buildings.length : 0,
+    roads: state.city && state.city.layout ? state.city.layout.roads.length : 0,
+    changedParams: changed,
+  };
+  console.log('[black-flash probe]', report);
+  const text = JSON.stringify(report, null, 1);
+  navigator.clipboard?.writeText(text).then(
+    () => noteStatus(`F9: ${pct.toFixed(1)}% black, ${verdict} — report copied, paste it in chat`),
+    () => noteStatus(`F9: ${pct.toFixed(1)}% black, ${verdict} — see console`)
+  );
+});
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
@@ -2633,7 +2811,7 @@ function animate() {
   waveClock = clock.elapsedTime;
   waveState.time = waveClock;
   builder.update(waveClock);
-  traffic.update(dt, waveClock, groundAt, state.params);
+  traffic.update(dt, waveClock, groundAt, state.params, stage.ground.roadLift);
   // One uniform write. Every particle's position, drift, spin and fade is a
   // function of this number and the attributes rolled at build time.
   particles.update(waveClock);
