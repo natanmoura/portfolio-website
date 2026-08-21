@@ -656,12 +656,14 @@ function rebuildAll() {
   // points were picked survives the rebuild: dragging one commits, which
   // rebuilds, and losing the selection every time would make a second nudge
   // impossible without re-aiming.
-  const wanted = curveEditor?.selectedCurve || (state.params.boundary ? BOUNDARY_ID : null);
-  const stillThere = curves.some((c) => c.id === wanted);
-  curveEditor?.select(
-    stillThere ? wanted : state.params.boundary ? BOUNDARY_ID : null,
-    stillThere ? [...curveEditor.selectedPoints] : []
-  );
+  // Nothing selected stays nothing selected. This used to fall back to the
+  // boundary whenever the rebuilt scene no longer held what was picked — and,
+  // because `wanted` itself defaulted to the boundary, also whenever nothing
+  // was picked at all. Every rebuild therefore re-opened the boundary panel,
+  // which would have quietly undone closing it: a slider drag is a rebuild.
+  const wanted = curveEditor?.selectedCurve || null;
+  const stillThere = wanted != null && curves.some((c) => c.id === wanted);
+  curveEditor?.select(stillThere ? wanted : null, stillThere ? [...curveEditor.selectedPoints] : []);
   traffic.build(state.city.layout.roads, p, getPalette(p.palette));
   // Scattered over the town's real footprint, so a boundary you drew is the
   // shape they rise out of. Rebuilt only when the count, the pool or the
@@ -1203,15 +1205,26 @@ function deselect() {
   deselectCurve();
 }
 
-// Puts the curve selection back to its resting state — the boundary if the
-// scene has one, otherwise nothing — without touching whatever building
+// Clears the curve selection outright, without touching whatever building
 // selection exists. The two are independent state and every place that picks
 // one now clears the other, so Delete and every curve shortcut always act on
 // whichever was picked most recently rather than on whichever happens to
 // still be sitting there from an earlier click.
+//
+// **This used to fall back to selecting the boundary rather than to nothing**,
+// on the reasoning that the boundary is the thing you most often want to
+// reach. The cost was that there was no such state as "nothing is selected":
+// clicking empty ground put the boundary panel up instead of closing the
+// panel, so the right-hand third of the viewport was permanently covered —
+// which is fine while editing and wrong every time the screen is the
+// deliverable, as it is for a screenshot or a recording.
+//
+// Nothing is lost by clearing. The boundary is a curve like any other, with
+// its own grip and hover halo, so it is one click away; and the shape buttons
+// in the Size panel never needed it selected at all.
 function deselectCurve() {
   if (!curveEditor?.selectedCurve) return;
-  curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
+  curveEditor.select(null, []);
 }
 
 function refreshHighlight() {
@@ -1563,10 +1576,9 @@ function bindKeys() {
     }
 
     if (e.key === 'Escape') {
-      if (curveEditor?.selectedCurve && !state.selection) {
-        curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
-        return stage.render();
-      }
+      // Escape now clears rather than stepping back to the boundary, so it is
+      // the one key that always ends with an empty panel and a clean viewport
+      // — which is what it is reached for before a screenshot.
       return deselect();
     }
     // Growing a building across its neighbours' plots. On the selection
@@ -2207,7 +2219,9 @@ function holdRoad(curve, reason = 'held') {
 function removeRoad(id) {
   delete state.params.roadEdits[id];
   state.params.roadRemoved[id] = true;
-  if (curveEditor?.selectedCurve === id) curveEditor.select(state.params.boundary ? BOUNDARY_ID : null, []);
+  // Deleting what was selected leaves nothing selected, rather than jumping
+  // the selection to the boundary and opening a panel about a different thing.
+  if (curveEditor?.selectedCurve === id) curveEditor.select(null, []);
   markAll();
   history?.record(null);
   noteStatus('Road deleted');
@@ -2357,9 +2371,12 @@ function buildSceneTools() {
         'div',
         { class: 'chips' },
         h('button', { class: 'chip', onclick: snapshot }, 'snapshot'),
+        // Held in a module-level reference so its label can change while it is
+        // running without redrawing the panel underneath the pointer.
+        (recordBtn = h('button', { class: `chip${recorder ? ' on' : ''}` , onclick: toggleRecord }, recorder ? 'stop recording' : 'record')),
         h('button', { class: 'chip', onclick: () => frameCity() }, 'frame all')
       ),
-      'Snapshot saves the current view as a PNG at the size of the viewport. Frame all pulls the camera back to fit the whole town, the same as pressing F.',
+      'Snapshot saves the current view as a PNG at the size of the viewport. Record captures the viewport to a video file until you press it again — start the tour first and it films the tour. Frame all pulls the camera back to fit the whole town, the same as pressing F.',
       'Picture'
     ),
     h('h3', { class: 'grp' }, 'Send to Blender'),
@@ -2658,6 +2675,95 @@ function exportBlender(proxy) {
 // afterwards — otherwise tuning the viewport for motion would quietly cost a
 // quarter of the resolution of every picture taken out of it.
 //
+// --- video ------------------------------------------------------------------
+//
+// The viewport, filmed, until you press the button again.
+//
+// `captureStream` takes frames straight off the drawing buffer as the render
+// loop produces them, so this films exactly what is on screen — the tour, a
+// slider being dragged, traffic going past — with no second render path to
+// keep in step with the first. That is the whole reason to do it this way
+// rather than rendering frames offline and stitching them: an offline pass
+// would have to reproduce the tour's own timing, and it would drift.
+//
+// **Not resolution-lifted the way `snapshot` is.** A still can afford to
+// re-render one frame at full device resolution; a video cannot re-render
+// anything, and asking the encoder for four times the pixels in real time is
+// how you get dropped frames in the recording of a thing that was smooth on
+// screen. It films the viewport at the size the viewport is.
+//
+// webm because that is what browsers can actually encode without shipping a
+// codec. Every editor reads it; if something downstream insists on mp4 it is
+// one ffmpeg remux and no re-encode.
+let recorder = null;
+let recordBtn = null;
+let recordChunks = [];
+let recordStartedAt = 0;
+
+function bestVideoType() {
+  const wanted = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  return wanted.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+}
+
+function setRecordUI(on) {
+  if (!recordBtn) return;
+  recordBtn.textContent = on ? 'stop recording' : 'record';
+  recordBtn.classList.toggle('on', on);
+}
+
+function toggleRecord() {
+  if (recorder) {
+    recorder.stop();
+    return;
+  }
+  if (typeof MediaRecorder === 'undefined' || !stage.renderer.domElement.captureStream) {
+    noteStatus('This browser cannot record the canvas.');
+    return;
+  }
+
+  const mimeType = bestVideoType();
+  let stream;
+  try {
+    stream = stage.renderer.domElement.captureStream(60);
+    recorder = new MediaRecorder(stream, {
+      ...(mimeType ? { mimeType } : {}),
+      // Generous on purpose. The collage is full of fine detail and hard
+      // edges, and a default bitrate turns a night shot into mush exactly
+      // where the glow is.
+      videoBitsPerSecond: 24000000,
+    });
+  } catch (err) {
+    noteStatus(`Could not start recording: ${err.message}`);
+    recorder = null;
+    return;
+  }
+
+  recordChunks = [];
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) recordChunks.push(e.data);
+  };
+  recorder.onstop = () => {
+    const blob = new Blob(recordChunks, { type: mimeType || 'video/webm' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: `awesome-town-${Date.now()}.webm` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const secs = (performance.now() - recordStartedAt) / 1000;
+    noteStatus(`Recorded ${secs.toFixed(1)}s, ${(blob.size / 1048576).toFixed(1)}MB`);
+    recordChunks = [];
+    recorder = null;
+    setRecordUI(false);
+  };
+
+  // The selection outline is a working aid, not part of the shot.
+  picker.clear();
+  recordStartedAt = performance.now();
+  // A timeslice, so the chunks arrive as it goes rather than all at the end —
+  // a long take otherwise sits entirely in memory until stop.
+  recorder.start(1000);
+  setRecordUI(true);
+  noteStatus('Recording. Press stop when you are done.');
+}
+
 // The restore happens inside the `toBlob` callback, never before it: the
 // buffer is not preserved between frames, so resizing the canvas while the
 // encode is still pending would capture a torn or empty image.
