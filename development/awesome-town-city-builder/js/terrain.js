@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { fbm2D } from './noise.js';
 import { shared } from './material.js';
 import { WAVE_GLSL } from './wave.js';
+import { CLOUDS_GLSL } from './clouds.js';
 import { shaderVersion } from './pcss.js';
 import { ribbonEdges, ribbonTriangles } from './curve.js';
 import { landformRaster } from './landform.js';
@@ -64,18 +65,23 @@ export const TERRAIN_MODE_LABEL = {
 const DRAPE_STEP = 1.5;
 
 
-// The ground rides the same water as the buildings, using the same uniforms.
-function patchWaves(material, withNormals) {
+// The ground rides the same water as the buildings, using the same uniforms
+// — and, where `withClouds` is set, sits under the same drifting shadow. The
+// grid lines skip it: they are unlit already, so a term that darkens surface
+// colour has nothing to act on there.
+function patchWaves(material, withNormals, withClouds = false) {
   material.onBeforeCompile = (shader) => {
     Object.entries(shared).forEach(([k, v]) => {
       shader.uniforms[k] = v;
     });
+    const cloudDecl = withClouds ? `${CLOUDS_GLSL}\nvarying float vCloud;\n` : '';
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', `uniform float uTime;\n${WAVE_GLSL}\nvoid main() {`)
+      .replace('void main() {', `uniform float uTime;\n${WAVE_GLSL}\n${cloudDecl}void main() {`)
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
-         transformed.y += ccWaveAt(position.xz);`
+         transformed.y += ccWaveAt(position.xz);
+         ${withClouds ? 'vCloud = ccCloudAt(position.xz);' : ''}`
       );
     if (withNormals) {
       shader.vertexShader = shader.vertexShader.replace(
@@ -87,8 +93,18 @@ function patchWaves(material, withNormals) {
          }`
       );
     }
+    if (withClouds) {
+      shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', 'varying float vCloud;\nvoid main() {')
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+           diffuseColor.rgb *= vCloud;`
+        );
+    }
   };
-  material.customProgramCacheKey = () => (withNormals ? 'ground-' : 'grid-') + shaderVersion();
+  material.customProgramCacheKey = () =>
+    (withNormals ? 'ground-' : 'grid-') + (withClouds ? 'cloud-' : '') + shaderVersion();
 }
 
 export class Ground {
@@ -98,7 +114,7 @@ export class Ground {
       roughness: 1,
       metalness: 0,
     });
-    patchWaves(this.material, true);
+    patchWaves(this.material, true, true);
 
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), this.material);
     this.mesh.receiveShadow = true;
@@ -119,10 +135,15 @@ export class Ground {
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
     });
-    patchWaves(this.roadMaterial, true);
+    patchWaves(this.roadMaterial, true, true);
     this.roads = new THREE.Mesh(new THREE.BufferGeometry(), this.roadMaterial);
     this.roads.receiveShadow = true;
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
     // The piers under a raised road. Its own material rather than the road's,
     // for one reason that matters: the tarmac carries a polygon offset so it
     // does not fight the ground for the same pixels, and a column is a solid
@@ -134,11 +155,19 @@ export class Ground {
       roughness: 0.9,
       metalness: 0,
     });
+<<<<<<< Updated upstream
     patchWaves(this.columnMaterial, true);
+=======
+    patchWaves(this.columnMaterial, true, true);
+>>>>>>> Stashed changes
     this.columns = new THREE.Mesh(new THREE.BufferGeometry(), this.columnMaterial);
     this.columns.castShadow = true;
     this.columns.receiveShadow = true;
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
     this.group = new THREE.Group();
     this.group.add(this.mesh, this.roads, this.columns, this.grid);
 

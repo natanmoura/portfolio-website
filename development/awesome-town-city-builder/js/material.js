@@ -16,10 +16,11 @@
 
 import * as THREE from 'three';
 import { WAVE_GLSL, WAVE_BODY, WAVE_BODY_NORMAL, WIND_BODY, waveFrequency } from './wave.js';
+import { CLOUDS_GLSL } from './clouds.js';
 import { shaderVersion } from './pcss.js';
 
 // Uniforms the ground shares with the city, so the town rides the same water
-// its reflection would.
+// its reflection would, and sits under the same drifting cloud shadow.
 export const shared = {
   uTime: { value: 0 },
   uWaveAmp: { value: 0 },
@@ -27,6 +28,10 @@ export const shared = {
   uWaveSpeed: { value: 0.6 },
   uWaveRock: { value: 1 },
   uWind: { value: 0.35 },
+  uCloudAmount: { value: 0 },
+  uCloudScale: { value: 60 },
+  uCloudSpeed: { value: 0.4 },
+  uCloudDir: { value: new THREE.Vector2(1, 0.4).normalize() },
 };
 
 const PARS_VERTEX = `
@@ -49,7 +54,9 @@ const PARS_VERTEX = `
   varying vec2 vAtlasUv;
   varying float vUp;
   varying float vFacing;
+  varying float vCloud;
   ${WAVE_GLSL}
+  ${CLOUDS_GLSL}
 `;
 
 const SPIN_POSITION = `
@@ -106,6 +113,7 @@ const PARS_FRAGMENT = `
   varying vec2 vAtlasUv;
   varying float vUp;
   varying float vFacing;
+  varying float vCloud;
   uniform float uAo;
   uniform float uAoHeight;
   float ccLum(vec3 c) { return clamp(dot(c, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0); }
@@ -221,6 +229,11 @@ const EMISSIVE = `
   }
   totalEmissiveRadiance = ccGlow * uGlowLevel * ccLit * ccFlickerOn;
 
+  // A lit face is unbothered by a cloud passing overhead — its light comes
+  // from within, not from the sun this dims. Only the surface reading light
+  // back darkens.
+  diffuseColor.rgb *= vCloud;
+
   // Contact shade. Darkest at the base of a building and on anything facing
   // the ground, fading out as it climbs. Emissive is left alone, so a lit sign
   // low down still reads as lit.
@@ -334,6 +347,7 @@ export class CityMaterial {
            // convincing contact shade without an occlusion pass.
            vUp = position.y - aBaseY;
            vFacing = normal.y;
+           vCloud = ccCloudAt(position.xz);
            ${WIND_BODY}
            ${SPIN_POSITION}
            ${WAVE_BODY}`
@@ -470,6 +484,16 @@ export class CityMaterial {
 
   setWind(strength) {
     shared.uWind.value = strength;
+  }
+
+  // Direction is a compass angle in degrees, the same convention sunAzimuth
+  // already uses, so the two sliders read the same way against each other.
+  setClouds(amount, scale, speed, dirDeg) {
+    shared.uCloudAmount.value = amount;
+    shared.uCloudScale.value = Math.max(4, scale);
+    shared.uCloudSpeed.value = speed;
+    const rad = (dirDeg * Math.PI) / 180;
+    shared.uCloudDir.value.set(Math.cos(rad), Math.sin(rad));
   }
 
   setOcclusion(amount, height) {

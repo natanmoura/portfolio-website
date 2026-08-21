@@ -110,6 +110,12 @@ const ENV_DEFAULTS = {
   waveSpeed: 0.6,
   waveRock: 1,
   wind: 0.35,
+  // Off by default, same reasoning as the particles below: a scene that
+  // predates this opens exactly as it did.
+  cloudAmount: 0,
+  cloudScale: 60,
+  cloudSpeed: 0.4,
+  cloudDir: 35,
   dof: 0,
   dofAuto: true,
   dofFocus: 45,
@@ -760,6 +766,7 @@ function applyEnv() {
   materials.setDuotone(p.duotone, palette.ink, palette.paper);
   materials.setWaves(p.waveHeight, p.waveScale, p.waveSpeed, p.waveRock);
   materials.setWind(p.wind);
+  materials.setClouds(p.cloudAmount, p.cloudScale, p.cloudSpeed, p.cloudDir);
   Object.assign(waveState, {
     amp: p.waveHeight,
     freq: waveFrequency(p.waveScale),

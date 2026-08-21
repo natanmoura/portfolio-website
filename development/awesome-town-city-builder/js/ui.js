@@ -399,6 +399,16 @@ export const CONTROL_DEFS = [
     ],
   },
   {
+    section: 'Clouds',
+    tab: 'world',
+    items: [
+      R('cloudAmount', 'Cloud shadow', 0, 1, 0.01, 'How dark the shadow patches drifting over the town are. Zero is a clear sky.', { cheap: true, hard: [0, 1] }),
+      R('cloudScale', 'Cloud size', 10, 300, 1, 'How large the shadow patches are, edge to edge.', { cheap: true, hard: [4, 2000] }),
+      R('cloudSpeed', 'Cloud speed', 0, 3, 0.01, 'How fast the shadows drift.', { cheap: true, hard: [0, 20] }),
+      R('cloudDir', 'Cloud direction', -180, 180, 1, 'Which way the wind is carrying them.', { cheap: true, hard: [-360, 360] }),
+    ],
+  },
+  {
     section: 'Shadows',
     tab: 'world',
     items: [
