@@ -516,13 +516,43 @@ export class Stage {
     if (previous) previous.dispose();
   }
 
+  // The far plane, kept far enough away for wherever the camera is now.
+  //
+  // It used to be set once, inside `frame()`, from the distance that framing
+  // put the camera at — and nothing touched it again. Orbiting is fine, since
+  // that keeps the distance; scrolling out is not. Past about three times the
+  // framed distance the far plane cuts through the ground plane, and what you
+  // see is a hard diagonal edge across the world with the sky showing through
+  // beyond it. Measured on a default town: framing sets far to 1726, and at
+  // eight times zoom the far corner of the ground sits at 2063.
+  //
+  // Sized from the eye's distance to the pivot plus the town's own extent,
+  // because the thing most likely to be clipped is the far side of a town the
+  // camera is outside of. Only written when it has drifted by more than a
+  // twentieth, since assigning it rebuilds the projection matrix and this runs
+  // every frame.
+  fitFarPlane() {
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const want = Math.max(800, (dist + this.extent) * 3);
+    if (Math.abs(want - this.camera.far) < this.camera.far * 0.05) return;
+    this.camera.far = want;
+    this.camera.updateProjectionMatrix();
+    // The sky dome is sized off the far plane, so it has to grow with it or
+    // it becomes the thing being clipped instead of the ground.
+    this.sky.scale.setScalar(Math.max(200, want * 0.45));
+  }
+
   render(dt = 0.016, time = 0) {
     this.clockTime = time;
     this.looks.uniforms.uTime.value = time;
-    // The sky dome travels with the eye, so it never clips or falls behind.
-    this.sky.position.copy(this.camera.position);
     this.updateFocus(dt);
     this.controls.update();
+    // After `controls.update`, which is what clamps the eye to its distance
+    // limits — sizing the far plane from an unclamped position would chase a
+    // distance the camera is never allowed to reach.
+    this.fitFarPlane();
+    // The sky dome travels with the eye, so it never clips or falls behind.
+    this.sky.position.copy(this.camera.position);
     // Depth of field is refreshed here rather than on parameter change,
     // because focus tracks the pivot and near/far move with the camera.
     if (this.lookParams) {

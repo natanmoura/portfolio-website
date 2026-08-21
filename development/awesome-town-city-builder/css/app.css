@@ -676,13 +676,21 @@ input[type="checkbox"] { accent-color: var(--accent); }
   /* The other thing floating on the town, kept at the same weight as the
      layers strip so the two read as one class of object rather than as two
      panels that happen to be in opposite corners. */
-  background: rgba(16, 15, 11, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(10px);
+  background: rgba(16, 15, 11, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px) saturate(0.85);
   border-radius: 3px;
-  color: var(--dim);
+  /* Brighter than `--dim`, which is tuned for a solid panel and disappears
+     the moment the thing behind it is a pale sky. */
+  color: #cfcabb;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+  /* The label carries its own contrast rather than relying on the fill to
+     supply it. That is what lets the fill stay light: a dark halo works
+     against a bright backdrop and vanishes into a dark one, so the text reads
+     over a white sky and a black building alike without the panel having to
+     be opaque enough for the worst case. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   display: none;
 }
@@ -1023,10 +1031,10 @@ input[type="checkbox"] { accent-color: var(--accent); }
      floating over it — a dark slab in the corner of every wide shot. The blur
      is what keeps the text legible over whatever it happens to be covering,
      so the fill can go most of the way out and the label still reads. */
-  background: rgba(18, 18, 20, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(18, 18, 20, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 4px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px) saturate(0.85);
   max-width: 190px;
   transition: right 0.16s cubic-bezier(0.3, 0, 0.2, 1);
 }
@@ -1039,11 +1047,22 @@ main:has(#inspector:not(.empty)) #layers {
   right: calc(var(--pw-r, 300px) + 10px);
 }
 
+/* Everything in the strip carries its own contrast, for the same reason the
+   stats readout does: the fill is deliberately light, so the text cannot lean
+   on it. See `.stats`. */
+/* The descendant selector is doing real work here, not being lazy: the rows
+   are `<button>` elements, and a form control does not inherit `text-shadow`
+   from its ancestors — the UA stylesheet resets it. Setting it on `#layers`
+   alone reaches the heading and nothing else, which is every part of this
+   strip except the part you read. */
+#layers,
+#layers * { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.9); }
+
 .lyr-head {
   font-size: 8.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.4;
+  opacity: 0.55;
   padding: 5px 8px 1px;
 }
 
@@ -1071,8 +1090,11 @@ main:has(#inspector:not(.empty)) #layers {
 }
 .lyr:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
 .lyr.shown { opacity: 0.95; }
-.lyr.ghosted { opacity: 0.6; }
-.lyr.hidden { opacity: 0.32; }
+.lyr.ghosted { opacity: 0.72; }
+/* Off, not gone. The strike-through already says hidden, so the fade only has
+   to be enough to read as inactive — at a third it was disappearing into a
+   bright sky, and a control you cannot find is worse than one that looks on. */
+.lyr.hidden { opacity: 0.5; }
 .lyr.hidden .lyr-name { text-decoration: line-through; }
 .lyr-name { flex: 1; }
 
