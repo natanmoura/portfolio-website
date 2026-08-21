@@ -61,14 +61,35 @@ that can be started independently. That reframing moves it up hard.
 ## Where this is, in one paragraph
 
 Tiers 0 and 1 are done. Tier 4 is most of the way there (4.1–4.3 done, 4.4 is
-the recommendation below). Tier 5 has 5.1 and 5.2 plus an unplanned chunk of
-5.6 — roads have height, drape properly, and bridge ground they cannot climb.
-Tier 6 is half done from an unexpected direction: ground is drawable and
-queryable, but nothing conforms to a slope beyond standing on it. Tiers 2, 3,
-7, 8 are untouched. **The next thing to build is 4.4,
-distribute-along-curve**; the argument is at the bottom of this file under "If
-you do one week", and the short version is that every dependency it has landed
-as a side effect of other work.
+the recommendation below). Tier 5 has 5.1 and 5.2, an unplanned chunk of 5.6 —
+roads have height, drape properly, and bridge ground they cannot climb — and
+the thin end of 5.4, since a road now carries its own width and kind. Tier 6
+is half done from an unexpected direction: ground is drawable, queryable, and
+each drawn shape carries its own roughness and terracing, but nothing conforms
+to a slope beyond standing on it. Tiers 2, 3, 7, 8 are untouched. **The next
+thing to build is 4.4, distribute-along-curve**; the argument is at the bottom
+of this file under "If you do one week", and the short version is that every
+dependency it has landed as a side effect of other work.
+
+**Two structural things landed recently that change what is cheap**, and both
+are worth knowing before picking anything up:
+
+- **The selection panel takes curves.** Selecting a road, a landform or the
+  boundary puts its settings on the right, in the same panel a selected
+  building uses. That was worth doing as consistency and turned out to matter
+  much more than that: *a setting that applies to one road has nowhere to live
+  in a panel of global sliders*, which is why per-road settings did not exist.
+  Anything Tier 5 wants to vary per road — a width profile, a road type, a
+  frontage rule — now has somewhere to appear, and most of what made 5.4 and
+  5.5 look expensive was the missing home rather than the feature.
+- **The Terrain panel is noise-only, and a drawn shape carries its own
+  surface.** Terracing used to be applied to both kinds of ground, so one
+  slider restepped every shape in the scene. Each landform now has its own
+  terracing and its own roughness — roughness being new rather than moved,
+  since drawn ground had no equivalent at all and read as glassy. The general
+  rule this established is worth applying to the next thing: **a control in
+  the global panel should describe how the procedural version is generated,
+  and anything that describes one authored object belongs on that object.**
 
 Three habits are worth inheriting along with the code. Run
 `node development/awesome-town-city-builder/tools/digest.mjs` after anything
@@ -535,6 +556,38 @@ wrong in a way only using it could show.
   fixes: the first click of the pair runs the ordinary handler and can
   deselect the curve, so the second arrives with nothing selected.
 
+**A fourth round, and this one was a refactor that paid.** Two items, and both
+are cases of the same thing: a control living in the wrong place, where the
+wrong place was preventing a whole category of feature rather than merely
+being untidy.
+
+- **The selection panel takes curves.** Every other thing in the tool answers
+  "what is selected" on the right; curves were the exception, so a road had no
+  settings at all and a landform's lived in a list in the World tab. Fixing
+  the inconsistency is what made a **per-road width** possible — that setting
+  had nowhere to live before, which is the entire reason it did not exist,
+  and the data model needed nothing: `roadEdits` had carried `width` and
+  `main` since the day holding a road existed. Changing anything about a road
+  now takes hold of it, the same rule dragging a control point already
+  followed. Measured: widening a road from 5.2m to 9m moves its frontages back
+  exactly 1.90m, half the change, on both sides.
+- **Terrain settings became noise-only, and a drawn shape got its own
+  surface.** Terracing was applied after both branches of `heightAt` on the
+  reasoning that it is a property of a *surface* rather than of how the
+  surface was made — which sounds right and is wrong in the way that matters:
+  one slider silently restepped every shape in the scene and there was no way
+  to terrace one mesa and leave the next smooth. Each landform now carries its
+  own terracing and its own **roughness**, the latter being new rather than
+  moved, since the noise ground has had a roughness control since the
+  beginning and the drawn ground had none. Scaled by the shape's own weight so
+  it fades where the shape does, and seeded from the shape's id so two
+  identical settings do not produce the same crumple.
+
+**The rule worth carrying forward from both**: a control in the global panel
+should describe how the *procedural* version is generated. Anything that
+describes one authored object belongs on that object, and if there is nowhere
+to put it, that absence is the bug rather than a reason to make it global.
+
 **What is still missing from the road tier**: 5.3 junctions, 5.4 width
 profiles, 5.5 road types. 5.6 (roads conform to terrain) is now *mostly* done
 and from an unplanned direction — roads drape properly, and bridge what they
@@ -989,6 +1042,16 @@ role mix and traffic weighting. An alley gets back doors and fire escapes; an
 avenue gets shopfronts. This is where the town stops reading as one texture
 applied evenly.
 
+**Half the groundwork is in.** `main` is already per road and already
+editable — the selection panel offers street or highway on whichever road is
+picked up, and `roadEdits` stores it. What is missing is that `main` is a
+boolean where this wants a named type, and that nothing downstream reads it
+except width and the column count. The shape of the work is therefore: turn
+the flag into a type, give each type its own setback, frontage spacing and
+role mix, and have `placeSites` read those off the road instead of off
+`params`. No new storage and no new UI pattern — the panel that would show it
+already exists.
+
 ### 5.6 Roads conform to terrain
 Needs Tier 6. Once terrain is a writable field, a road cuts and fills rather
 than draping over the surface. Cuttings, embankments and bridges fall out of
@@ -1025,6 +1088,11 @@ in a particular spot rather than because the roadmap asked for a field. See
   sampled rather than analytic on purpose — drawn ground is a raster and
   terracing is a rounding step, neither of which has a derivative, and a
   building asking "is this patch too steep" is asking about a patch anyway.
+- ~~**Drawn ground has no surface detail.**~~ Each landform now carries its
+  own roughness and its own terracing, and the Terrain panel describes the
+  rolled ground only. Worth knowing when adding anything else to that panel:
+  it is a list of *noise* parameters, and a setting that describes one drawn
+  shape goes on the shape.
 - **Nothing conforms to terrain beyond standing on it.** A building on a
   slope is planted at one height with a flat base, which reads fine at the
   gentle end and badly on a real cliff. That is Tier 3's placement record
@@ -1171,9 +1239,20 @@ If you are picking this up in a fresh context, the fastest way in:
    start, so you have the baseline to compare against.
 
 `cc` in the browser console is the whole app — `cc.state.params`,
-`cc.markAll()`, `cc.flush()`, `cc.layers`, `cc.curveEditor`, `cc.liftAt`. It
-is how every measurement quoted in this file was taken, and it is faster than
-adding logging.
+`cc.markAll()`, `cc.flush()`, `cc.layers`, `cc.curveEditor`, `cc.liftAt`,
+`cc.particles`, `cc.flyby`. It is how every measurement quoted in this file
+was taken, and it is faster than adding logging. Two things about it that are
+not obvious: `cc.flush()` is needed after writing to `cc.state.params` because
+rebuilds are queued on a frame, and a hidden browser tab does not run frames
+at all — so a measurement taken without it may be reading the state from
+before the change.
+
+Where a setting lives is now a rule rather than a habit. **The left panel
+holds parameters of the procedural systems; the right panel holds whatever is
+selected.** A road, a landform and the boundary all open in the right panel
+the same way a building does, and a setting that describes one of them belongs
+there — see "Two structural things landed recently" above for why that
+distinction is load-bearing rather than tidiness.
 
 ## The one to be impatient about
 
