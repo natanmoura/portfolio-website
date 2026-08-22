@@ -274,8 +274,8 @@ export class Stage {
   // number cannot be right for both ends of the range this tool covers. A
   // 10x10 town at the default cell is 64 units across, so 1500 is twenty-odd
   // town-widths of empty sky. A sprawling one measures 1620 across — and there
-  // 1500 is *inside* the town: framing it needs 2900, so `frame()` asked
-  // for 2900, the clamp gave back 1500, and the far side of the city stayed
+  // 1500 is *inside* the town: framing it needs about 2100, so `frame()` asked
+  // for 2100, the clamp gave back 1500, and the far side of the city stayed
   // off the bottom of the screen with no way to pull back. Panning away and
   // orbiting back was the only route to a wide shot, because panning moves the
   // pivot rather than the distance and so slips past the clamp entirely.
@@ -353,10 +353,7 @@ export class Stage {
   // Fit the built geometry exactly: solve for the distance at which every
   // corner of the bounding box sits inside the frustum. A city block is wide
   // and flat, so a bounding-sphere fit would push the camera much too far.
-  // `limit` caps how far back the framing is allowed to end up, for the one
-  // caller that wants a view rather than a fit: the opening shot on load. See
-  // `OPEN_DISTANCE` in main.js.
-  frame(target, limit = Infinity) {
+  frame(target) {
     const box = new THREE.Box3();
     if (target) box.setFromObject(target);
     if (box.isEmpty()) {
@@ -388,7 +385,7 @@ export class Stage {
         Math.abs(v.dot(camUp)) / tanV + along
       );
     }
-    dist = Math.min(dist * 1.06, limit);
+    dist *= 1.06;
 
     this.controls.target.copy(center);
     this.camera.position.copy(center).addScaledVector(dir, dist);
