@@ -57,7 +57,10 @@ html, body {
   transform: translateY(-1px);
 }
 
-.status { color: var(--dim); font-size: 11px; }
+/* A flex child's default minimum width is its content, not zero, so without
+   this a long status message pushes the tabs after it straight off a narrow
+   bar instead of yielding to them. */
+.status { color: var(--dim); font-size: 11px; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grow { flex: 1; }
 .sep { width: 1px; height: 20px; background: var(--line); }
 
@@ -1035,6 +1038,9 @@ input[type="checkbox"] { accent-color: var(--accent); }
   line-height: 1.2;
 }
 .btn.icon:disabled { opacity: 0.3; cursor: default; }
+/* Same "engaged" look as `.chip.on` elsewhere: the panel toggle is a state,
+   not a one-shot action, so it reads as pressed while the panel is open. */
+.btn.icon.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* --- layers, as a viewport overlay --------------------------------------- */
 /* These change what you are looking at, never what the scene is. They sit on

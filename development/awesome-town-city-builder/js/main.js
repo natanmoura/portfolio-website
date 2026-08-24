@@ -305,6 +305,7 @@ let builder;
 let picker;
 let controls;
 let inspector;
+let controlsResize;
 let traffic;
 let particles;
 let flyby;
@@ -354,7 +355,7 @@ function frameSize() {
 }
 
 async function boot() {
-  restore();
+  const hadAutosave = restore();
   try {
     const presetsLoading = loadPresets();
     const libraryLoading = loadEditedLibrary('library');
@@ -370,6 +371,11 @@ async function boot() {
     loadingEl.querySelector('.count').textContent = String(err.message || err);
     console.error(err);
   }
+
+  // A fresh session with nothing to resume opens on the named preset rather
+  // than the generator's own random defaults. Only reachable now that
+  // `presets` has actually loaded.
+  if (!hadAutosave) applyDefaultPreset();
 
   stage = new Stage(viewport);
   materials = new CityMaterial();
@@ -471,11 +477,22 @@ async function boot() {
 
   // Panel widths are view state, like layer visibility: dragging one wider
   // changes what you can see and nothing about the town.
-  initPanelResize({
+  //
+  // The panel's open/closed default follows screen size rather than being
+  // fixed, and only until someone actually touches the toggle: a phone is for
+  // showing someone the town, not editing it, so it opens on the clean view;
+  // tablets and up have the room to spare and open with the panel already
+  // out, matching how the tool always behaved before this existed. 768px
+  // rather than something narrower because an iPad in portrait is exactly
+  // that wide and reads as a small desktop, not a large phone.
+  controlsResize = initPanelResize({
     main: document.getElementById('view-city'),
     left: { key: 'controls', side: 'left', var: '--pw-l', min: 220, max: 620, def: 300 },
     storeKey: 'awesome-town:panels',
+    collapsedKey: 'awesome-town:panel-collapsed',
+    collapsedDefault: !matchMedia('(min-width: 768px)').matches,
   });
+  bindPanelToggle();
 
   initTooltips();
   buildUI();
@@ -1553,6 +1570,27 @@ function bindPointer() {
       color: '#ffffff',
     });
   });
+}
+
+// The one button that opens and closes the settings panel, at any screen
+// size. `#controls` is `inert` while closed rather than merely clipped, so a
+// hidden panel is not still sitting in the tab order for someone using a
+// keyboard.
+function bindPanelToggle() {
+  const btn = document.getElementById('btn-panel');
+  const panel = document.getElementById('controls');
+  if (!btn || !controlsResize) return;
+  const sync = () => {
+    const open = !controlsResize.isCollapsed();
+    btn.classList.toggle('on', open);
+    btn.setAttribute('aria-pressed', String(open));
+    panel?.toggleAttribute('inert', !open);
+  };
+  btn.addEventListener('click', () => {
+    controlsResize.setCollapsed(!controlsResize.isCollapsed());
+    sync();
+  });
+  sync();
 }
 
 function bindKeys() {
@@ -2811,9 +2849,12 @@ function autosave() {
   Scenes.saveAuto({ ...state.params, __locks: state.paramLocks }, state.overrides, state.sceneName);
 }
 
+// Reports whether it found anything, so `boot` knows whether to fall back to
+// `DEFAULT_PRESET_NAME` instead of leaving the generator's own random
+// defaults on screen.
 function restore() {
   const saved = Scenes.loadAuto();
-  if (!saved) return;
+  if (!saved) return false;
   state.params = loadParams(saved.params);
   state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(saved.params?.moduleMix || {}) };
   state.params.roofMix = { ...DEFAULTS.roofMix, ...(saved.params?.roofMix || {}) };
@@ -2827,6 +2868,35 @@ function restore() {
   state.overrides = saved.overrides || {};
   state.sceneName = saved.current || '';
   state.scenePreset = false;
+  return true;
+}
+
+// Which bundled preset a fresh session opens on, when there is nothing
+// autosaved yet to resume. Named rather than indexed, so it survives the
+// manifest being reordered or another preset being added ahead of it.
+const DEFAULT_PRESET_NAME = 'Mountain Town';
+
+// Mirrors `restore()` rather than calling `applyScene`: this runs before
+// `stage`, `history` and the rest of the editor exist to receive
+// `applyScene`'s side effects (deselect, panel sync, a history entry).
+function applyDefaultPreset() {
+  const preset = presets.find((p) => p.name === DEFAULT_PRESET_NAME);
+  if (!preset) return;
+  state.params = loadParams(preset.params);
+  state.params.moduleMix = { ...DEFAULTS.moduleMix, ...(preset.params?.moduleMix || {}) };
+  state.params.roofMix = { ...DEFAULTS.roofMix, ...(preset.params?.roofMix || {}) };
+  state.params.surfaceMix = { ...DEFAULTS.surfaceMix, ...(preset.params?.surfaceMix || {}) };
+  state.params.roles = { ...DEFAULTS.roles, ...(preset.params?.roles || {}) };
+  state.params.roadEdits = { ...(preset.params?.roadEdits || {}) };
+  state.params.roadRemoved = { ...(preset.params?.roadRemoved || {}) };
+  state.params.lotSpans = { ...(preset.params?.lotSpans || {}) };
+  state.paramLocks = { ...(preset.params?.__locks || {}) };
+  delete state.params.__locks;
+  state.overrides = preset.overrides || {};
+  state.sceneName = preset.name || '';
+  // True, same as picking it from the menu: "save" should fork a copy rather
+  // than write over the shipped file.
+  state.scenePreset = true;
 }
 
 // --- loop ------------------------------------------------------------------

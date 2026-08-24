@@ -37,9 +37,13 @@ export const LAYERS = [
   { id: 'roads', label: 'Roads', help: 'The tarmac. Hiding it leaves the massing alone.' },
   { id: 'traffic', label: 'Traffic', help: 'Cars and flyers. Hidden without being forgotten.' },
   { id: 'particles', label: 'Particles', help: 'Whatever is rising out of the town. Hidden without losing the count.' },
-  { id: 'curves', label: 'Curves', help: 'Roads, boundaries and every other linear thing, as the paths behind them.' },
+  // Editing aids rather than the town itself, so a first look at the tool —
+  // nothing saved yet to say otherwise — starts with them off. That is the
+  // view worth showing someone: the collage and the traffic, not the road
+  // handles and the reference grid underneath it.
+  { id: 'curves', label: 'Curves', help: 'Roads, boundaries and every other linear thing, as the paths behind them.', default: HIDDEN },
   { id: 'ground', label: 'Ground', help: 'The terrain surface under everything.' },
-  { id: 'grid', label: 'Grid', help: 'The reference grid.' },
+  { id: 'grid', label: 'Grid', help: 'The reference grid.', default: HIDDEN },
 ];
 
 const byId = Object.fromEntries(LAYERS.map((l) => [l.id, l]));
@@ -59,7 +63,7 @@ export class Layers {
 
   load() {
     const out = {};
-    for (const layer of LAYERS) out[layer.id] = SHOWN;
+    for (const layer of LAYERS) out[layer.id] = layer.default || SHOWN;
     try {
       const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
       for (const [id, v] of Object.entries(saved)) {

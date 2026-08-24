@@ -24,7 +24,7 @@ function clamp(v, lo, hi) {
   return Math.min(hi, Math.max(lo, v));
 }
 
-export function initPanelResize({ main, left, right, storeKey }) {
+export function initPanelResize({ main, left, right, storeKey, collapsedKey, collapsedDefault = false }) {
   if (!main) return null;
 
   const sides = [left, right].filter(Boolean);
@@ -41,6 +41,21 @@ export function initPanelResize({ main, left, right, storeKey }) {
     // A corrupt width preference is not worth failing a boot over.
   }
 
+  // Pulled fully off to the side, leaving the viewport the whole window. Not
+  // a width of zero dragged by hand — `state` keeps each side's real width
+  // underneath this, so reopening comes back exactly where it was left,
+  // dragged or not.
+  let collapsed = collapsedDefault;
+  if (collapsedKey) {
+    try {
+      const raw = localStorage.getItem(collapsedKey);
+      if (raw === '0' || raw === '1') collapsed = raw === '1';
+    } catch {
+      // Falls back to the caller's default, same as a corrupt width would.
+    }
+  }
+  const handles = [];
+
   // How wide this side may be right now, given what the other side is taking
   // and how much the viewport must keep. Narrower than the declared maximum
   // whenever the window is small, which is exactly when it matters.
@@ -55,17 +70,20 @@ export function initPanelResize({ main, left, right, storeKey }) {
   const apply = () => {
     for (const s of sides) {
       state[s.key] = clamp(state[s.key], s.min, ceilingFor(s));
-      main.style.setProperty(s.var, `${Math.round(state[s.key])}px`);
+      main.style.setProperty(s.var, collapsed ? '0px' : `${Math.round(state[s.key])}px`);
     }
     main.style.gridTemplateColumns = [
       left ? `var(${left.var})` : null,
-      left ? `${HANDLE}px` : null,
+      left && !collapsed ? `${HANDLE}px` : null,
       '1fr',
-      right ? `${HANDLE}px` : null,
+      right && !collapsed ? `${HANDLE}px` : null,
       right ? `var(${right.var})` : null,
     ]
       .filter(Boolean)
       .join(' ');
+    // Dragging a handle nobody can see would only confuse the tab order, and
+    // at zero width there is nothing left to grab visually anyway.
+    for (const el of handles) el.style.display = collapsed ? 'none' : '';
   };
 
   const save = () => {
@@ -73,6 +91,18 @@ export function initPanelResize({ main, left, right, storeKey }) {
       localStorage.setItem(storeKey, JSON.stringify(state));
     } catch {
       // Out of quota only costs the layout resetting next session.
+    }
+  };
+
+  const setCollapsed = (v) => {
+    collapsed = v;
+    apply();
+    if (collapsedKey) {
+      try {
+        localStorage.setItem(collapsedKey, collapsed ? '1' : '0');
+      } catch {
+        // Out of quota only costs the state resetting next session.
+      }
     }
   };
 
@@ -144,12 +174,20 @@ export function initPanelResize({ main, left, right, storeKey }) {
   // panels already meet the viewport.
   const kids = [...main.children];
   const middle = kids[left ? 1 : 0];
-  if (left) main.insertBefore(makeHandle(left), middle);
-  if (right) main.insertBefore(makeHandle(right), middle.nextSibling);
+  if (left) {
+    const el = makeHandle(left);
+    handles.push(el);
+    main.insertBefore(el, middle);
+  }
+  if (right) {
+    const el = makeHandle(right);
+    handles.push(el);
+    main.insertBefore(el, middle.nextSibling);
+  }
 
   apply();
   // A window narrowed after the fact would otherwise leave the panels
   // overlapping what is left of the viewport.
   new ResizeObserver(() => apply()).observe(main);
-  return { apply, state };
+  return { apply, state, setCollapsed, isCollapsed: () => collapsed };
 }
