@@ -712,53 +712,6 @@ const RECIPES = [
   },
 
   {
-    slug: 'carrot-cake-baked-oats',
-    title: 'Carrot Cake Baked Oats',
-    dish: '#C1793A',
-    time: '45 min + overnight chill',
-    servings: { n: 6, unit: 'servings' },
-    tags: ['breakfast', 'snack', 'dessert'],
-    keyIngredients: ['banana', 'carrot', 'rolled oats', 'cinnamon'],
-    added: '2026-07-27',
-    order: 11,
-    components: [
-      {
-        name: 'Bake',
-        ingredients: [
-          { q: 2, u: null, n: 'ripe bananas', aisle: 'Produce', note: 'medium, mashed' },
-          { q: 2, u: 'cup', n: 'rolled oats', aisle: 'Dry Goods & Grains', buy: { q: 180, u: 'g' } },
-          { q: 30, u: 'g', n: 'vanilla protein powder', aisle: 'Dry Goods & Grains', note: 'or ¼ cup wholemeal flour, if you\'d rather skip the protein powder' },
-          { q: 0.5, u: 'tsp', n: 'cinnamon', aisle: 'Spices & Dried Herbs' },
-          { q: 1, u: 'tsp', n: 'baking powder', aisle: 'Dry Goods & Grains', note: 'flat' },
-          { q: 1, u: null, n: 'carrot', aisle: 'Produce', note: 'medium, grated' },
-          { q: 0.25, u: 'cup', n: 'pecans or walnuts', aisle: 'Nuts & Seeds', note: 'crushed', buy: { q: 30, u: 'g' } },
-          { q: 1.5, u: 'tbsp', n: 'honey', aisle: 'Sweeteners', note: 'or maple syrup', buy: { q: 32, u: 'g' } },
-          { q: 1.5, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', note: 'use closer to 2 cups if your bananas are on the larger side', buy: { q: 360, u: 'mL' } },
-        ],
-        steps: [
-          'Heat the oven to 180°C (350°F).',
-          'In a greased, oven-safe baking dish (about 15–20cm square), combine the mashed banana, oats, protein powder (or flour), cinnamon, baking powder, grated carrot, nuts, honey and milk. Mix until well combined.',
-          'Bake for 35–40 minutes, until golden and firm to the touch.',
-        ],
-      },
-      {
-        name: 'Yogurt Topping',
-        ingredients: [
-          { q: 160, u: 'g', n: 'yogurt', aisle: 'Dairy & Eggs' },
-          { q: 50, u: 'g', n: 'cream cheese', aisle: 'Dairy & Eggs', note: 'reduced fat' },
-        ],
-        steps: [
-          'Let the baked oats cool in the dish, then loosen the edges with a knife.',
-          'Mix the yogurt and cream cheese together, then spread over the top.',
-          'Refrigerate and serve the next day.',
-          'Cut into 4–6 servings. Serve cold, or reheat a slice in the microwave for about 1 minute if you\'d like it warm.',
-        ],
-        tip: 'Any leftover crushed nuts make a nice finish scattered over the yogurt topping.',
-      },
-    ],
-  },
-
-  {
     slug: 'vegetarian-feijoada',
     title: 'Vegetarian Feijoada',
     dish: '#8B4A3B',
@@ -1588,6 +1541,139 @@ const RECIPES = [
           'Crush everything with the back of a wooden spoon, or a mortar and pestle, to draw the flavour out of the herbs.',
         ],
         tip: 'Keep it chunky rather than blending it smooth — the texture is the point. Good on roasted vegetables, potatoes, eggs, nachos or burrito bowls. Keeps a few days in the fridge; bring it back to room temperature before serving.',
+      },
+    ],
+  },
+
+  {
+    slug: 'broccoli-mac-and-cheese',
+    title: 'Broccoli Mac and Cheese',
+    dish: '#C99A2E',
+    time: '20 min',
+    servings: { n: 4, unit: 'servings' },
+    tags: ['dinner', 'lunch'],
+    keyIngredients: ['elbow macaroni', 'broccoli', 'cheddar', 'mozzarella'],
+    added: '2026-08-23',
+    order: 29,
+    source: { name: 'A Couple Cooks', url: 'https://www.acouplecooks.com/healthy-mac-and-cheese-broccoli/' },
+    components: [
+      {
+        name: 'Pasta',
+        ingredients: [
+          { q: 8, u: 'oz', n: 'elbow macaroni', aisle: 'Dry Goods & Grains', note: 'or shells, or other short pasta', buy: { q: 225, u: 'g' } },
+        ],
+        steps: [
+          'Boil a large pot of salted water. Cook the pasta until al dente, about 8 minutes, then drain.',
+        ],
+      },
+      {
+        name: 'Broccoli',
+        ingredients: [
+          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
+          { q: 4, u: 'cup', n: 'broccoli florets', aisle: 'Produce', note: 'about 2 heads, cut small', buyAs: 'broccoli', buy: { q: 2, u: 'head' } },
+          { q: 0.25, u: 'tsp', n: 'kosher salt', aisle: 'Spices & Dried Herbs', buyAs: 'salt', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Heat the olive oil in a large saucepan over medium-high. Cook the broccoli 4 minutes until tender.',
+          'Add a splash of water and the salt, and cook 2 minutes more until bright green. Remove and set aside.',
+        ],
+      },
+      {
+        name: 'Cheese Sauce',
+        ingredients: [
+          { q: 2, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', buy: { q: 30, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'flour', aisle: 'Dry Goods & Grains', buy: { q: 16, u: 'g' } },
+          { q: 0.75, u: 'cup', n: 'milk', aisle: 'Dairy & Eggs', note: 'up to 1 cup if the sauce is too thick', buy: { q: 180, u: 'mL' } },
+          { q: 0.5, u: 'cup', n: 'mozzarella', aisle: 'Dairy & Eggs', note: 'shredded', buy: { q: 55, u: 'g' } },
+          { q: 0.5, u: 'cup', n: 'cheddar', aisle: 'Dairy & Eggs', note: 'shredded', buy: { q: 55, u: 'g' } },
+          { q: 2, u: 'tbsp', n: 'pecorino romano', aisle: 'Dairy & Eggs', note: 'grated — parmesan works too', buy: { q: 10, u: 'g' } },
+          { q: 0.5, u: 'tsp', n: 'kosher salt', aisle: 'Spices & Dried Herbs', note: 'up to ¾ tsp, to taste', buyAs: 'salt', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Melt the butter in the same pan over medium heat. Reduce to low and whisk in the flour for 1 minute to make a paste.',
+          'Gradually whisk in the milk until smooth, then raise the heat to medium and whisk until thickened, about 2 minutes.',
+          'Stir in the mozzarella, cheddar and pecorino romano until melted and smooth. Season with the salt.',
+        ],
+      },
+      {
+        name: 'Assembly',
+        ingredients: [
+          { q: null, u: null, n: 'Italian seasoned panko', aisle: 'Dry Goods & Grains', note: 'optional, for topping', buy: { q: 1, u: 'pack' } },
+        ],
+        steps: [
+          'Combine the pasta and broccoli with the cheese sauce, and heat through.',
+          'Taste and adjust salt if needed. Top with panko if using, and serve.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'garlic-honey-ginger-tofu-stir-fry',
+    title: 'Garlic Honey Ginger Tofu Stir-Fry',
+    dish: '#B36A2E',
+    time: '35 min',
+    servings: { n: 3, unit: 'servings' },
+    tags: ['dinner'],
+    keyIngredients: ['tofu', 'ginger', 'honey', 'scallions'],
+    added: '2026-08-23',
+    order: 30,
+    components: [
+      {
+        name: 'Crispy Tofu',
+        ingredients: [
+          { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: '14–16 oz, pressed and cubed', buy: { q: 1, u: 'block' } },
+          { q: 3, u: 'tbsp', n: 'cornstarch', aisle: 'Dry Goods & Grains', buy: { q: 23, u: 'g' } },
+          { q: 1, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'pinch', buy: { q: null, u: null } },
+          { q: 2, u: 'tbsp', n: 'neutral oil', aisle: 'Oils & Vinegars', buy: { q: 30, u: 'mL' } },
+        ],
+        steps: [
+          'Toss the tofu cubes with the cornstarch and a pinch of salt until coated. Pan-fry in the oil over medium-high, undisturbed for a couple minutes per side, until golden and crisp all over. Set aside.',
+        ],
+      },
+      {
+        name: 'Garlic-Ginger Oil & Chips',
+        ingredients: [
+          { q: 3, u: 'tbsp', n: 'neutral oil', aisle: 'Oils & Vinegars', buy: { q: 45, u: 'mL' } },
+          { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'thinly sliced', buyAs: 'garlic', buy: { q: 0.4, u: 'head' } },
+          { q: 1, u: 'tbsp', n: 'fresh ginger', aisle: 'Produce', note: 'thinly sliced into matchsticks', buy: { q: 1, u: null } },
+        ],
+        steps: [
+          'In the same pan, add the oil, garlic and ginger. Fry over medium heat 30–45 seconds until just golden — watch closely, they burn fast.',
+          'Scoop the garlic and ginger out onto a paper towel and set aside; leave the infused oil in the pan.',
+        ],
+      },
+      {
+        name: 'Stir-Fry',
+        ingredients: [
+          { q: 2, u: 'cup', n: 'broccoli florets', aisle: 'Produce', buyAs: 'broccoli', buy: { q: 1, u: 'head' } },
+          { q: 1, u: 'cup', n: 'snow peas', aisle: 'Produce', buy: { q: 100, u: 'g' } },
+          { q: 1, u: 'cup', n: 'cremini mushrooms', aisle: 'Produce', note: 'sliced', buy: { q: 75, u: 'g' } },
+          { q: 1, u: null, n: 'carrot', aisle: 'Produce', note: 'medium, thin-sliced on a bias', buy: { q: 1, u: null } },
+          { q: 4, u: null, n: 'scallions', aisle: 'Produce', note: 'whites and greens separated, sliced', buyAs: 'green onions', buy: { q: 0.4, u: 'bunch' } },
+        ],
+        steps: [
+          'Add the scallion whites, carrot and mushrooms to the infused oil. Stir-fry 2 minutes, then add the broccoli and cook 2–3 minutes more until everything is crisp-tender.',
+          'Add the snow peas and cook 1 minute more.',
+        ],
+      },
+      {
+        name: 'Sauce & Assembly',
+        ingredients: [
+          { q: 3, u: 'tbsp', n: 'honey', aisle: 'Sweeteners', buy: { q: 65, u: 'g' } },
+          { q: 3, u: 'tbsp', n: 'soy sauce', aisle: 'Condiments & Sauces', buy: { q: 45, u: 'mL' } },
+          { q: 1, u: 'tbsp', n: 'rice vinegar', aisle: 'Oils & Vinegars', buy: { q: 15, u: 'mL' } },
+          { q: 1, u: 'tsp', n: 'toasted sesame oil', aisle: 'Oils & Vinegars', buy: { q: 5, u: 'mL' } },
+          { q: 1, u: 'tbsp', n: 'cornstarch', aisle: 'Dry Goods & Grains', buy: { q: 8, u: 'g' } },
+          { q: 0.25, u: 'tsp', n: 'red pepper flakes', aisle: 'Spices & Dried Herbs', note: 'optional', buyAs: 'chili flakes' },
+          { q: null, u: null, n: 'sesame seeds', aisle: 'Nuts & Seeds', note: 'toasted, for sprinkling', buy: { q: 30, u: 'g' } },
+          { q: 1, u: 'cup', n: 'jasmine rice', aisle: 'Dry Goods & Grains', note: 'for serving', buy: { q: 185, u: 'g' }, buyNote: 'dry weight' },
+        ],
+        steps: [
+          'Whisk the honey, soy sauce, rice vinegar, sesame oil, cornstarch and red pepper flakes together with ⅓ cup water in a small bowl.',
+          'Return the tofu to the pan with the vegetables, pour in the sauce, and toss until it thickens and glazes everything, about 1–2 minutes.',
+          'Serve over jasmine rice, topped with the crispy garlic-ginger chips, scallion greens and sesame seeds.',
+        ],
       },
     ],
   },
