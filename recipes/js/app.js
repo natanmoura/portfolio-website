@@ -198,6 +198,7 @@
       slug: r.slug,
       recipe: r,
       title: r.title.toLowerCase(),
+      status: r.status === 'testing' ? 'testing' : 'forever',
       tags: (r.tags || []).map((t) => t.toLowerCase()),
       keyIngredients: (r.keyIngredients || []).map((s) => s.toLowerCase()),
       keyIngredientsLabel: r.keyIngredients || [],
@@ -240,6 +241,7 @@
   /* How well one search word matches a recipe — title beats a tag or a
      key ingredient beats any other ingredient beats the method text. */
   function wordScore(entry, w) {
+    if ((w === 'testing' || w === 'forever') && entry.status === w) return 650;
     const t = entry.title;
     if (t === w) return 1000;
     if (t.startsWith(w)) return 900;
@@ -268,6 +270,7 @@
   function matchedLabel(entry, words) {
     for (const w of words) {
       if (entry.title.includes(w)) continue;
+      if ((w === 'testing' || w === 'forever') && entry.status === w) return cap(w);
       if (entry.tags.indexOf(w) !== -1) return cap(w);
       const key = entry.keyIngredientsLabel.find((i) => i.toLowerCase().includes(w));
       if (key) return key;
@@ -534,7 +537,7 @@
       <a class="recipe-row${on ? ' is-planned' : ''}" href="recipe.html?r=${encodeURIComponent(r.slug)}"
          data-row="${r.slug}" style="--dish:${r.dish}${state.animate ? `;animation-delay:${Math.min(i * 24, 300)}ms` : ''}">
         <span class="row-main">
-          <span class="row-title">${esc(r.title)}</span>
+          <span class="row-title">${esc(r.title)}${r.status === 'testing' ? ' <span class="badge-testing">Testing</span>' : ''}</span>
           <span class="row-keywords">${keywords}</span>
           <span class="row-meta">${r.servings.n} ${esc(r.servings.unit)} · ${esc(r.time)} · ${steps} ${steps === 1 ? 'step' : 'steps'}${cost ? ` · <span class="row-cost">${esc(cost)}</span>` : ''}</span>
         </span>
@@ -592,6 +595,7 @@
       <div class="tile-item" style="--dish:${r.dish}" data-tile="${r.slug}">
         <button class="tile-toggle${on ? ' is-on' : ''}" data-plan="${r.slug}" aria-pressed="${on}">
           <span class="tile-check" aria-hidden="true">${checkSvg()}</span>
+          ${r.status === 'testing' ? '<span class="badge-testing badge-testing-tile">Testing</span>' : ''}
           <span class="tile-title">${esc(r.title)}</span>
           <span class="tile-time">${esc(r.time)}${cost ? ` · ${esc(cost)}` : ''}</span>
         </button>

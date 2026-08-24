@@ -262,6 +262,21 @@ button { background: none; border: none; cursor: pointer; }
   font-weight: 600; font-size: 1.3rem; line-height: 1.2;
   letter-spacing: -.014em; color: var(--dish);
 }
+/* Forever is the default and stays unlabeled — this only ever marks
+   the recipes still being tried out, so it reads as "not yet earned
+   its permanent spot" rather than a generic status chip. */
+.badge-testing {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: .58rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: #A8631E; background: color-mix(in srgb, #A8631E 14%, transparent);
+  padding: .18rem .45rem; border-radius: var(--r-pill);
+  vertical-align: middle; margin-left: .1em;
+}
+.badge-testing-tile {
+  position: absolute; top: .5rem; right: .5rem;
+  margin-left: 0;
+}
 .row-keywords {
   display: block; font-size: .84rem; color: var(--muted); margin-top: .28rem;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -852,6 +867,7 @@ button { background: none; border: none; cursor: pointer; }
   color: var(--dish); margin-top: .9rem;
 }
 .recipe-meta { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin-top: .6rem; }
+.recipe-head h1 .badge-testing { font-size: .55rem; vertical-align: .4em; margin-left: .3em; }
 /* Tags sit between the time and the servings stepper. Deliberately
    understated — they're an exit toward similar recipes, not a filter
    bar. Tap target is padded well past the visible pill. */

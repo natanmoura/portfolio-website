@@ -70,7 +70,7 @@
   }
 
   document.title = `${recipe.title} — Moura Boys Forever Recipes`;
-  elTitle.textContent = recipe.title;
+  elTitle.innerHTML = `${esc(recipe.title)}${recipe.status === 'testing' ? ' <span class="badge-testing">Testing</span>' : ''}`;
   document.documentElement.style.setProperty('--dish', recipe.dish);
   elTitle.style.setProperty('--dish', recipe.dish);
   elMeta.textContent = recipe.time;

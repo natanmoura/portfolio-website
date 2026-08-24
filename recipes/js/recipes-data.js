@@ -516,6 +516,7 @@ const RECIPES = [
     keyIngredients: ['tofu', 'white miso', 'dill', 'oregano'],
     added: '2026-07-26',
     order: 8,
+    status: 'testing',
     components: [
       {
         name: 'Oregano Fries',
@@ -806,6 +807,7 @@ const RECIPES = [
     keyIngredients: ['baby spinach', 'feta', 'filo pastry', 'Greek yogurt'],
     added: '2026-08-09',
     order: 13,
+    status: 'testing',
     components: [
       {
         name: 'Spinach Filling',
@@ -855,6 +857,7 @@ const RECIPES = [
     keyIngredients: ['tofu', 'chipotle in adobo', 'cabbage', 'plantain chips'],
     added: '2026-08-09',
     order: 14,
+    status: 'testing',
     components: [
       {
         name: 'Deli Slices',
@@ -920,6 +923,7 @@ const RECIPES = [
     keyIngredients: ['cauliflower', 'chickpeas', 'tahini', 'avocado'],
     added: '2026-08-09',
     order: 15,
+    status: 'testing',
     components: [
       {
         name: 'Tahini Yogurt Sauce',
@@ -982,6 +986,7 @@ const RECIPES = [
     keyIngredients: ['carrot', 'dark chocolate', 'condensed milk'],
     added: '2026-08-09',
     order: 16,
+    status: 'testing',
     components: [
       {
         name: 'Cake',
@@ -1100,6 +1105,7 @@ const RECIPES = [
     keyIngredients: ['tofu', 'sun-dried tomatoes', 'coconut milk', 'nutritional yeast'],
     added: '2026-08-09',
     order: 18,
+    status: 'testing',
     components: [
       {
         name: 'Tofu',
@@ -1152,6 +1158,7 @@ const RECIPES = [
     keyIngredients: ['apples', 'milk', 'butter'],
     added: '2026-08-09',
     order: 19,
+    status: 'testing',
     source: { name: 'The Modern Nonna', url: 'https://themodernnonna.com/easy-apple-cake/' },
     components: [
       {
@@ -1201,6 +1208,7 @@ const RECIPES = [
     keyIngredients: ['cream cheese', 'whipping cream', 'vanilla'],
     added: '2026-08-09',
     order: 20,
+    status: 'testing',
     source: { name: 'RecipeTin Eats', url: 'https://www.recipetineats.com/basque-cheesecake/' },
     components: [
       {
@@ -1284,7 +1292,7 @@ const RECIPES = [
     title: 'Peach Salsa',
     dish: '#AF5533',
     time: '15 min',
-    servings: { n: 6, unit: 'servings' },
+    servings: { n: 3, unit: 'servings' },
     tags: ['side', 'snack', 'sauce'],
     keyIngredients: ['peaches', 'tomatoes', 'jalapeño', 'lime'],
     added: '2026-08-09',
@@ -1294,18 +1302,18 @@ const RECIPES = [
       {
         name: 'Salsa',
         ingredients: [
-          { q: 9, u: null, n: 'peaches', aisle: 'Produce', note: 'diced', buy: { q: 9, u: null } },
-          { q: 5, u: null, n: 'tomatoes', aisle: 'Produce', note: 'medium, diced' },
-          { q: 1, u: null, n: 'jalapeño', aisle: 'Produce', note: 'large, seeded and finely diced', buy: { q: 1, u: null } },
-          { q: 0.25, u: 'cup', n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.25, u: null } },
-          { q: 1, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.1, u: 'head' } },
-          { q: 0.5, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'chopped', buy: { q: 0.5, u: 'bunch' } },
-          { q: 0.25, u: 'cup', n: 'fresh basil', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
-          { q: 0.25, u: 'cup', n: 'fresh mint', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
-          { q: 2, u: null, n: 'lime', aisle: 'Produce', note: 'juice and zest', buyAs: 'limes', buy: { q: 2, u: null }, buyNote: 'zest — buy whole' },
-          { q: 0.5, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'flaky, or to taste', buy: { q: null, u: null } },
-          { q: 0.25, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', note: 'freshly ground', buy: { q: null, u: null } },
-          { q: 1, u: 'tsp', n: 'tajin', aisle: 'Spices & Dried Herbs', note: 'optional' },
+          { q: 4.5, u: null, n: 'peaches', aisle: 'Produce', note: 'diced', buy: { q: 4.5, u: null } },
+          { q: 2.5, u: null, n: 'tomatoes', aisle: 'Produce', note: 'medium, diced' },
+          { q: 0.5, u: null, n: 'jalapeño', aisle: 'Produce', note: 'large, seeded and finely diced', buy: { q: 0.5, u: null } },
+          { q: 0.125, u: 'cup', n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.125, u: null } },
+          { q: 0.5, u: null, n: 'garlic cloves', aisle: 'Produce', note: 'minced', buyAs: 'garlic', buy: { q: 0.05, u: 'head' } },
+          { q: 0.25, u: 'cup', n: 'cilantro', aisle: 'Produce', note: 'chopped', buy: { q: 0.25, u: 'bunch' } },
+          { q: 0.125, u: 'cup', n: 'fresh basil', aisle: 'Produce', note: 'chopped', buy: { q: 0.125, u: 'bunch' } },
+          { q: 0.125, u: 'cup', n: 'fresh mint', aisle: 'Produce', note: 'chopped', buy: { q: 0.125, u: 'bunch' } },
+          { q: 1, u: null, n: 'lime', aisle: 'Produce', note: 'juice and zest', buyAs: 'limes', buy: { q: 1, u: null }, buyNote: 'zest — buy whole' },
+          { q: 0.25, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'flaky, or to taste', buy: { q: null, u: null } },
+          { q: 0.125, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', note: 'freshly ground', buy: { q: null, u: null } },
+          { q: 0.5, u: 'tsp', n: 'tajin', aisle: 'Spices & Dried Herbs', note: 'optional' },
         ],
         steps: [
           'Add the diced peaches and tomatoes to a large bowl.',
@@ -1329,6 +1337,7 @@ const RECIPES = [
     keyIngredients: ['fresh basil', 'walnuts', 'parmesan'],
     added: '2026-08-09',
     order: 23,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/walnut-pesto-recipe-thats-budget-friendly/' },
     components: [
       {
@@ -1364,6 +1373,7 @@ const RECIPES = [
     keyIngredients: ['rhubarb', 'rolled oats', 'pecans', 'brown sugar'],
     added: '2026-08-10',
     order: 24,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/baked-oats-with-rhubarb-for-easy-breakfasts/' },
     components: [
       {
@@ -1402,6 +1412,7 @@ const RECIPES = [
     keyIngredients: ['cottage cheese', 'lemon', 'poppy seeds'],
     added: '2026-08-10',
     order: 25,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/protein-pancakes-recipe-with-lemon-poppy-seeds/' },
     components: [
       {
@@ -1442,6 +1453,7 @@ const RECIPES = [
     keyIngredients: ['rolled oats', 'pecans', 'almonds', 'maple syrup'],
     added: '2026-08-10',
     order: 26,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/gluten-free-granola-healthy-easy/' },
     components: [
       {
@@ -1483,6 +1495,7 @@ const RECIPES = [
     keyIngredients: ['blueberries', 'lemon', 'eggs'],
     added: '2026-08-10',
     order: 27,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/blueberry-lemon-dutch-baby/' },
     components: [
       {
@@ -1520,6 +1533,7 @@ const RECIPES = [
     keyIngredients: ['parsley', 'oregano', 'lemon zest', 'chili flakes'],
     added: '2026-08-10',
     order: 28,
+    status: 'testing',
     source: { name: "Andy's East Coast Kitchen", url: 'https://theeastcoastkitchen.com/chimichurri-recipe-with-lemon-zest-10-minutes/' },
     components: [
       {
@@ -1555,6 +1569,7 @@ const RECIPES = [
     keyIngredients: ['elbow macaroni', 'broccoli', 'cheddar', 'mozzarella'],
     added: '2026-08-23',
     order: 29,
+    status: 'testing',
     source: { name: 'A Couple Cooks', url: 'https://www.acouplecooks.com/healthy-mac-and-cheese-broccoli/' },
     components: [
       {
@@ -1618,6 +1633,7 @@ const RECIPES = [
     keyIngredients: ['tofu', 'ginger', 'honey', 'scallions'],
     added: '2026-08-23',
     order: 30,
+    status: 'testing',
     components: [
       {
         name: 'Crispy Tofu',
