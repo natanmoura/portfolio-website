@@ -17,10 +17,50 @@ const PRICE_STORES = {
   "saveonfoods": {
     "name": "Save-On-Foods",
     "currency": "CAD",
-    "updated": "2026-08-10",
+    "updated": "2026-08-23",
     "items": {
       "cilantro": {
-        "v": 2.69,
+        "v": 2.49,
+        "u": "each"
+      },
+      "broccoli": {
+        "v": 6.6,
+        "u": "each"
+      },
+      "cremini mushrooms": {
+        "v": 0.02198,
+        "u": "g"
+      },
+      "snow peas": {
+        "v": 0.01995,
+        "u": "g"
+      },
+      "butter": {
+        "v": 0.01474,
+        "u": "g"
+      },
+      "pecorino romano": {
+        "v": 0.0679,
+        "u": "g"
+      },
+      "filo pastry": {
+        "v": 4.99,
+        "u": "pack"
+      },
+      "tortillas": {
+        "v": 0.3,
+        "u": "each"
+      },
+      "elbow macaroni": {
+        "v": 0.00366,
+        "u": "g"
+      },
+      "italian seasoned panko": {
+        "v": 0.00851,
+        "u": "g"
+      },
+      "lemons": {
+        "v": 0.99,
         "u": "each"
       },
       "cucumbers": {
@@ -60,7 +100,7 @@ const PRICE_STORES = {
         "u": "each"
       },
       "tomatoes": {
-        "v": 0.89,
+        "v": 0.59,
         "u": "each"
       },
       "feta": {
@@ -68,7 +108,7 @@ const PRICE_STORES = {
         "u": "g"
       },
       "greek yogurt": {
-        "v": 0.01122,
+        "v": 0.00722,
         "u": "g"
       },
       "milk": {
@@ -116,7 +156,7 @@ const PRICE_STORES = {
         "u": "each"
       },
       "onion": {
-        "v": 0.94,
+        "v": 1.86,
         "u": "each"
       },
       "peaches": {
