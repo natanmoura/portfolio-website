@@ -90,6 +90,10 @@ export class Inspector {
     );
     this.head = this.root.querySelector('h2');
     this.thumbs = null;
+    // Which pool index the grid last highlighted, so a change of module or
+    // face can be told apart from a redraw of the same one. See `thumbGrid`.
+    this.lastShown = undefined;
+    this.scrollToShown = false;
     this.pool.onChange(() => {
       this.thumbs = null;
     });
@@ -308,6 +312,20 @@ export class Inspector {
       'Colour pattern'
     );
 
+    // The heading over the image pool and the line naming what is on the
+    // face, built here rather than inline below because `all faces` has to be
+    // able to rewrite both. That chip deliberately does not rebuild the panel
+    // — it is a view toggle, and a rebuild would throw away where you had
+    // scrolled the pool — so it updates the two nodes it affects by hand.
+    const imagesHeading = () => (this.applyAll ? `Images — all ${n} faces` : `Images — ${labels[slot]} face`);
+    const pickNote = () => {
+      if (this.applyAll) return `Picking sets all ${n} faces at once.`;
+      if (face.image == null) return 'No image on this face.';
+      return `On this face: ${this.pool.get(face.image)?.name ?? `#${face.image}`}`;
+    };
+    const imagesLabel = label(imagesHeading());
+    const pickLine = h('p', { class: 'hint pick' }, pickNote());
+
     const faceChips = withHelp(
       h(
         'div',
@@ -329,6 +347,8 @@ export class Inspector {
             onclick: (e) => {
               this.applyAll = !this.applyAll;
               e.currentTarget.classList.toggle('on', this.applyAll);
+              imagesLabel.textContent = imagesHeading();
+              pickLine.textContent = pickNote();
             },
           },
           'all faces'
@@ -490,7 +510,16 @@ export class Inspector {
       faceChips,
       !isRoof && !usesMaterial && imageRow,
       !isRoof && !usesMaterial && this.slider('Crop', face.zoom || 1, 1, 3, 0.01, (v) => setFace({ zoom: v }), HELP.crop),
-      !isRoof && !usesMaterial && label('Images'),
+      // The grid used to be headed a bare "Images", which is the whole of the
+      // "what is this even setting?" problem: sixty-odd tiles scrolled well
+      // clear of the Faces row, so by the time you reach them nothing on
+      // screen says which face a click lands on — or that `all faces` is on
+      // and it lands on every one. The heading carries that, right where the
+      // click happens, and the line under it names what is on the face now,
+      // because a highlight in a grid of sixty tells you where the picture is
+      // and not what it is.
+      !isRoof && !usesMaterial && imagesLabel,
+      !isRoof && !usesMaterial && pickLine,
       !isRoof && !usesMaterial && swapNote && h('p', { class: 'hint' }, `Swapping — this face is showing "${swapNote}" right now. Picking a new image sets what it swaps back to.`),
       !isRoof && !usesMaterial && withHelp(this.thumbGrid(face, setFace, displayImage), HELP.thumbs, 'Image pool'),
       !isRoof && usesMaterial && h('p', { class: 'hint' }, 'This module is wearing the building material — every face, no picture.'),
@@ -509,6 +538,25 @@ export class Inspector {
     // After the insert, not before: `setChildren` re-appends the cached grid
     // and a detached node comes back scrolled to the top.
     if (this.thumbs && this.thumbScroll) this.thumbs.scrollTop = this.thumbScroll;
+    // Also after the insert, and after the scroll restore it deliberately
+    // overrides: a tile's position is only measurable once the node is in the
+    // document. Centred rather than merely "in view" so the tiles around it
+    // come too, which is what makes it read as a position in the pool.
+    //
+    // Measured from the two bounding rects rather than `offsetTop`, which
+    // resolves against the nearest *positioned* ancestor — and the grid is
+    // not one, so it reported distances from somewhere up in the panel and
+    // scrolled to a number that meant nothing.
+    if (this.thumbs && this.scrollToShown) {
+      const on = this.thumbs.querySelector('.thumb.on');
+      if (on) {
+        const top = on.getBoundingClientRect().top - this.thumbs.getBoundingClientRect().top;
+        const want = this.thumbs.scrollTop + top - (this.thumbs.clientHeight - on.offsetHeight) / 2;
+        this.thumbs.scrollTop = Math.max(0, want);
+        this.thumbScroll = this.thumbs.scrollTop;
+      }
+      this.scrollToShown = false;
+    }
     // Only a face that is actually cycling needs the panel redrawn under it.
     // Everything else was being rebuilt once a second for nothing, which is
     // what made the grid impossible to scroll.
@@ -557,6 +605,15 @@ export class Inspector {
     this.thumbs.querySelectorAll('.thumb').forEach((btn, i) => {
       btn.classList.toggle('on', shown === i);
     });
+    // Moving to another module or another face changes which tile is the
+    // answer, and the grid is cached — it comes back holding whatever scroll
+    // position the last one left it at. With sixty-odd pictures and six rows
+    // visible, the highlight is usually nowhere on screen, so every module
+    // looked like it had no image chosen at all. Bring it back into view when
+    // it changes, and only then: doing it every render would fight anyone
+    // scrolling the pool to browse it.
+    this.scrollToShown = shown != null && shown !== this.lastShown;
+    this.lastShown = shown;
     return this.thumbs;
   }
 
