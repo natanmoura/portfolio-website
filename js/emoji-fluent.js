@@ -1,72 +1,93 @@
 // ── Site-wide emoji restyle ──
 // Replaces native emoji with Microsoft Fluent "Color" SVGs so every visitor
-// sees the same artwork regardless of their device. Handles static content on
-// load plus dynamically inserted emoji (typed tagline, intro wizard, contact
-// slay animation) via a MutationObserver.
+// sees the same artwork regardless of their device.
 //
+// Load this as a plain (non-deferred) script in <head>. It observes the DOM
+// while the parser builds it, so emoji are swapped before first paint (no
+// native-emoji flash), and it prefetches + decodes every SVG up front so
+// emoji inserted later (typed tagline, intro sparkles, slay/wave animations)
+// render on the frame they appear.
+//
+// SVGs are self-hosted in assets/emoji/ (optimized with svgo). To add one,
+// drop the Fluent SVG there and add a line to FILES.
 // To revert to native emoji: remove the <script src="js/emoji-fluent.js"> tag.
-// To try a different Fluent style: swap "Color"/"color" in the URLs below for
-// "Flat"/"flat" or "High Contrast"/"high_contrast" (both SVG), or "3D"/"3d" (PNG).
 (function () {
-  const BASE = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets';
+  const script = document.currentScript;
+  const BASE = new URL('../assets/emoji/', script ? script.src : location.href).href;
 
-  // emoji character → Fluent Color SVG path (relative to BASE)
-  const PATHS = {
-    '🪄': 'Magic%20wand/Color/magic_wand_color.svg',
-    '🧙': 'Man%20mage/Default/Color/man_mage_color_default.svg',
-    '🔮': 'Crystal%20ball/Color/crystal_ball_color.svg',
-    '🔨': 'Hammer/Color/hammer_color.svg',
-    '✏️': 'Pencil/Color/pencil_color.svg',
-    '🏆': 'Trophy/Color/trophy_color.svg',
-    '🧠': 'Brain/Color/brain_color.svg',
-    '🌎': 'Globe%20showing%20americas/Color/globe_showing_americas_color.svg',
-    '❤️': 'Red%20heart/Color/red_heart_color.svg',
-    '🌱': 'Seedling/Color/seedling_color.svg',
-    '🎲': 'Game%20die/Color/game_die_color.svg',
-    '🌅': 'Sunrise/Color/sunrise_color.svg',
-    '🥭': 'Mango/Color/mango_color.svg',
-    '💀': 'Skull/Color/skull_color.svg',
-    '🚲': 'Bicycle/Color/bicycle_color.svg',
-    '✊': 'Raised%20fist/Default/Color/raised_fist_color_default.svg',
-    '🖐️': 'Hand%20with%20fingers%20splayed/Default/Color/hand_with_fingers_splayed_color_default.svg',
-    '✌️': 'Victory%20hand/Default/Color/victory_hand_color_default.svg',
-    '🧝': 'Man%20elf/Default/Color/man_elf_color_default.svg',
-    '🐉': 'Dragon/Color/dragon_color.svg',
-    '🕷️': 'Spider/Color/spider_color.svg',
-    '🦇': 'Bat/Color/bat_color.svg',
-    '🗡️': 'Dagger/Color/dagger_color.svg',
-    '🪓': 'Axe/Color/axe_color.svg',
-    '🪃': 'Boomerang/Color/boomerang_color.svg',
-    '💥': 'Collision/Color/collision_color.svg',
-    '✨': 'Sparkles/Color/sparkles_color.svg',
-    '⭐': 'Star/Color/star_color.svg'
+  // Keys are written without the U+FE0F variation selector, which is matched
+  // optionally, so "✏" and "✏️" both resolve.
+  const FILES = {
+    '🪄': 'magic-wand',
+    '🧙': 'mage',
+    '🔮': 'crystal-ball',
+    '🔨': 'hammer',
+    '✏': 'pencil',
+    '🏆': 'trophy',
+    '🧠': 'brain',
+    '🌎': 'globe-americas',
+    '❤': 'red-heart',
+    '🌱': 'seedling',
+    '🎲': 'game-die',
+    '🌅': 'sunrise',
+    '🥭': 'mango',
+    '💀': 'skull',
+    '🚲': 'bicycle',
+    '✊': 'raised-fist',
+    '🖐': 'hand-splayed',
+    '✌': 'victory-hand',
+    '🧝': 'elf',
+    '🐉': 'dragon',
+    '🕷': 'spider',
+    '🦇': 'bat',
+    '🗡': 'dagger',
+    '🪓': 'axe',
+    '🪃': 'boomerang',
+    '💥': 'collision',
+    '✨': 'sparkles',
+    '⭐': 'star',
+    '❗': 'exclamation'
   };
 
-  const MAP = {};
-  Object.keys(PATHS).forEach(function (ch) { MAP[ch] = BASE + '/' + PATHS[ch]; });
+  const URLS = {};
+  Object.keys(FILES).forEach(function (ch) { URLS[ch] = BASE + FILES[ch] + '.svg'; });
 
-  // Longest keys first so multi-codepoint emoji (with variation selectors) win.
-  const keys = Object.keys(MAP).sort(function (a, b) { return b.length - a.length; });
+  const keys = Object.keys(URLS).sort(function (a, b) { return b.length - a.length; });
   const escaped = keys.map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
-  const RE = new RegExp('(' + escaped.join('|') + ')', 'gu');
+  const RE = new RegExp('(' + escaped.join('|') + ')\\uFE0F?', 'gu');
 
-  const SKIP_TAGS = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, IMG: 1 };
+  // Prefetch and decode everything now. Holding the Image objects keeps the
+  // decoded bitmaps in memory so later swaps don't flash blank.
+  const warm = [];
+  keys.forEach(function (ch) {
+    const img = new Image();
+    img.src = URLS[ch];
+    if (img.decode) img.decode().catch(function () {});
+    warm.push(img);
+  });
 
-  function makeImg(ch) {
+  const SKIP_TAGS = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, TITLE: 1, NOSCRIPT: 1, IMG: 1 };
+
+  function makeImg(match) {
+    const ch = match.replace(/️/g, '');
     const img = document.createElement('img');
     img.className = 'emoji-img';
-    img.src = MAP[ch];
-    img.alt = ch;
+    img.src = URLS[ch];
+    img.alt = match;
     img.setAttribute('draggable', 'false');
     return img;
+  }
+
+  function hasEmoji(text) {
+    RE.lastIndex = 0;
+    return RE.test(text);
   }
 
   function processTextNode(node) {
     if (!node || node.nodeType !== 3 || !node.parentNode) return;
     if (SKIP_TAGS[node.parentNode.nodeName]) return;
     const text = node.nodeValue;
-    RE.lastIndex = 0;
-    if (!RE.test(text)) return;
+    if (!hasEmoji(text)) return;
     RE.lastIndex = 0;
     const frag = document.createDocumentFragment();
     let last = 0, m;
@@ -80,49 +101,42 @@
   }
 
   function walk(root) {
-    if (!root || root.nodeType !== 1) {
-      if (root && root.nodeType === 3) processTextNode(root);
-      return;
-    }
-    if (SKIP_TAGS[root.nodeName]) return;
+    if (!root) return;
+    if (root.nodeType === 3) { processTextNode(root); return; }
+    if (root.nodeType !== 1 || SKIP_TAGS[root.nodeName]) return;
     const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     const found = [];
     let n;
     while ((n = tw.nextNode())) {
       if (n.parentNode && SKIP_TAGS[n.parentNode.nodeName]) continue;
-      RE.lastIndex = 0;
-      if (RE.test(n.nodeValue)) found.push(n);
+      if (hasEmoji(n.nodeValue)) found.push(n);
     }
     found.forEach(processTextNode);
   }
 
-  let observer;
-  function connect() {
-    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
-  }
-
-  function start() {
-    walk(document.body);
-    observer = new MutationObserver(function (mutations) {
-      observer.disconnect();
-      mutations.forEach(function (mu) {
-        if (mu.type === 'characterData') {
-          processTextNode(mu.target);
-        } else {
-          mu.addedNodes.forEach(function (added) {
-            if (added.nodeType === 3) processTextNode(added);
-            else if (added.nodeType === 1) walk(added);
-          });
-        }
-      });
-      connect();
+  const target = document.documentElement;
+  const observer = new MutationObserver(function (mutations) {
+    observer.disconnect();
+    mutations.forEach(function (mu) {
+      if (mu.type === 'characterData') processTextNode(mu.target);
+      else mu.addedNodes.forEach(walk);
     });
     connect();
+  });
+  function connect() {
+    observer.observe(target, { childList: true, characterData: true, subtree: true });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start);
-  } else {
-    start();
+  walk(document.body);
+  connect();
+
+  // Parsers can append to an existing text node without a mutation record,
+  // so sweep once more when parsing finishes.
+  function sweep() {
+    observer.disconnect();
+    walk(document.body);
+    connect();
   }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep);
+  else sweep();
 })();

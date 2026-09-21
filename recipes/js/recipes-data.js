@@ -798,56 +798,6 @@ const RECIPES = [
   },
 
   {
-    slug: 'one-pan-dump-spanakopita',
-    title: 'One Pan Dump Spanakopita',
-    dish: '#6F7F38',
-    time: '45 min',
-    servings: { n: 4, unit: 'servings' },
-    tags: ['dinner', 'lunch'],
-    keyIngredients: ['baby spinach', 'feta', 'filo pastry', 'Greek yogurt'],
-    added: '2026-08-09',
-    order: 13,
-    status: 'testing',
-    components: [
-      {
-        name: 'Spinach Filling',
-        ingredients: [
-          { q: 1, u: 'tbsp', n: 'olive oil', aisle: 'Oils & Vinegars', note: 'for frying', buy: { q: 15, u: 'mL' } },
-          { q: 1, u: null, n: 'onion', aisle: 'Produce', note: 'finely diced', buy: { q: 1, u: null } },
-          { q: 250, u: 'g', n: 'baby spinach', aisle: 'Produce', buyAs: 'fresh spinach', buy: { q: 250, u: 'g' } },
-          { q: 200, u: 'g', n: 'feta', aisle: 'Dairy & Eggs', note: 'crumbled', buy: { q: 200, u: 'g' } },
-          { q: 100, u: 'g', n: 'Greek yogurt', aisle: 'Dairy & Eggs', buy: { q: 100, u: 'g' } },
-          { q: 2, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
-          { q: 1, u: 'tsp', n: 'oregano', aisle: 'Spices & Dried Herbs', note: 'dried' },
-          { q: 1, u: 'tsp', n: 'ground nutmeg', aisle: 'Spices & Dried Herbs' },
-          { q: 1, u: 'tsp', n: 'black pepper', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
-          { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a big pinch', buy: { q: null, u: null } },
-        ],
-        steps: [
-          'Fry the onion in the olive oil over medium-low heat for a few minutes.',
-          'Add the spinach, press it down and put a lid on for 2 minutes until it starts to wilt. Stir until fully wilted, then keep simmering 3 minutes to drive off some moisture. Turn off the heat.',
-          'Crumble over the feta, then add the Greek yogurt, oregano, black pepper, nutmeg and eggs. Stir until combined.',
-        ],
-      },
-      {
-        name: 'Assemble & Bake',
-        ingredients: [
-          { q: 8, u: null, n: 'filo pastry', aisle: 'Bakery', note: 'sheets', buy: { q: 1, u: 'pack' } },
-          { q: null, u: null, n: 'butter', aisle: 'Dairy & Eggs', note: 'melted, for brushing', buy: { q: 50, u: 'g' } },
-          { q: null, u: null, n: 'sesame seeds', aisle: 'Nuts & Seeds', note: 'for sprinkling', buy: { q: 30, u: 'g' } },
-          { q: null, u: null, n: 'honey', aisle: 'Sweeteners', note: 'to drizzle', buy: { q: 15, u: 'g' } },
-        ],
-        steps: [
-          'Crumple up the filo sheets and add them one by one, layering them up and brushing each individual layer with melted butter.',
-          'Sprinkle over the sesame seeds.',
-          'Bake at 180°C for 25–30 minutes, until golden and puffed up.',
-          'Drizzle over a little honey and serve.',
-        ],
-      },
-    ],
-  },
-
-  {
     slug: 'smoky-chipotle-tofu-sandwiches',
     title: 'Smoky Chipotle Tofu Sandwiches',
     dish: '#B0472A',

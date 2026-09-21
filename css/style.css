@@ -1501,7 +1501,7 @@ body.projects #main-content {
 .intro-text {
   position: relative;
   display: inline-block;
-  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-family: var(--font-mono, 'DM Mono', monospace);
   font-size: clamp(1rem, 3vw, 1.4rem);
   color: #0a0a0a;
   line-height: 1.6;

@@ -1,6 +1,6 @@
 (() => {
   const snippets = [
-    "Animator & Designer ✏️",
+    "Animator & Creative Technologist ✏️",
     "Emmy award-winner 🏆",
     "Curious tinkerer 🧠",
     "Born Brazilian, raised Canadian 🌎",
@@ -27,7 +27,8 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   async function typeText(str) {
-    for (const ch of str) {
+    // Keep an emoji and its U+FE0F selector together so "✏️" isn't typed as two keystrokes.
+    for (const ch of str.match(/[\s\S]️?/gu)) {
       textEl.textContent += ch;
       const delay = 25 + Math.random() * 40 + (Math.random() < 0.1 ? 80 : 0);
       await sleep(delay);
