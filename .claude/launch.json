@@ -50,6 +50,12 @@
       "port": 5183
     },
     {
+      "name": "blinks",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/website/development/blinks/tools/serve.js", "5184"],
+      "port": 5184
+    },
+    {
       "name": "resume",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],

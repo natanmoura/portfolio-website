@@ -1,0 +1,165 @@
+:root {
+  --ink: #1b1a1f;
+  --soft: #8b8a96;
+  --bg: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Fredoka', system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#view {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+#hud {
+  position: fixed;
+  top: 18px;
+  left: 20px;
+  pointer-events: none;
+}
+
+#hud h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.stats b { color: var(--ink); font-weight: 600; }
+
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  margin: 0;
+  width: min(92vw, 420px);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--soft);
+  pointer-events: none;
+  transition: opacity 1.2s;
+}
+
+#hint.gone { opacity: 0; }
+
+#over {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s;
+}
+
+#over.show { opacity: 1; pointer-events: auto; }
+
+.card {
+  text-align: center;
+  padding: 28px 26px;
+  max-width: min(88vw, 360px);
+}
+
+.card h2 { margin: 0 0 6px; font-size: 26px; font-weight: 600; }
+.card p { margin: 0 0 18px; color: var(--soft); line-height: 1.45; }
+
+#again {
+  font: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+}
+
+#dials {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 220px;
+  font-size: 13px;
+}
+
+#dials-toggle {
+  font: inherit;
+  font-weight: 600;
+  margin-left: auto;
+  display: block;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(27, 26, 31, 0.07);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+#dials-body {
+  display: none;
+  margin-top: 8px;
+  padding: 12px 14px 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 24px rgba(27, 26, 31, 0.1);
+}
+
+#dials.open #dials-body { display: block; }
+
+.dial { margin-bottom: 10px; }
+.dial label { display: flex; justify-content: space-between; color: var(--soft); cursor: help; }
+.dial label { align-items: center; }
+.dial .dial-num {
+  width: 48px; padding: 1px 4px; border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: var(--ink); font: inherit; font-weight: 600; text-align: right;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.dial .dial-num::-webkit-inner-spin-button, .dial .dial-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.dial .dial-num:hover, .dial .dial-num:focus { border-color: var(--soft); outline: none; cursor: text; }
+.dial .dial-range { width: 100%; accent-color: var(--ink); }
+
+#help-tip {
+  position: fixed;
+  z-index: 10;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+#help-tip.show { opacity: 1; }

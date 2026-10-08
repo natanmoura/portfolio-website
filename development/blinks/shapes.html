@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Blinks Shape Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --ink: #1b1a1f;
+    --soft: #8a8794;
+    --line: #e8e6ea;
+    --pick: #1b1a1f;
+    --new: #e2557e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Fredoka, system-ui, sans-serif; }
+  header {
+    position: sticky; top: 0; z-index: 5; background: rgba(251, 251, 250, 0.94); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+  }
+  h1 { font-size: 20px; margin: 0 8px 0 0; font-weight: 600; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs { padding: 3px; background: #efedf1; border-radius: 999px; gap: 2px; }
+  .tabs button { border-color: transparent; background: transparent; }
+  .tabs button.on { background: var(--card); color: var(--ink); border-color: var(--line); }
+  button {
+    font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .count { color: var(--soft); }
+  .spacer { flex: 1; }
+  main { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 10px 10px 8px;
+    cursor: pointer; user-select: none; transition: border-color 0.12s, transform 0.12s;
+  }
+  .card:hover { transform: translateY(-1px); }
+  .card.picked { border-color: var(--pick); box-shadow: 0 0 0 2px var(--pick) inset; }
+  .card.hidden { display: none; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .thumbs img, .thumbs .ph { width: 100%; aspect-ratio: 1; display: block; border-radius: 10px; background: #f4f3f2; }
+  .thumbs img { filter: blur(1.6px); }
+  .meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .name { font-weight: 600; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #f1eff3; color: var(--soft); }
+  .tag.new { background: #fde8ef; color: var(--new); }
+  .tick { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 13px; color: #fff; }
+  .card.picked .tick { background: var(--pick); border-color: var(--pick); }
+  .card.picked .tick::after { content: '✓'; }
+  footer { padding: 0 16px 40px; }
+  footer label { display: block; color: var(--soft); margin: 4px 0 6px; }
+  textarea { width: 100%; min-height: 90px; font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--card); color: var(--ink); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 600px) { main { grid-template-columns: 1fr 1fr; } .thumbs { grid-template-columns: 1fr 1fr; } .thumbs > :nth-child(3) { display: none; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.169.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<header>
+  <h1>Blinks shape picker</h1>
+  <div class="filters tabs">
+    <button data-s="bodies" class="on">Bodies</button>
+    <button data-s="parts">Ears &amp; toppers</button>
+  </div>
+  <div class="filters">
+    <button data-f="all" class="on">All</button>
+    <span id="body-filters" class="filters"><button data-f="current">In game now</button>
+    <button data-f="new">Not in game</button>
+    <button data-f="blocks">Simple primitives</button></span>
+    <button data-f="picked">Picked</button>
+  </div>
+  <span class="count" id="count"></span>
+  <span class="spacer"></span>
+  <button id="reroll">New variations</button>
+  <button id="clear">Clear picks</button>
+  <button id="copy" class="primary">Copy picks</button>
+</header>
+<main id="grid"></main>
+<footer>
+  <label for="notes">Notes for Claude about this tab (optional, included when you copy)</label>
+  <textarea id="notes" placeholder="e.g. make ghost wavier, tooth roots longer"></textarea>
+  <label for="out">This is what gets copied. Paste it into the chat.</label>
+  <textarea id="out" readonly></textarea>
+</footer>
+<div class="toast" id="toast">Copied</div>
+<script type="module" src="js/shape-lab.js"></script>
+</body>
+</html>

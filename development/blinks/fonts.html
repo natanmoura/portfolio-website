@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Blinks Fonts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+  :root { --bg: #fbfbfa; --card: #fff; --ink: #1b1a1f; --soft: #8a8794; --line: #e8e6ea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, sans-serif; }
+  header {
+    position: sticky; top: 0; z-index: 5; background: rgba(251, 251, 250, 0.94); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .count { color: var(--soft); font-size: 14px; }
+  header .spacer { flex: 1; }
+  header input[type=text] { font: inherit; font-size: 14px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; width: 180px; }
+  header button {
+    font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  header button.on, header button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  main { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card {
+    position: relative; background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 16px 16px 12px;
+    cursor: pointer; user-select: none; transition: border-color 0.12s;
+  }
+  /* Evens out lowercase height across families so sizes compare fairly. */
+  .card > :not(.meta) { font-size-adjust: 0.52; }
+  .card.picked { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink) inset; }
+  .card.hidden { display: none; }
+  .title { font-size: 40px; line-height: 1.05; font-weight: 600; letter-spacing: -0.01em; }
+  .stats { margin-top: 4px; font-size: 14px; color: var(--soft); }
+  .stats b { color: var(--ink); font-weight: 600; }
+  .hint { margin: 14px 0 12px; font-size: 14px; line-height: 1.4; color: var(--soft); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill { background: var(--ink); color: #fff; border-radius: 999px; padding: 7px 16px; font-size: 15px; font-weight: 600; }
+  .over { font-size: 22px; font-weight: 600; }
+  .meta { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font: 12px system-ui, sans-serif; color: var(--soft); }
+  .meta .n { color: var(--ink); font-weight: 600; }
+  .meta .cur { padding: 1px 8px; border-radius: 999px; background: #f1eff3; }
+  .tick { margin-left: auto; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 12px; color: #fff; }
+  .card.picked .tick { background: var(--ink); border-color: var(--ink); }
+  .card.picked .tick::after { content: '✓'; }
+  footer { padding: 0 16px 40px; }
+  footer label { display: block; color: var(--soft); margin: 4px 0 6px; font-size: 14px; }
+  textarea { width: 100%; min-height: 70px; font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Blinks font picker</h1>
+  <input type="text" id="sample" value="Blinks" aria-label="Title text">
+  <button data-f="all" class="on">All</button>
+  <button data-f="picked">Picked</button>
+  <span class="count" id="count"></span>
+  <span class="spacer"></span>
+  <button id="clear">Clear picks</button>
+  <button id="copy" class="primary">Copy picks</button>
+</header>
+<main id="grid"></main>
+<footer>
+  <label for="notes">Notes for Claude (optional)</label>
+  <textarea id="notes" placeholder="e.g. Sniglet for the title, Nunito for small text"></textarea>
+  <label for="out">This is what gets copied. Paste it into the chat.</label>
+  <textarea id="out" readonly></textarea>
+</footer>
+<div class="toast" id="toast">Copied</div>
+<script>
+// Soft, rounded families in the same register as the current Fredoka.
+const FONTS = [
+  'Fredoka', 'Nunito', 'Quicksand', 'Varela Round', 'M PLUS Rounded 1c', 'Comfortaa', 'Baloo 2', 'Baloo Bhai 2',
+  'Mali', 'Itim', 'Sniglet', 'Chewy', 'Coiny', 'Dongle', 'Jua', 'Cherry Bomb One', 'Rubik', 'DynaPuff',
+  'Grandstander', 'Mochiy Pop One', 'Kosugi Maru', 'Zen Maru Gothic', 'Kiwi Maru', 'Hachi Maru Pop', 'Potta One',
+  'Darumadrop One', 'Shantell Sans', 'Sour Gummy', 'Bubblegum Sans', 'Concert One', 'Fuzzy Bubbles', 'Gluten',
+  'Lilita One', 'Paytone One', 'Galindo', 'Balsamiq Sans', 'Andika', 'Single Day', 'Mitr', 'Coming Soon',
+  'Short Stack', 'Bagel Fat One', 'Agbalumo', 'Rowdies', 'Gaegu', 'Rammetto One', 'Modak', 'Boogaloo',
+  'Gamja Flower', 'Delius',
+];
+const CURRENT = 'Fredoka';
+const STORE = 'blinks-font-picks';
+
+// Each family loads with weights 400 and 600 when it has them, and falls back
+// to its default weight when it doesn't.
+function load(name) {
+  const fam = name.replace(/ /g, '+');
+  const add = (href, onerror) => {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = href;
+    if (onerror) l.onerror = onerror;
+    document.head.appendChild(l);
+  };
+  add(`https://fonts.googleapis.com/css2?family=${fam}:wght@400;600&display=swap`, () =>
+    add(`https://fonts.googleapis.com/css2?family=${fam}&display=swap`));
+}
+
+let picks = new Set(), notes = '';
+try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) { picks = new Set(s.picks); notes = s.notes || ''; } } catch {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ picks: [...picks], notes })); } catch {} };
+
+const grid = document.getElementById('grid');
+const cards = FONTS.map((name, i) => {
+  load(name);
+  const el = document.createElement('div');
+  el.className = 'card' + (picks.has(name) ? ' picked' : '');
+  el.style.fontFamily = `'${name}', system-ui, sans-serif`;
+  el.innerHTML = `
+    <div class="title">Blinks</div>
+    <div class="stats"><b>7</b> alive &nbsp; <b>0:32</b> &nbsp; gen <b>3</b></div>
+    <div class="hint">Drag one creature into another to make a baby. They only live for a minute, so keep the garden going.</div>
+    <div class="row"><span class="over">Everyone's gone</span><span class="pill">Start a new garden</span></div>
+    <div class="meta"><span>${i + 1}.</span><span class="n">${name}</span>${name === CURRENT ? '<span class="cur">current</span>' : ''}<span class="tick"></span></div>`;
+  el.addEventListener('click', () => {
+    if (picks.has(name)) picks.delete(name); else picks.add(name);
+    el.classList.toggle('picked', picks.has(name));
+    save();
+    update();
+  });
+  grid.appendChild(el);
+  return { name, el };
+});
+
+let filter = 'all';
+document.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
+  filter = b.dataset.f;
+  document.querySelectorAll('[data-f]').forEach((x) => x.classList.toggle('on', x === b));
+  update();
+}));
+document.getElementById('sample').addEventListener('input', (e) => {
+  for (const { el } of cards) el.querySelector('.title').textContent = e.target.value || 'Blinks';
+});
+const notesEl = document.getElementById('notes');
+notesEl.value = notes;
+notesEl.addEventListener('input', () => { notes = notesEl.value; save(); update(); });
+
+function output() {
+  let t = `Blinks fonts I picked (${picks.size}): ${FONTS.filter((f) => picks.has(f)).join(', ') || 'none'}`;
+  if (notes.trim()) t += `\nNotes: ${notes.trim()}`;
+  return t;
+}
+function update() {
+  for (const { name, el } of cards) el.classList.toggle('hidden', filter === 'picked' && !picks.has(name));
+  document.getElementById('count').textContent = `${picks.size} picked of ${FONTS.length}`;
+  document.getElementById('out').value = output();
+}
+const toast = document.getElementById('toast');
+document.getElementById('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(output()); }
+  catch { const o = document.getElementById('out'); o.select(); document.execCommand('copy'); }
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1200);
+});
+document.getElementById('clear').addEventListener('click', () => {
+  picks.clear();
+  for (const { el } of cards) el.classList.remove('picked');
+  save();
+  update();
+});
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Blinks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<header id="hud">
+  <h1>Blinks</h1>
+  <div class="stats">
+    <span><b id="count">0</b> alive</span>
+    <span><b id="clock">0:00</b></span>
+    <span>gen <b id="best">1</b></span>
+  </div>
+</header>
+
+<aside id="dials">
+  <button id="dials-toggle" aria-expanded="false">Look</button>
+  <div id="dials-body"></div>
+</aside>
+<div id="help-tip" role="tooltip"></div>
+
+<p id="hint">Drag one creature into another to make a baby.<br>They only live for a minute, so keep the garden going.</p>
+
+<div id="over">
+  <div class="card">
+    <h2>Everyone's gone</h2>
+    <p id="over-text"></p>
+    <button id="again">Start a new garden</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

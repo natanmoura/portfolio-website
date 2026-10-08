@@ -1643,6 +1643,60 @@ const RECIPES = [
       },
     ],
   },
+
+  {
+    slug: 'maple-banana-bread',
+    title: 'Maple Banana Bread',
+    dish: '#8A5A2B',
+    time: '1 hr 15 min + cooling',
+    servings: { n: 1, unit: 'loaf' },
+    tags: ['breakfast', 'snack', 'dessert'],
+    keyIngredients: ['bananas', 'brown sugar', 'maple syrup', 'molasses'],
+    added: '2026-10-08',
+    order: 31,
+    status: 'testing',
+    components: [
+      {
+        name: 'Batter',
+        ingredients: [
+          { q: 170, u: 'g', n: 'unsalted butter', aisle: 'Dairy & Eggs', note: 'softened', buyAs: 'butter', buy: { q: 170, u: 'g' } },
+          { q: 223, u: 'g', n: 'brown sugar', aisle: 'Sweeteners', buy: { q: 223, u: 'g' } },
+          { q: 72, u: 'g', n: 'white sugar', aisle: 'Sweeteners', buyAs: 'sugar', buy: { q: 72, u: 'g' } },
+          { q: 3, u: null, n: 'ripe bananas', aisle: 'Produce', note: 'large, mashed — about 340g', buy: { q: 3, u: null } },
+          { q: 2, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
+          { q: 1, u: 'tsp', n: 'vanilla paste', aisle: 'Dry Goods & Grains', note: 'about 6g — extract works', buyAs: 'vanilla extract' },
+          { q: 1, u: 'tsp', n: 'molasses', aisle: 'Sweeteners', note: 'about 6g' },
+          { q: 250, u: 'g', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose', buy: { q: 250, u: 'g' } },
+          { q: 1, u: 'tsp', n: 'baking soda', aisle: 'Dry Goods & Grains', note: 'about 5g' },
+          { q: 1, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'about 5g', buy: { q: null, u: null } },
+          { q: 0.5, u: 'cup', n: 'buttermilk', aisle: 'Dairy & Eggs', note: '4 oz', buy: { q: 120, u: 'mL' } },
+        ],
+        steps: [
+          'Heat the oven to 325°F (165°C). Lightly spray a standard loaf pan and line it with parchment.',
+          'Cream the softened butter and both sugars together.',
+          'Add the mashed banana and mix until combined.',
+          'Add the eggs, vanilla and molasses, then mix again. The butter will split. Don\'t worry.',
+          'Whisk the flour, baking soda and salt together in a separate bowl.',
+          'Combine the wet and dry ingredients.',
+          'Add the buttermilk half at a time, mixing thoroughly after each addition.',
+          'Pour into the prepared pan.',
+          'Bake until deeply golden and firm to the touch, 200–205°F (93–96°C) internal temperature.',
+        ],
+      },
+      {
+        name: 'Maple Finish',
+        ingredients: [
+          { q: 0.25, u: 'cup', n: 'maple syrup', aisle: 'Sweeteners', note: 'grade A, 2 oz', buy: { q: 60, u: 'mL' } },
+          { q: null, u: null, n: 'flaky sea salt', aisle: 'Spices & Dried Herbs', buyAs: 'salt', buy: { q: null, u: null } },
+        ],
+        steps: [
+          'Take the loaf out of the oven and pour the maple syrup over the top straight away. It absorbs fast, so pour and spread it with a pastry brush in small sections.',
+          'Top with flaky sea salt and cool completely before slicing.',
+        ],
+        tip: 'Even better the next day. For its peak, slice it, wrap each slice in plastic wrap, freeze, then thaw before eating. The moisture redistributes inside the wrap.',
+      },
+    ],
+  },
 ];
 
 if (typeof window !== 'undefined') {
