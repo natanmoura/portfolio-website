@@ -1659,14 +1659,14 @@ const RECIPES = [
       {
         name: 'Batter',
         ingredients: [
-          { q: 170, u: 'g', n: 'unsalted butter', aisle: 'Dairy & Eggs', note: 'softened', buyAs: 'butter', buy: { q: 170, u: 'g' } },
-          { q: 223, u: 'g', n: 'brown sugar', aisle: 'Sweeteners', buy: { q: 223, u: 'g' } },
-          { q: 72, u: 'g', n: 'white sugar', aisle: 'Sweeteners', buyAs: 'sugar', buy: { q: 72, u: 'g' } },
+          { q: 0.75, u: 'cup', n: 'unsalted butter', aisle: 'Dairy & Eggs', note: 'softened — 12 tbsp, 170g', buyAs: 'butter', buy: { q: 170, u: 'g' } },
+          { q: 1, u: 'cup', n: 'brown sugar', aisle: 'Sweeteners', note: 'packed — 223g', buy: { q: 223, u: 'g' } },
+          { q: 0.33, u: 'cup', n: 'white sugar', aisle: 'Sweeteners', note: '72g', buyAs: 'sugar', buy: { q: 72, u: 'g' } },
           { q: 3, u: null, n: 'ripe bananas', aisle: 'Produce', note: 'large, mashed — about 340g', buy: { q: 3, u: null } },
           { q: 2, u: null, n: 'eggs', aisle: 'Dairy & Eggs' },
           { q: 1, u: 'tsp', n: 'vanilla paste', aisle: 'Dry Goods & Grains', note: 'about 6g — extract works', buyAs: 'vanilla extract' },
           { q: 1, u: 'tsp', n: 'molasses', aisle: 'Sweeteners', note: 'about 6g' },
-          { q: 250, u: 'g', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose', buy: { q: 250, u: 'g' } },
+          { q: 2, u: 'cup', n: 'flour', aisle: 'Dry Goods & Grains', note: 'all-purpose, 250g', buy: { q: 250, u: 'g' } },
           { q: 1, u: 'tsp', n: 'baking soda', aisle: 'Dry Goods & Grains', note: 'about 5g' },
           { q: 1, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', note: 'about 5g', buy: { q: null, u: null } },
           { q: 0.5, u: 'cup', n: 'buttermilk', aisle: 'Dairy & Eggs', note: '4 oz', buy: { q: 120, u: 'mL' } },
