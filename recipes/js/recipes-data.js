@@ -307,8 +307,8 @@ const RECIPES = [
           { q: 0.25, u: null, n: 'red onion', aisle: 'Produce', note: 'diced', buy: { q: 0.25, u: null } },
           { q: 0.33, u: null, n: 'English cucumber', aisle: 'Produce', note: 'diced', buyAs: 'cucumbers', buy: { q: 0.33, u: null } },
           { q: 4, u: null, n: 'cherry tomatoes', aisle: 'Produce', note: 'quartered', buy: { q: 60, u: 'g' } },
-          { q: 5, u: 'g', n: 'fresh mint', aisle: 'Produce', note: 'chopped', buy: { q: 0.2, u: 'bunch' } },
-          { q: 5, u: 'g', n: 'fresh parsley', aisle: 'Produce', note: 'chopped', buy: { q: 0.2, u: 'bunch' } },
+          { q: 2, u: 'tbsp', n: 'fresh mint', aisle: 'Produce', note: 'chopped, 5g', buy: { q: 0.2, u: 'bunch' } },
+          { q: 2, u: 'tbsp', n: 'fresh parsley', aisle: 'Produce', note: 'chopped, 5g', buy: { q: 0.2, u: 'bunch' } },
           { q: 0.5, u: null, n: 'lime', aisle: 'Produce', note: 'juiced', buyAs: 'limes', buy: { q: 0.5, u: null } },
           { q: 0.5, u: 'tbsp', n: 'maple syrup', aisle: 'Sweeteners', buy: { q: 8, u: 'mL' } },
           { q: null, u: null, n: 'extra virgin olive oil', aisle: 'Oils & Vinegars', buyAs: 'olive oil', buy: { q: 15, u: 'mL' } },
@@ -600,7 +600,7 @@ const RECIPES = [
         name: 'Prep',
         ingredients: [
           { q: 300, u: 'g', n: 'Swiss chard', aisle: 'Produce', buy: { q: 1, u: 'bunch' } },
-          { q: 25, u: 'g', n: 'cilantro', aisle: 'Produce', buy: { q: 0.5, u: 'bunch' } },
+          { q: 0.5, u: 'bunch', n: 'cilantro', aisle: 'Produce', note: '25g', buy: { q: 0.5, u: 'bunch' } },
           { q: 1, u: null, n: 'lime', aisle: 'Produce', buyAs: 'limes', buy: { q: 1, u: null } },
           { q: 2, u: null, n: 'pitas', aisle: 'Bakery' },
         ],
@@ -616,7 +616,7 @@ const RECIPES = [
       {
         name: 'Shakshuka Base',
         ingredients: [
-          { q: 150, u: 'g', n: 'leeks', aisle: 'Produce', buy: { q: 1, u: null } },
+          { q: 1, u: null, n: 'leeks', aisle: 'Produce', note: 'about 150g', buy: { q: 1, u: null } },
           { q: 4, u: null, n: 'garlic cloves', aisle: 'Produce', buyAs: 'garlic', buy: { q: 0.4, u: 'head' } },
           { q: 1, u: 'tbsp', n: 'dried dill', aisle: 'Spices & Dried Herbs' },
           { q: 1, u: 'tsp', n: 'ground cumin', aisle: 'Spices & Dried Herbs' },
@@ -683,9 +683,9 @@ const RECIPES = [
           { q: 0.5, u: 'cup', n: 'tahini', aisle: 'Condiments & Sauces', buy: { q: 120, u: 'g' } },
           { q: 3, u: 'tbsp', n: 'honey', aisle: 'Sweeteners', buy: { q: 65, u: 'g' } },
           { q: 0.5, u: 'cup', n: 'large flake oats', aisle: 'Dry Goods & Grains', buy: { q: 45, u: 'g' } },
-          { q: 56, u: 'g', n: 'dried apricots', aisle: 'Dry Goods & Grains', buy: { q: 60, u: 'g' } },
+          { q: 8, u: null, n: 'dried apricots', aisle: 'Dry Goods & Grains', note: '56g', buy: { q: 60, u: 'g' } },
           { q: 1, u: 'tsp', n: 'cinnamon', aisle: 'Spices & Dried Herbs' },
-          { q: 28, u: 'g', n: 'pistachios', aisle: 'Nuts & Seeds', buy: { q: 30, u: 'g' } },
+          { q: 0.25, u: 'cup', n: 'pistachios', aisle: 'Nuts & Seeds', note: 'shelled, 28g', buy: { q: 30, u: 'g' } },
           { q: null, u: null, n: 'salt', aisle: 'Spices & Dried Herbs', note: 'a pinch' },
         ],
         steps: [
@@ -753,7 +753,7 @@ const RECIPES = [
         name: 'Farofa',
         ingredients: [
           { q: 1.5, u: 'cup', n: 'cassava flour (farinha de mandioca)', aisle: 'Dry Goods & Grains', buy: { q: 180, u: 'g' } },
-          { q: 60, u: 'g', n: 'butter', aisle: 'Dairy & Eggs' },
+          { q: 4, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', note: '60g', buy: { q: 60, u: 'g' } },
           { q: 1, u: null, n: 'onion', aisle: 'Produce', note: 'small, finely diced', buyAs: 'onion', buy: { q: 1, u: null } },
           { q: 0.5, u: 'cup', n: 'black olives', aisle: 'Canned & Jarred', note: 'sliced', buy: { q: 1, u: 'jar' } },
           { q: 0.25, u: 'cup', n: 'raisins', aisle: 'Dry Goods & Grains', buy: { q: 40, u: 'g' } },
@@ -962,7 +962,7 @@ const RECIPES = [
         name: 'Brigadeiro Icing',
         ingredients: [
           { q: 1, u: 'can', n: 'sweetened condensed milk', aisle: 'Canned & Jarred', note: '397g', buy: { q: 1, u: 'can' } },
-          { q: 150, u: 'g', n: 'dark chocolate chips', aisle: 'Dry Goods & Grains', buy: { q: 150, u: 'g' } },
+          { q: 1, u: 'cup', n: 'dark chocolate chips', aisle: 'Dry Goods & Grains', note: 'plus 1 tbsp, 150g', buy: { q: 150, u: 'g' } },
           { q: 0.66, u: 'cup', n: 'heavy cream', aisle: 'Dairy & Eggs', buy: { q: 150, u: 'mL' } },
           { q: 3.5, u: 'tbsp', n: 'butter', aisle: 'Dairy & Eggs', note: 'unsalted', buy: { q: 50, u: 'g' } },
           { q: 0.125, u: 'tsp', n: 'salt', aisle: 'Spices & Dried Herbs', buy: { q: null, u: null } },
@@ -1202,7 +1202,7 @@ const RECIPES = [
       {
         name: 'Tray Bake',
         ingredients: [
-          { q: 400, u: 'g', n: 'potatoes', aisle: 'Produce', note: 'cut into small chunks', buy: { q: 3, u: null } },
+          { q: 3, u: null, n: 'potatoes', aisle: 'Produce', note: 'small, about 400g, cut into small chunks', buy: { q: 3, u: null } },
           { q: 1, u: 'block', n: 'extra firm tofu', aisle: 'Tofu & Plant-Based', note: '200g, shredded', buy: { q: 1, u: 'block' } },
           { q: 2, u: null, n: 'bell peppers', aisle: 'Produce', note: 'chopped', buy: { q: 2, u: null } },
           { q: 1, u: null, n: 'red onion', aisle: 'Produce', note: 'chopped — purple or red', buy: { q: 1, u: null } },
@@ -1680,7 +1680,8 @@ const RECIPES = [
           'Combine the wet and dry ingredients.',
           'Add the buttermilk half at a time, mixing thoroughly after each addition.',
           'Pour into the prepared pan.',
-          'Bake until deeply golden and firm to the touch, 200–205°F (93–96°C) internal temperature.',
+          'Bake 65–75 minutes, until deeply golden and firm to the touch. Start checking at 60 minutes. If the top browns too fast, tent it with foil.',
+          'To check, push a toothpick or skewer into the center, including the crack on top. It\'s done when it comes out clean or with a few moist crumbs, not wet batter. The top should spring back when pressed and the edges should pull away from the pan. With a thermometer, aim for 200–205°F (93–96°C).',
         ],
       },
       {
