@@ -1654,7 +1654,6 @@ const RECIPES = [
     keyIngredients: ['bananas', 'brown sugar', 'maple syrup', 'molasses'],
     added: '2026-10-08',
     order: 31,
-    status: 'testing',
     components: [
       {
         name: 'Batter',
@@ -1680,7 +1679,7 @@ const RECIPES = [
           'Combine the wet and dry ingredients.',
           'Add the buttermilk half at a time, mixing thoroughly after each addition.',
           'Pour into the prepared pan.',
-          'Bake 65–75 minutes, until deeply golden and firm to the touch. Start checking at 60 minutes. If the top browns too fast, tent it with foil.',
+          'Bake about 60 minutes, until deeply golden and firm to the touch.',
           'To check, push a toothpick or skewer into the center, including the crack on top. It\'s done when it comes out clean or with a few moist crumbs, not wet batter. The top should spring back when pressed and the edges should pull away from the pan. With a thermometer, aim for 200–205°F (93–96°C).',
         ],
       },
