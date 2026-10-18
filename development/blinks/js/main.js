@@ -6,6 +6,10 @@ import { Merge } from './merge.js';
 import { seedPopulation, randomGenome } from './genome.js';
 import { makeRng } from './rng.js';
 import { setupDials } from './dials.js';
+import { Intro } from './intro.js';
+
+// Fade the welcome text once the player has made a couple of babies.
+const HIDE_INTRO = false;
 
 const START_COUNT = 7;
 const MAX_POP = 22;
@@ -209,19 +213,19 @@ class App {
     this.camera = this.stage.camera;
     this.emotes = new Emotes(this.scene);
     this.input = new Input(this);
-    setupDials(this.stage);
+    setupDials(this.stage, () => this.intro.replay());
     this.stage.startIntro();
     this.creatures = [];
     this.merges = [];
     this.time = 0;
     this.ui = {
-      count: document.getElementById('count'),
-      clock: document.getElementById('clock'),
-      best: document.getElementById('best'),
       over: document.getElementById('over'),
       overText: document.getElementById('over-text'),
       hint: document.getElementById('hint'),
     };
+    this.intro = new Intro(this.ui.hint, this.stage.look);
+    // Any tap in the scene, but not on the Look panel, sends the text away.
+    addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#dials')) this.intro.dismiss(); });
     document.getElementById('again').addEventListener('click', () => this.start());
     this.last = performance.now();
     this.start();
@@ -326,7 +330,8 @@ class App {
     return fetch(url).then((r) => r.blob()).then((b) => fetch('/_shot', { method: 'POST', body: b })).then((r) => r.text());
   }
 
-  hideHint() { if (this.births > 0) this.ui.hint.classList.add('gone'); }
+  // The welcome text stays up while it's being tuned.
+  hideHint() { if (HIDE_INTRO && this.births > 0) this.ui.hint.classList.add('gone'); }
 
   tryMerge(a, b) {
     if (!a.canBreed() || !b.canBreed()) return;
@@ -341,7 +346,7 @@ class App {
     if (!c) return;
     this.births++;
     this.bestGen = Math.max(this.bestGen, c.g.gen);
-    if (this.births >= 2) this.ui.hint.classList.add('gone');
+    if (HIDE_INTRO && this.births >= 2) this.ui.hint.classList.add('gone');
   }
 
   // While dragging, the creature under the one you hold stops and looks up at
@@ -504,6 +509,7 @@ class App {
     this.emotes.update(dt, this.creatures);
 
     this.stage.updateIntro(dt);
+    this.intro.update(dt);
     this.stage.holding = !!this.input.held;
     this.stage.updateOrbit(dt);
     this.stage.cloudActive = this.merges.length > 0;
@@ -522,14 +528,12 @@ class App {
 
   updateUI() {
     const n = this.creatures.length;
-    this.ui.count.textContent = n;
     const s = Math.floor(this.clock);
-    this.ui.clock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    this.ui.best.textContent = this.bestGen;
+    const time = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     // Not over while the opening drop is still on its way down.
     if (!n && !this.merges.length && !this.drops?.length && !this.overShown) {
       this.overShown = true;
-      this.ui.overText.textContent = `They kept going for ${this.ui.clock.textContent} and made it to generation ${this.bestGen}.`;
+      this.ui.overText.textContent = `They kept going for ${time} and made it to generation ${this.bestGen}.`;
       setTimeout(() => this.ui.over.classList.add('show'), 900);
     }
   }

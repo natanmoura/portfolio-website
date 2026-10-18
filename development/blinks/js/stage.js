@@ -359,14 +359,19 @@ export class Stage {
     this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
     this.arena = 6;
-    this.look = { bodyMin: 3, bodyMax: 11.5, ground: 1.4, cloud: 10, fadeAt: 0.7, fadeSoft: 0.4, holdWobble: 4.4, holdWobbleSpeed: 3.05 };
+    this.look = { bodyMin: 1.5, bodyMax: 11, ground: 1.4, cloud: 10, fadeAt: 0.7, fadeSoft: 0.4, holdWobble: 4.4, holdWobbleSpeed: 3.05,
+      // Intro text motion.
+      textSize: 23, textAngle: -3.5, lineAngle: 0.5, textDelay: 0.5, typeSpeed: 28, lineGap: 1, popTime: 0.12, popOver: 1.35, floatAmp: 0.3, floatSpeed: 4.4, driftAmp: 0, tilt: 0.5, ripple: 0.7 };
     this.resize();
     addEventListener('resize', () => this.resize());
   }
 
   resize() {
     const [w, h] = this.forced || [this.canvas.clientWidth || innerWidth || 1280, this.canvas.clientHeight || innerHeight || 800];
-    const dpr = Math.min(devicePixelRatio || 1, 1.75);
+    // Phones get a lower ceiling: the blur passes are costly and the bodies
+    // are soft anyway, so the extra pixels buy nothing.
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const dpr = Math.min(devicePixelRatio || 1, touch ? 1.4 : 1.75);
     this.dpr = dpr;
     this.width = w;
     this.height = h;
@@ -395,6 +400,10 @@ export class Stage {
     this.pxScale = ph / 1000;
     this.applyLook();
     this.camera.aspect = w / h;
+    // On tall screens the welcome text takes the top, so the garden is drawn
+    // a little lower to leave it room.
+    if (w / h < 0.9) this.camera.setViewOffset(w, h, 0, -h * 0.1, w, h);
+    else this.camera.clearViewOffset();
     this.arena = w / h < 0.9 ? 5 : 7.4;
     this.homeZoom = w / h < 0.9 ? 0.72 : 0.66;
     // Tall screens look more steeply down so the garden fills the height.

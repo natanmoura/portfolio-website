@@ -1,4 +1,4 @@
-import { S, E, C, B, T } from './sdf.js';
+import { S, E, C, B, T, H } from './sdf.js';
 
 // Candidate body shapes for curation in shapes.html. Same format as BODIES in
 // genome.js: random ranges plus a build that returns prims and a description.
@@ -501,5 +501,13 @@ export const CANDIDATES = {
       [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz], i) => prims.push(g(S(sx * p.w * 0.24, p.h * 0.88, sz * 0.14, p.cusp, 0.08), 1 + (i % 3))));
       return { prims, desc: { topW: p.w * 0.35, hw: p.w / 2, hd: 0.3, faceY: p.h * 0.45, faceW: p.w * 0.55 } };
     },
+  },
+  halo: {
+    ranges: { r: [0.36, 0.42], R: [0.24, 0.3] },
+    build: (p) => ({
+      // A ball wearing a ring floating flat over its head, like a halo.
+      prims: [g(S(0, p.r, 0, p.r), 0), g(H(0, p.r * 2 + 0.16, 0, p.R, 0.09, 0.06), 1)],
+      desc: { topW: 0.05, hw: p.r, hd: p.r, faceY: p.r * 1.05, faceW: p.r * 1.3 },
+    }),
   },
 };

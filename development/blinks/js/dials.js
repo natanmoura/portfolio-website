@@ -34,12 +34,75 @@ const DIALS = [
     key: 'ground', label: 'Ground blur', min: 0, max: 6, step: 0.1,
     help: 'How soft the reflections in the glass floor are. Zero is a clear mirror, higher values smear the reflections into colour.',
   },
+  {
+    tab: 'type', key: 'textSize', label: 'Text size', min: 12, max: 48, step: 1,
+    help: 'How big the welcome text is, in pixels.',
+  },
+  {
+    tab: 'type', key: 'textAngle', label: 'Text angle', min: -30, max: 30, step: 0.5,
+    help: 'Turns the whole block of text, in degrees. Positive tilts it clockwise, negative counter-clockwise. Zero sits level.',
+  },
+  {
+    tab: 'type', key: 'lineAngle', label: 'Line zigzag', min: -15, max: 15, step: 0.5,
+    help: 'Tilts each line a little on top of the text angle, alternating direction: the first and third lines one way, the second line the other. Zero keeps the lines parallel.',
+  },
+  {
+    tab: 'type', key: 'textDelay', label: 'Start delay', min: 0, max: 5, step: 0.1,
+    help: 'Seconds after the page opens before the first letter appears. Use Replay to see it from the start.',
+  },
+  {
+    tab: 'type', key: 'typeSpeed', label: 'Typing speed', min: 4, max: 80, step: 1,
+    help: 'Letters typed per second.',
+  },
+  {
+    tab: 'type', key: 'lineGap', label: 'Pause between lines', min: 0, max: 3, step: 0.05,
+    help: 'Seconds to wait after a line finishes before the next one starts typing.',
+  },
+  {
+    tab: 'type', key: 'popTime', label: 'Pop time', min: 0.02, max: 0.6, step: 0.01,
+    help: 'How long each letter takes to pop in, in seconds. Small values snap in hard.',
+  },
+  {
+    tab: 'type', key: 'popOver', label: 'Pop overshoot', min: 1, max: 2, step: 0.01,
+    help: 'How big a letter swells as it pops in before settling. One is no overshoot.',
+  },
+  {
+    tab: 'type', key: 'floatAmp', label: 'Float height', min: 0, max: 20, step: 0.5,
+    help: 'How far letters bob up and down, in pixels.',
+  },
+  {
+    tab: 'type', key: 'floatSpeed', label: 'Float speed', min: 0, max: 6, step: 0.05,
+    help: 'How quickly the bobbing, drifting and tilting move. Low values feel heavy and underwater.',
+  },
+  {
+    tab: 'type', key: 'driftAmp', label: 'Side drift', min: 0, max: 15, step: 0.5,
+    help: 'How far letters sway side to side, in pixels.',
+  },
+  {
+    tab: 'type', key: 'tilt', label: 'Tilt', min: 0, max: 30, step: 0.5,
+    help: 'How far letters rock back and forth, in degrees.',
+  },
+  {
+    tab: 'type', key: 'ripple', label: 'Ripple', min: 0, max: 2, step: 0.01,
+    help: 'How out of step neighbouring letters are. Zero moves each line as one block. Small values send a gentle wave along the line, large values make every letter move on its own.',
+  },
 ];
 
 // Kept from the project's working name so saved dial settings carry over.
 const STORE = 'goo-garden-look';
 
-export function setupDials(stage) {
+// The Look panel is a tuning tool, not part of the experience. It only
+// appears in edit mode (open the page with ?edit). Outside edit mode the
+// defaults in stage.js are used and saved tweaks are ignored, so what you see
+// is exactly what ships.
+const TABS = [['scene', 'Scene'], ['type', 'Type']];
+
+export function setupDials(stage, onReplay) {
+  if (!new URLSearchParams(location.search).has('edit')) {
+    stage.applyLook();
+    return;
+  }
+  document.getElementById('dials').hidden = false;
   try {
     const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
     // Older saves predate new defaults for the held wobble, so those reset once.
@@ -57,9 +120,33 @@ export function setupDials(stage) {
     toggle.setAttribute('aria-expanded', open);
   });
 
+  // Tabs split the scene dials from the type dials.
+  const tabs = document.createElement('div');
+  tabs.className = 'dial-tabs';
+  body.appendChild(tabs);
+  let tab = 'scene';
+  try { tab = localStorage.getItem(STORE + '-tab') || 'scene'; } catch {}
+  const replay = document.createElement('button');
+  replay.className = 'dial-replay';
+  replay.textContent = 'Replay text';
+  replay.addEventListener('click', () => onReplay?.());
+  const show = () => {
+    for (const b of tabs.children) b.classList.toggle('on', b.dataset.tab === tab);
+    for (const r of body.querySelectorAll('.dial')) r.hidden = r.dataset.tab !== tab;
+    replay.hidden = tab !== 'type';
+  };
+  for (const [key, name] of TABS) {
+    const b = document.createElement('button');
+    b.dataset.tab = key;
+    b.textContent = name;
+    b.addEventListener('click', () => { tab = key; try { localStorage.setItem(STORE + '-tab', tab); } catch {} show(); });
+    tabs.appendChild(b);
+  }
+
   for (const d of DIALS) {
     const row = document.createElement('div');
     row.className = 'dial';
+    row.dataset.tab = d.tab || 'scene';
     row.dataset.help = d.help;
     // The number can be typed in directly, past either end of the slider.
     row.innerHTML = `<label>${d.label} <input class="dial-num" type="number" step="any"></label><input class="dial-range" type="range" min="${d.min}" max="${d.max}" step="${d.step}">`;
@@ -82,6 +169,9 @@ export function setupDials(stage) {
     out.addEventListener('keydown', (e) => { if (e.key === 'Enter') out.blur(); });
     body.appendChild(row);
   }
+
+  body.appendChild(replay);
+  show();
 
   const tip = document.getElementById('help-tip');
   root.addEventListener('pointerover', (e) => {

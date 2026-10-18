@@ -1,4 +1,4 @@
-import { S, E, C, B, T, H, evalPrims, primDist, primsBounds, scalePrim } from './sdf.js';
+import { S, E, C, B, T, evalPrims, primDist, primsBounds, scalePrim } from './sdf.js';
 
 // Genome units: a newborn body is about 1 tall, bottom at y = 0, facing +z.
 // Every shape is mirror symmetric across x = 0.
@@ -299,14 +299,6 @@ const BODIES = {
         desc: { topW: p.c * 0.6, hw: p.b, hd: p.b, faceY: y2, faceW: p.b * 1.3, stance: 0.4 },
       };
     },
-  },
-  halo: {
-    ranges: { r: [0.36, 0.42], R: [0.24, 0.3] },
-    build: (p) => ({
-      // A ball wearing a ring floating flat over its head, like a halo.
-      prims: [g(S(0, p.r, 0, p.r), 0), g(H(0, p.r * 2 + 0.16, 0, p.R, 0.09, 0.06), 1)],
-      desc: { topW: 0.05, hw: p.r, hd: p.r, faceY: p.r * 1.05, faceW: p.r * 1.3 },
-    }),
   },
 };
 

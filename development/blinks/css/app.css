@@ -28,44 +28,45 @@ html, body {
   cursor: grab;
 }
 
-#hud {
-  position: fixed;
-  top: 18px;
-  left: 20px;
-  pointer-events: none;
-}
-
-#hud h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.stats {
-  display: flex;
-  gap: 14px;
-  margin-top: 2px;
-  font-size: 14px;
-  color: var(--soft);
-}
-
-.stats b { color: var(--ink); font-weight: 600; }
-
 #hint {
   position: fixed;
   left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  margin: 0;
-  width: min(92vw, 420px);
+  top: max(28px, 7vh);
+  /* The whole block, haze included, turns with the Text angle setting. */
+  transform: translateX(-50%) rotate(var(--intro-angle, 0deg));
+  width: min(94vw, 760px);
   text-align: center;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--soft);
+  font-size: var(--intro-size, 24px);
+  font-weight: 600;
+  line-height: 2;
+  color: var(--ink);
   pointer-events: none;
-  transition: opacity 1.2s;
+  transition: opacity 1s;
 }
+
+
+/* Each line is only as wide as its words. A soft white haze sits behind each
+   line, sized to it, so the blur covers the text without spreading across the
+   sides. The hazes share one layer under all the text, and each fades in once
+   its line starts typing. */
+.intro-text { position: relative; }
+.intro-line { white-space: pre; position: relative; width: fit-content; margin-left: auto; margin-right: auto; }
+.intro-haze { position: absolute; inset: 0; pointer-events: none; }
+.intro-haze-line { position: absolute; opacity: 0; transition: opacity 0.4s; }
+.intro-haze-line.live { opacity: 1; }
+.intro-haze-line::before {
+  content: '';
+  position: absolute;
+  inset: -0.5em -1.1em;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  filter: blur(18px);
+}
+/* A blank line's worth of space before the call to action. */
+.intro-line.spaced { margin-top: 2em; }
+.intro-letter { display: inline-block; will-change: transform; color: #a3a3a3; font-weight: 600; }
+.intro-letter.key { color: var(--ink); }
+.intro-letter.cta { color: #e12224; }
 
 #hint.gone { opacity: 0; }
 
@@ -126,6 +127,8 @@ html, body {
 
 #dials-body {
   display: none;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
   margin-top: 8px;
   padding: 12px 14px 6px;
   border-radius: 14px;
@@ -134,6 +137,15 @@ html, body {
 }
 
 #dials.open #dials-body { display: block; }
+
+.dial-tabs { display: flex; gap: 2px; padding: 3px; margin-bottom: 12px; border-radius: 999px; background: rgba(27, 26, 31, 0.06); }
+.dial-tabs button, .dial-replay {
+  flex: 1; font: inherit; font-weight: 600; padding: 4px 10px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--soft); cursor: pointer;
+}
+.dial-tabs button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(27, 26, 31, 0.1); }
+.dial-replay { display: block; width: 100%; margin: 4px 0 10px; background: rgba(27, 26, 31, 0.07); color: var(--ink); }
+.dial-replay[hidden] { display: none; }
 
 .dial { margin-bottom: 10px; }
 .dial label { display: flex; justify-content: space-between; color: var(--soft); cursor: help; }

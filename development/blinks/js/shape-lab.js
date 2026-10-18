@@ -12,7 +12,7 @@ const VARIANTS = 3;
 const SIZE = 240;
 
 // Shapes taken out of the game in earlier rounds, and the simple primitives batch.
-const RETIRED = ['bean', 'gumdrop', 'cloud', 'caterpillar', 'wide', 'mushroom', 'kidney', 'crown', 'frog', 'sausage', 'carrot', 'molar'];
+const RETIRED = ['bean', 'gumdrop', 'cloud', 'caterpillar', 'wide', 'mushroom', 'kidney', 'crown', 'frog', 'sausage', 'carrot', 'molar', 'halo'];
 const PRIMS = ['coin', 'tombstone', 'butter', 'mochi', 'longegg', 'topheavy', 'bottle', 'flan', 'funnel', 'bun', 'snout', 'belly', 'comet', 'squish', 'cone', 'onigiri', 'ball', 'egg'];
 const kindOf = (name) => (PRIMS.includes(name) ? 'blocks' : RETIRED.includes(name) ? 'retired' : 'new');
 const order = { blocks: 0, new: 1, retired: 2 };

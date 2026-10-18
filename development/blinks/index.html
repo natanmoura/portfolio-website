@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="robots" content="noindex, nofollow">
 <title>Blinks</title>
+<script>
+  // Every file here is linked relatively, so the address needs its trailing
+  // slash. Without it, natanmoura.com/development/blinks would look for its
+  // styles and scripts one folder up.
+  if (!location.pathname.endsWith('/') && !location.pathname.endsWith('.html')) {
+    location.replace(location.pathname + '/' + location.search + location.hash);
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
@@ -20,22 +28,14 @@
 <body>
 <canvas id="view"></canvas>
 
-<header id="hud">
-  <h1>Blinks</h1>
-  <div class="stats">
-    <span><b id="count">0</b> alive</span>
-    <span><b id="clock">0:00</b></span>
-    <span>gen <b id="best">1</b></span>
-  </div>
-</header>
 
-<aside id="dials">
+<aside id="dials" hidden>
   <button id="dials-toggle" aria-expanded="false">Look</button>
   <div id="dials-body"></div>
 </aside>
 <div id="help-tip" role="tooltip"></div>
 
-<p id="hint">Drag one creature into another to make a baby.<br>They only live for a minute, so keep the garden going.</p>
+<div id="hint" aria-label="Meet the Blinks. They only live one minute... Drag them together to grow new ones!"></div>
 
 <div id="over">
   <div class="card">
