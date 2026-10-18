@@ -191,6 +191,25 @@ ${levels.slice(0, -1).map((k) => `      if (k <= ${k}) return dmin(tD${k}, uT${k
       float f = sigma < 3.4 ? sigma / 3.4 : 1.0 + log2(sigma / 3.4);
       return clamp(f, 0.0, ${PYR_LEVELS}.0);
     }
+    // Blurs smaller than the first pyramid level get a real Gaussian taken
+    // straight from the full-size bodies. Blending the sharp image with level
+    // one instead leaves a crisp edge with a faint halo, which is why distant
+    // creatures used to look sharp while close ones looked soft.
+    vec4 smallBlur(float sigma) {
+      vec4 acc = vec4(0.0);
+      float ws = 0.0;
+      for (int i = 0; i < 32; i++) {
+        float fi = float(i) + 0.5;
+        float r = sqrt(fi / 32.0) * 2.4 * sigma;
+        float a = fi * 2.39996;
+        vec2 o = vec2(cos(a), sin(a)) * r / uRes;
+        float w = exp(-(r * r) / (2.0 * sigma * sigma));
+        vec4 c = texture2D(tL0, vUv + o);
+        acc += vec4(c.rgb * c.a, c.a) * w;
+        ws += w;
+      }
+      return acc / ws;
+    }
     void main() {
       // Broad, gentle noise so blurrier and sharper patches melt into each other.
       vec2 np = vUv * uRes / (150.0 * uScale);
@@ -200,9 +219,10 @@ ${levels.slice(0, -1).map((k) => `      if (k <= ${k}) return dmin(tD${k}, uT${k
       float est = toLevel(base * uScale * 0.5);
       float z = depthAt(int(clamp(ceil(est) + 1.0, 1.0, ${PYR_LEVELS}.0)));
       float scale = z > 5000.0 ? uScale : uRef / z;
-      float f = toLevel(base * scale * 0.5);
+      float sigma = base * scale * 0.5;
+      float f = toLevel(sigma);
       int i = int(floor(f));
-      vec4 c = mix(level(i), level(i + 1), f - float(i));
+      vec4 c = sigma < 3.4 ? smallBlur(max(sigma, 0.3)) : mix(level(i), level(i + 1), f - float(i));
       gl_FragColor = vec4(c.rgb / max(c.a, 1e-4), c.a);
     }`,
 };
