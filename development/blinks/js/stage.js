@@ -246,7 +246,7 @@ export class Stage {
     this.dragging = false;
 
     this.floor = new Reflector(new THREE.CircleGeometry(80, 64), {
-      textureWidth: 512, textureHeight: 512, clipBias: 0.002, shader: FloorShader, multisample: 0,
+      textureWidth: 512, textureHeight: 512, clipBias: 0.002, shader: FloorShader, multisample: 4,
     });
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.camera.layers.enable(LAYER.BODY);
@@ -475,6 +475,13 @@ export class Stage {
     this.updateCamera();
   }
 
+  // Floor blur spacing in reflection texels. It scales with the zoom so the
+  // reflections soften the same amount near and far, but is held at one texel
+  // or more: any finer and the blur stops smoothing and small shapes flicker.
+  groundBlur(ground) {
+    return ground > 0 ? Math.max(1, ground * Math.min(2.5, this.viewScale())) : 0;
+  }
+
   updateCamera() {
     const o = this.orbit;
     const d = this.fitDistance() * o.zoom;
@@ -484,7 +491,7 @@ export class Stage {
     this.camera.near = Math.max(1, d - 30);
     this.camera.far = d + 60;
     this.camera.updateProjectionMatrix();
-    if (this.look) this.floor.material.uniforms.uGroundBlur.value = this.look.ground * Math.min(2.5, this.viewScale());
+    if (this.look) this.floor.material.uniforms.uGroundBlur.value = this.groundBlur(this.look.ground);
     if (this.dof) {
       this.dof.uniforms.uScale.value = this.viewScale();
       this.dof.uniforms.uRef.value = this.refDistance();
@@ -496,7 +503,7 @@ export class Stage {
     const L = this.look, s = this.pxScale || 1;
     this.dof.uniforms.uMin.value = Math.min(L.bodyMin, L.bodyMax) * s;
     this.dof.uniforms.uMax.value = Math.max(L.bodyMin, L.bodyMax) * s;
-    this.floor.material.uniforms.uGroundBlur.value = L.ground * Math.min(2.5, this.viewScale());
+    this.floor.material.uniforms.uGroundBlur.value = this.groundBlur(L.ground);
     this.cloudRadius = L.cloud * s;
     REFLECT_FADE.value = Math.max(0.02, L.fadeAt);
     REFLECT_SOFT.value = L.fadeSoft;
