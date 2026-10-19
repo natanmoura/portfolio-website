@@ -86,10 +86,13 @@ export class Intro {
     return at + l.index * per;
   }
 
-  update(dt) {
+  // landed: whether the opening drop has finished. The typing clock, start
+  // delay included, only begins once every first creature is on the ground.
+  update(dt, landed = true) {
     const L = this.look;
-    this.t += dt;
-    const t = this.t;
+    if (landed) this.started = true;
+    if (this.started) this.t += dt;
+    const t = this.started ? this.t : -1;
     const speed = L.floatSpeed ?? 1.3;
     const amp = L.floatAmp ?? 4;
     const drift = L.driftAmp ?? 2.5;

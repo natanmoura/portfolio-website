@@ -509,7 +509,7 @@ class App {
     this.emotes.update(dt, this.creatures);
 
     this.stage.updateIntro(dt);
-    this.intro.update(dt);
+    this.intro.update(dt, !this.drops?.length && this.creatures.every((c) => c.state !== 'air'));
     this.stage.holding = !!this.input.held;
     this.stage.updateOrbit(dt);
     this.stage.cloudActive = this.merges.length > 0;
