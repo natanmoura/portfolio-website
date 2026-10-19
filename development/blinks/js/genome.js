@@ -388,21 +388,20 @@ const PARTS = {
     }),
   },
   frills: {
-    // A chunky little fin on each side: a rounded base on the body with three
-    // short lobes bunched close together, tipped up and in toward the head.
-    group: 'top', ranges: { len: [0.14, 0.18] },
+    // Like a pair of « » marks: each frill's point sits on the body beside the
+    // face, and three rounded lobes fan out from it, up, out and down.
+    group: 'top', ranges: { len: [0.17, 0.21], tilt: [0.1, 0.25] },
     build: (p, q) => [-1, 1].flatMap((s) => {
-      const yc = q.faceY + 0.1;
+      const yc = q.faceY + 0.12;
       const xc = q.surfSide(yc, s, q.partZ);
       if (xc == null) return [];
-      const out = [g(S(xc + s * 0.03, yc, q.partZ, 0.1, 0.05), 2)];
-      for (let i = 0; i < 3; i++) {
-        const yb = yc + (i - 1) * 0.075;
-        const xb = xc + s * 0.03;
-        const a = 1.35 + (i - 1) * 0.36;
-        const tx = xb + s * Math.cos(a) * p.len, ty = yb + Math.sin(a) * p.len;
-        out.push(g(C(xb, yb, q.partZ, tx, ty, q.partZ, 0.075, 0.07, 0.03), 2));
-      }
+      const xb = xc + s * 0.02;
+      const out = [g(S(xb, yc, q.partZ, 0.1, 0.04), 2)];
+      [[0.75, 1], [0.1, 0.75], [-0.5, 0.82]].forEach(([a, l]) => {
+        const ang = a + p.tilt;
+        const tx = xb + s * Math.cos(ang) * p.len * l, ty = yc + Math.sin(ang) * p.len * l;
+        out.push(g(C(xb, yc, q.partZ, tx, ty, q.partZ, 0.08, 0.09, 0.02), 2));
+      });
       return out;
     }),
   },
@@ -695,7 +694,7 @@ export function compileGenome(gn, t) {
     if (part.type === 'arms') { if (ARMS_ON) arms = { ...part.p, f }; return; }
     const pp = f === 1 ? part.p : scaleSize(part.p, f);
     if (part.type === 'sideEars') sideBands.push([q.h * pp.y - pp.r, q.h * pp.y + pp.r]);
-    if (part.type === 'frills') sideBands.push([q.faceY, q.faceY + 0.2 + pp.len]);
+    if (part.type === 'frills') sideBands.push([q.faceY - 0.1, q.faceY + 0.2 + pp.len]);
     prims.push(...PARTS[part.type].build(pp, q).map(thicken));
   };
   for (const part of gn.parts) if (PARTS[part.type]) addPart(part, 1);
