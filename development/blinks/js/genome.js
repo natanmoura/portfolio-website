@@ -457,7 +457,7 @@ const PARTS = {
   arms: { group: 'limb', ranges: { y: [0.38, 0.55] }, build: () => [] },
 };
 
-export const LEG_SIZES = [0.26, 0.52, 1.04];
+export const LEG_SIZES = [0.26, 0.52, 0.85];
 // Arms are a quarter shorter than the shortest legs.
 export const ARM_LEN = LEG_SIZES[0] * 0.75 * 2;
 function pickLegs(r) {
