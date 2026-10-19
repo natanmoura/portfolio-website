@@ -30,6 +30,8 @@ const rockAngle = (t) => Math.sin(t * ROCK_W) * rockAmp(t);
 const MESH_CELL = 0.035;
 // Limbs are identical on every creature: thin black tubes ending in balls.
 const LIMB_R = 0.0093;
+// How far a waving arm rocks, in radians.
+const WAVE_ARC = 0.85;
 const BALL_R = 0.027;
 const INK = [0.106, 0.102, 0.122];
 
@@ -1447,8 +1449,13 @@ export class Creature {
         if (this.waveT > 0 && a.s > 0) {
           const p = fract(t / 0.3);
           const tri = p < 0.5 ? p * 2 : 2 - p * 2;
-          out = 0.3 + (smooth(0.2, 0.8, tri) * 2 - 1) * 0.75;
-          dn = 1.1;
+          // Rocks through a fixed arc, starting from the most upright angle
+          // that clears this body, so round and tall shapes wave just as
+          // much as narrow ones.
+          const base = this.waveBase(arm, sh, len, right, fwd, a.s);
+          const ang = base + smooth(0.2, 0.8, tri) * WAVE_ARC;
+          out = Math.sin(ang);
+          dn = Math.cos(ang);
           fw = 0.3;
         }
         if (this.state === 'dance') { const sw = Math.sin(t * (this.danceRate || 6) - 1.1 + arm.i * Math.PI); out = 0.6; dn = 0.6 + sw * 0.4; fw = 0.2; }
@@ -1470,11 +1477,8 @@ export class Creature {
           continue;
         }
         tmp.copy(right).multiplyScalar(a.s * out).addScaledVector(up, dn).addScaledVector(fwd, fw).normalize();
-        // A waving arm swings in over the head, so it clears the body by
-        // lifting rather than by being pushed back out to the side.
-        const push = (arm.push ||= V());
-        if (this.waveT > 0 && a.s > 0) push.copy(up).addScaledVector(right, a.s * 0.15);
-        else push.copy(right).multiplyScalar(a.s);
+        // An arm that would cut into the body swings out to the side.
+        const push = (arm.push ||= V()).copy(right).multiplyScalar(a.s);
         this.clearArm(sh, tmp, len, push);
         tmp2.copy(sh).addScaledVector(tmp, len);
         tmp2.y = Math.max(tmp2.y, floor);
@@ -1553,22 +1557,34 @@ export class Creature {
   // body. Points along the arm are tested against the body's shape in its own
   // space. Only the part past the shoulder is checked, since the shoulder sits
   // on the surface.
+  // Most upright angle from vertical, toward the outside, at which a waving
+  // arm clears the body. Searched fresh each frame since the body sways.
+  waveBase(arm, sh, len, right, fwd, side) {
+    const d = (arm.waveDir ||= V());
+    for (let a = 0; a < 1.6; a += 0.06) {
+      d.copy(right).multiplyScalar(side * Math.sin(a)).addScaledVector(up, Math.cos(a)).addScaledVector(fwd, 0.3).normalize();
+      if (this.armClear(sh, d, len)) return a;
+    }
+    return 1.6;
+  }
+
   clearArm(sh, dir, len, push) {
+    for (let i = 0; i < 10 && !this.armClear(sh, dir, len); i++) dir.addScaledVector(push, 0.25).normalize();
+  }
+
+  // Whether an arm from sh along dir stays clear of the body: the limb's
+  // thickness plus a little air for the blur, tested in the body's own space.
+  armClear(sh, dir, len) {
     const prims = this.cg.prims;
     const inv = (this._bodyInv ||= new THREE.Matrix4()).copy(this.body.matrixWorld).invert();
     const scale = Math.cbrt(Math.abs(this.body.matrixWorld.determinant())) || 1;
-    // Clearance in body units: the limb's thickness plus a little air for the blur.
     const margin = (LIMB_R * 1.5 + 0.03) / scale;
     const p = this._armP ||= V();
-    const clearance = () => {
-      let worst = Infinity;
-      for (const f of [0.35, 0.6, 0.85, 1]) {
-        p.copy(sh).addScaledVector(dir, len * f).applyMatrix4(inv);
-        worst = Math.min(worst, evalPrims(prims, p.x, p.y, p.z));
-      }
-      return worst;
-    };
-    for (let i = 0; i < 10 && clearance() < margin; i++) dir.addScaledVector(push, 0.25).normalize();
+    for (const f of [0.35, 0.6, 0.85, 1]) {
+      p.copy(sh).addScaledVector(dir, len * f).applyMatrix4(inv);
+      if (evalPrims(prims, p.x, p.y, p.z) < margin) return false;
+    }
+    return true;
   }
 
   drawLimb(meshes, a, b, L, fwd, kneeForward, ballScale = 1) {
