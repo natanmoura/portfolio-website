@@ -741,13 +741,12 @@ export function compileGenome(gn, t) {
 
   let armInfo = null;
   if (arms && n === 2) {
-    // Shoulders drop below any ear or frill on the sides. With no room left
-    // below, the creature goes without arms rather than overlap them.
+    // Ears and frills on the sides always sit above the arms, so the shoulders
+    // go below the lowest of them. With no room left below, the creature goes
+    // without arms rather than wear them above its ears.
     let y = q.h * arms.y;
     const gap = 0.1;
-    for (const [lo, hi] of [...sideBands].sort((a, b) => b[0] - a[0])) {
-      if (y > lo - gap && y < hi + gap) y = lo - gap;
-    }
+    if (sideBands.length) y = Math.min(y, Math.min(...sideBands.map(([lo]) => lo)) - gap);
     if (y >= q.h * 0.2) armInfo = [-1, 1].map((s) => {
       const x = (q.surfSide(y, s, 0) ?? s * desc.hw) - s * 0.01;
       return { x, y, z: 0.02, s, len: ARM_LEN * arms.f, w: groupWeights(prims, x, y, 0.02) };
