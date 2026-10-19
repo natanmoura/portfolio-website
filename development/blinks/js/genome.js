@@ -407,7 +407,7 @@ const PARTS = {
     }),
   },
   sideEars: {
-    group: 'top', ranges: { r: [0.13, 0.18], y: [0.55, 0.75] },
+    group: 'top', ranges: { r: [0.16, 0.21], y: [0.55, 0.75] },
     build: (p, q) => [-1, 1].flatMap((s) => {
       const y = q.h * p.y;
       const x = q.surfSide(y, s, q.partZ);
