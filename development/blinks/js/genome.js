@@ -336,16 +336,14 @@ const PARTS = {
     }),
   },
   antennae: {
-    // Slim stalks leaning well out, each topped with a big round ball.
-    group: 'top', ranges: { len: [0.36, 0.44], ball: [0.14, 0.17], splay: [0.45, 0.7], spread: [0.4, 0.7] },
+    // Stalks leaning well out, each topped with a big round ball.
+    group: 'top', ranges: { len: [0.36, 0.44], ball: [0.17, 0.2], splay: [0.45, 0.7], spread: [0.4, 0.7] },
     build: (p, q) => [-1, 1].flatMap((s) => {
       const x = s * (q.topW * p.spread + 0.04);
       const y = q.surfTop(x, q.partZ);
       if (y == null) return [];
       const tx = x + s * Math.sin(p.splay) * p.len, ty = y + Math.cos(p.splay) * p.len;
-      const stalk = g(C(x, y - 0.04, q.partZ, tx, ty, q.partZ, 0.065, 0.06, 0.04), 2);
-      stalk.minR = 0.065;
-      return [stalk, g(S(tx, ty, q.partZ, p.ball, 0.03), 2)];
+      return [g(C(x, y - 0.04, q.partZ, tx, ty, q.partZ, 0.06, 0.055, 0.04), 2), g(S(tx, ty, q.partZ, p.ball, 0.03), 2)];
     }),
   },
   sprout: {
@@ -661,9 +659,8 @@ function queries(prims, bounds) {
 }
 
 export const MIN_PART_R = 0.085;
-// A part can ask to stay a bit slimmer than the usual minimum with minR.
 function thicken(p) {
-  const m = p.minR ?? MIN_PART_R;
+  const m = MIN_PART_R;
   if (p.t === 0) p.r = Math.max(p.r, m);
   else if (p.t === 1) { p.rx = Math.max(p.rx, m); p.ry = Math.max(p.ry, m); p.rz = Math.max(p.rz, m); }
   else if (p.t === 2) { p.r1 = Math.max(p.r1, m); p.r2 = Math.max(p.r2, m); }
