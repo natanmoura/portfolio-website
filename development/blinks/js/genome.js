@@ -149,17 +149,6 @@ const BODIES = {
       desc: { topW: p.gap, hw: p.gap + p.r, hd: p.r, faceY: p.h * 0.42, faceW: (p.gap + p.r) * 1.2 },
     }),
   },
-  crab: {
-    ranges: { r: [0.38, 0.45], ball: [0.14, 0.18] },
-    build: (p) => ({
-      prims: [
-        g(E(0, p.r * 0.95, 0, p.r * 1.05, p.r * 0.85, p.r * 0.85), 0),
-        g(S(-p.r * 0.95, p.r * 1.55, 0, p.ball, 0.08), 2),
-        g(S(p.r * 0.95, p.r * 1.55, 0, p.ball, 0.08), 3),
-      ],
-      desc: { topW: p.r * 0.35, hw: p.r * 1.05, hd: p.r * 0.85, faceY: p.r * 0.9, faceW: p.r * 1.4 },
-    }),
-  },
   peanut: {
     ranges: { r: [0.3, 0.36], gap: [0.22, 0.3] },
     build: (p) => ({
@@ -247,19 +236,6 @@ const BODIES = {
       desc: { topW: p.neck, hw: p.r, hd: p.r, faceY: p.r * 1.0, faceW: p.r * 1.3 },
     }),
   },
-  bubbles: {
-    ranges: { r: [0.22, 0.26], spread: [0.22, 0.28] },
-    build: (p) => {
-      const prims = [g(S(0, p.r * 1.3, 0, p.r * 1.3), 0)];
-      [[1, 0.9, 0.85], [1, 2.1, 0.7], [0, 2.6, 0.8]].forEach(([sx, y, s], i) => {
-        if (sx) {
-          prims.push(g(S(-p.spread * 1.3, p.r * y, 0, p.r * s, 0.1), 1 + i));
-          prims.push(g(S(p.spread * 1.3, p.r * y, 0, p.r * s, 0.1), 1 + i));
-        } else prims.push(g(S(0, p.r * y + p.r * 0.4, 0, p.r * s, 0.1), 3));
-      });
-      return { prims, desc: { topW: p.r * 0.6, hw: p.spread * 1.3 + p.r, hd: p.r * 1.3, faceY: p.r * 1.4, faceW: p.r * 2 } };
-    },
-  },
   pill: {
     ranges: { len: [0.3, 0.42], r: [0.3, 0.36] },
     build: (p) => ({
@@ -283,13 +259,6 @@ const BODIES = {
       return { prims, desc: { topW: p.R * 0.6, hw: p.R + p.r, hd: p.r, faceY: cy + p.R, faceW: p.R * 1.1, stance: p.R / (p.R + p.r) } };
     },
   },
-  bigbottom: {
-    ranges: { r: [0.48, 0.56], head: [0.13, 0.16] },
-    build: (p) => ({
-      prims: [g(E(0, p.r * 0.8, 0, p.r, p.r * 0.8, p.r * 0.85), 0), g(S(0, p.r * 1.6 + p.head * 0.6, 0, p.head, 0.08), 1)],
-      desc: { topW: p.head, hw: p.r, hd: p.r * 0.85, faceY: p.r * 0.9, faceW: p.r * 1.1 },
-    }),
-  },
   wobbletower: {
     ranges: { a: [0.2, 0.24], b: [0.36, 0.42], c: [0.16, 0.19] },
     build: (p) => {
@@ -298,6 +267,25 @@ const BODIES = {
         prims: [g(S(0, p.a, 0, p.a), 0), g(S(0, y2, 0, p.b, 0.1), 1), g(S(0, y3, 0, p.c, 0.08), 2)],
         desc: { topW: p.c * 0.6, hw: p.b, hd: p.b, faceY: y2, faceW: p.b * 1.3, stance: 0.4 },
       };
+    },
+  },
+  butter: {
+    ranges: { w: [0.36, 0.42], h: [1.25, 1.45] },
+    build: (p) => ({
+      prims: [g(B(0, p.h / 2, 0, p.w / 2 - 0.05, p.h / 2 - 0.05, p.w / 2 - 0.05, 0.05), 0)],
+      desc: { topW: p.w * 0.5, hw: p.w / 2, hd: p.w / 2, faceY: p.h * 0.72, faceW: p.w * 0.8 },
+    }),
+  },
+  stack: {
+    ranges: { r: [0.25, 0.3], n: [3, 4] },
+    build: (p) => {
+      const n = Math.round(p.n);
+      const prims = [];
+      for (let i = 0; i < n; i++) {
+        const r = p.r * (1 - i * 0.06);
+        prims.push(g(E(0, p.r * 0.75 + i * p.r * 1.15, 0, r * 1.35, r * 0.75, r * 1.15, 0.12), i % 4));
+      }
+      return { prims, desc: { topW: p.r * 0.8, hw: p.r * 1.35, hd: p.r * 1.15, faceY: p.r * 0.75 + p.r * 1.15, faceW: p.r * 1.6 } };
     },
   },
 };
