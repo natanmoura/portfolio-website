@@ -11,7 +11,8 @@
 // And what a line can start with:
 //   ~  sits a blank line's worth below the line above
 //   >  carries on typing from the line above, with no pause between them
-//   !  the whole line is a button, in black
+//   !  the whole line is a button: a black pill that pops in when its turn
+//      comes and then stays still
 export const WELCOME = [
   'Meet the *Blinks*.',
   'They only live one minute...',
@@ -63,14 +64,20 @@ export class Intro {
     text.appendChild(haze);
     this.rows = [];
     this.hazes = [];
+    this.buttons = [];
     this.lines.forEach((line, li) => {
       const row = document.createElement(line.action ? 'button' : 'div');
       row.className = 'intro-line' + (line.spaced ? ' spaced' : '') + (line.action ? ' intro-action' : '');
       if (line.action) {
         row.type = 'button';
-        // Read as a word, not letter by letter.
-        row.setAttribute('aria-label', line.text.join(''));
+        row.textContent = line.text.join('');
+        row.style.visibility = 'hidden';
         row.addEventListener('click', () => onAction?.());
+        this.buttons.push({ row, line: li });
+        this.rows.push(row);
+        this.hazes.push(haze.appendChild(document.createElement('div')));
+        text.appendChild(row);
+        return;
       }
       this.rows.push(row);
       const h = document.createElement('div');
@@ -81,7 +88,7 @@ export class Intro {
         const span = document.createElement('span');
         span.className = `intro-letter ${line.key[k]}`.trim();
         // A plain space collapses inside an inline-block, so use a fixed one.
-        span.textContent = ch === ' ' ? ' ' : ch;
+        span.textContent = ch === ' ' ? '\u00a0' : ch;
         span.style.visibility = 'hidden';
         row.appendChild(span);
         // Every letter gets its own phase so the line ripples rather than
@@ -115,6 +122,7 @@ export class Intro {
   // carries on from it, where the break only takes as long as a space.
   appearAt(l) {
     const L = this.look;
+    if (l.index === undefined) l = { line: l.line, index: 0 };
     const per = 1 / Math.max(1, L.typeSpeed ?? 22);
     let at = L.textDelay ?? 1.2;
     for (let i = 0; i < l.line; i++) at += this.lines[i].text.length * per + (this.lines[i + 1].carries ? per : L.lineGap ?? 1);
@@ -140,6 +148,7 @@ export class Intro {
     // Lines alternate a little either way on top of the overall angle.
     const zig = L.lineAngle ?? 0;
     this.rows.forEach((row, i) => {
+      if (this.lines[i].action) return;
       row.style.transform = `rotate(${(i % 2 ? -zig : zig).toFixed(2)}deg)`;
       // Each line's haze sits exactly where its line is and turns with it.
       const h = this.hazes[i].style;
@@ -149,6 +158,15 @@ export class Intro {
       h.height = `${row.offsetHeight}px`;
       h.transform = row.style.transform;
     });
+    // Buttons pop in at their turn and then hold still.
+    for (const b of this.buttons) {
+      const age = t - this.appearAt({ line: b.line });
+      if (age < 0) { b.row.style.visibility = 'hidden'; continue; }
+      b.row.style.visibility = 'visible';
+      const k = Math.min(1, age / (popTime * 2));
+      const scale = k < 0.5 ? (k / 0.5) * over : over + (1 - over) * ((k - 0.5) / 0.5) ** 0.7;
+      b.row.style.transform = `scale(${scale.toFixed(3)})`;
+    }
     this.letters.forEach((l, i) => {
       const age = t - this.appearAt(l);
       if (age < 0) { l.span.style.visibility = 'hidden'; return; }
