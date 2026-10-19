@@ -1470,14 +1470,38 @@ export class Creature {
           continue;
         }
         tmp.copy(right).multiplyScalar(a.s * out).addScaledVector(up, dn).addScaledVector(fwd, fw).normalize();
-        this.clearArm(sh, tmp, len, right, a.s);
+        // A waving arm swings in over the head, so it clears the body by
+        // lifting rather than by being pushed back out to the side.
+        const push = (arm.push ||= V());
+        if (this.waveT > 0 && a.s > 0) push.copy(up).addScaledVector(right, a.s * 0.15);
+        else push.copy(right).multiplyScalar(a.s);
+        this.clearArm(sh, tmp, len, push);
         tmp2.copy(sh).addScaledVector(tmp, len);
         tmp2.y = Math.max(tmp2.y, floor);
-        arm.hand.lerp(tmp2, this.snapLimbs || (this.waveT > 0 && a.s > 0) ? 1 : Math.min(1, dt * 22));
-        if (arm.hand.distanceTo(sh) > len * 1.8) arm.hand.copy(tmp2);
+        // The hand rides a soft spring toward where the arm points, so it
+        // trails a beat behind the body's turns and sways, overshoots a touch
+        // and settles: follow-through. Waving uses a stiffer spring so the
+        // wave still snaps from side to side.
+        // The spring works on the hand's offset from the shoulder, so the
+        // shoulder moves with the body at once and only the arm's swing lags.
+        arm.hv ||= V();
+        arm.rel ||= V();
+        tmp4.subVectors(tmp2, sh);
+        if (this.snapLimbs || !arm.relSet) {
+          arm.rel.copy(tmp4);
+          arm.hv.set(0, 0, 0);
+          arm.relSet = true;
+        } else {
+          const k = this.waveT > 0 && a.s > 0 ? 900 : 160;
+          const c = Math.sqrt(k) * 1.2;
+          const h = Math.min(dt, 1 / 30);
+          arm.hv.addScaledVector(tmp4.sub(arm.rel), k * h).multiplyScalar(Math.max(0, 1 - c * h));
+          arm.rel.addScaledVector(arm.hv, h);
+        }
+        arm.hand.copy(sh).add(arm.rel);
         // The eased hand can cut a corner through the body, so check it again.
         tmp.subVectors(arm.hand, sh).normalize();
-        this.clearArm(sh, tmp, len, right, a.s);
+        this.clearArm(sh, tmp, len, push);
         arm.hand.copy(sh).addScaledVector(tmp, len);
         arm.hand.y = Math.max(arm.hand.y, floor);
         this.drawLimb(arm.meshes, sh, arm.hand, len, fwd, false);
@@ -1525,11 +1549,11 @@ export class Creature {
 
   // Two-segment tube with a knee or elbow, ending in a ball. Every creature
   // shares the same tube and ball size.
-  // Swings an arm direction outward until the whole arm stays clear of the
+  // Swings an arm direction along push until the whole arm stays clear of the
   // body. Points along the arm are tested against the body's shape in its own
   // space. Only the part past the shoulder is checked, since the shoulder sits
   // on the surface.
-  clearArm(sh, dir, len, right, side) {
+  clearArm(sh, dir, len, push) {
     const prims = this.cg.prims;
     const inv = (this._bodyInv ||= new THREE.Matrix4()).copy(this.body.matrixWorld).invert();
     const scale = Math.cbrt(Math.abs(this.body.matrixWorld.determinant())) || 1;
@@ -1544,7 +1568,7 @@ export class Creature {
       }
       return worst;
     };
-    for (let i = 0; i < 10 && clearance() < margin; i++) dir.addScaledVector(right, side * 0.25).normalize();
+    for (let i = 0; i < 10 && clearance() < margin; i++) dir.addScaledVector(push, 0.25).normalize();
   }
 
   drawLimb(meshes, a, b, L, fwd, kneeForward, ballScale = 1) {
