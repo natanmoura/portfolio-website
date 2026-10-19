@@ -336,24 +336,32 @@ const PARTS = {
     }),
   },
   antennae: {
-    group: 'top', ranges: { len: [0.24, 0.34], ball: [0.1, 0.13], splay: [0.2, 0.5], spread: [0.4, 0.75] },
+    // Slim stalks leaning well out, each topped with a big round ball.
+    group: 'top', ranges: { len: [0.36, 0.44], ball: [0.14, 0.17], splay: [0.45, 0.7], spread: [0.4, 0.7] },
     build: (p, q) => [-1, 1].flatMap((s) => {
       const x = s * (q.topW * p.spread + 0.04);
       const y = q.surfTop(x, q.partZ);
       if (y == null) return [];
       const tx = x + s * Math.sin(p.splay) * p.len, ty = y + Math.cos(p.splay) * p.len;
-      return [g(C(x, y - 0.04, q.partZ, tx, ty, q.partZ, 0.06, 0.055, 0.04), 2), g(S(tx, ty, q.partZ, p.ball, 0.03), 2)];
+      const stalk = g(C(x, y - 0.04, q.partZ, tx, ty, q.partZ, 0.065, 0.06, 0.04), 2);
+      stalk.minR = 0.065;
+      return [stalk, g(S(tx, ty, q.partZ, p.ball, 0.03), 2)];
     }),
   },
   sprout: {
-    group: 'top', ranges: { len: [0.14, 0.22], leaf: [0.12, 0.16] },
+    // A short, thick stem with two plump oval leaves rising up and out from
+    // its top in a shallow V, each fullest toward its tip.
+    group: 'top', ranges: { len: [0.2, 0.25], leaf: [0.25, 0.3], tilt: [0.3, 0.5] },
     build: (p, q) => {
       const y = q.surfTop(0, q.partZ);
       if (y == null) return [];
       const ty = y + p.len;
       return [
-        g(C(0, y - 0.04, q.partZ, 0, ty, q.partZ, 0.06, 0.055, 0.05), 2),
-        ...[-1, 1].map((s) => g(E(s * p.leaf * 0.8, ty + p.leaf * 0.35, q.partZ, p.leaf, p.leaf * 0.5, p.leaf * 0.55, 0.04), 2)),
+        g(C(0, y - 0.04, q.partZ, 0, ty, q.partZ, 0.075, 0.07, 0.04), 2),
+        ...[-1, 1].map((s) => {
+          const tx = s * Math.cos(p.tilt) * p.leaf, tyy = ty + Math.sin(p.tilt) * p.leaf;
+          return g(C(s * 0.02, ty + 0.02, q.partZ, tx, tyy, q.partZ, 0.06, 0.125, 0.03), 2);
+        }),
       ];
     },
   },
@@ -393,7 +401,7 @@ const PARTS = {
       for (let i = 0; i < 3; i++) {
         const yb = yc + (i - 1) * 0.075;
         const xb = xc + s * 0.03;
-        const a = 0.95 + (i - 1) * 0.38;
+        const a = 1.35 + (i - 1) * 0.36;
         const tx = xb + s * Math.cos(a) * p.len, ty = yb + Math.sin(a) * p.len;
         out.push(g(C(xb, yb, q.partZ, tx, ty, q.partZ, 0.075, 0.07, 0.03), 2));
       }
@@ -405,7 +413,8 @@ const PARTS = {
     build: (p, q) => [-1, 1].flatMap((s) => {
       const y = q.h * p.y;
       const x = q.surfSide(y, s, q.partZ);
-      return x == null ? [] : [g(E(x + s * p.r * 0.45, y, q.partZ, p.r * 0.75, p.r, p.r * 0.55, 0.05), 2)];
+      // Nearly round, set a little out from the side so the circle reads.
+      return x == null ? [] : [g(E(x + s * p.r * 0.6, y, q.partZ, p.r * 0.95, p.r, p.r * 0.8, 0.05), 2)];
     }),
   },
   tail: {
@@ -652,8 +661,9 @@ function queries(prims, bounds) {
 }
 
 export const MIN_PART_R = 0.085;
+// A part can ask to stay a bit slimmer than the usual minimum with minR.
 function thicken(p) {
-  const m = MIN_PART_R;
+  const m = p.minR ?? MIN_PART_R;
   if (p.t === 0) p.r = Math.max(p.r, m);
   else if (p.t === 1) { p.rx = Math.max(p.rx, m); p.ry = Math.max(p.ry, m); p.rz = Math.max(p.rz, m); }
   else if (p.t === 2) { p.r1 = Math.max(p.r1, m); p.r2 = Math.max(p.r2, m); }
