@@ -325,12 +325,14 @@ const PARTS = {
     }),
   },
   bunnyEars: {
-    group: 'top', ranges: { len: [0.38, 0.52], r: [0.095, 0.12], splay: [0.05, 0.28], spread: [0.45, 0.8] },
+    // Plump rounded ovals, a little fuller at the tip than at the base, close
+    // to upright.
+    group: 'top', ranges: { len: [0.3, 0.4], r: [0.11, 0.135], splay: [0.03, 0.18], spread: [0.45, 0.8] },
     build: (p, q) => [-1, 1].flatMap((s) => {
       const x = s * Math.min(q.topW * p.spread + 0.05, q.hw * 0.7);
       const y = q.surfTop(x, q.partZ);
       if (y == null) return [];
-      return [g(C(x, y - 0.06, q.partZ, x + s * Math.sin(p.splay) * p.len, y - 0.06 + Math.cos(p.splay) * p.len, q.partZ - 0.04, p.r, p.r * 0.9, 0.06), 2)];
+      return [g(C(x, y - 0.06, q.partZ, x + s * Math.sin(p.splay) * p.len, y - 0.06 + Math.cos(p.splay) * p.len, q.partZ - 0.04, p.r * 0.85, p.r * 1.12, 0.06), 2)];
     }),
   },
   antennae: {
@@ -380,16 +382,20 @@ const PARTS = {
     }),
   },
   frills: {
-    group: 'top', ranges: { len: [0.14, 0.19] },
+    // A chunky little fin on each side: a rounded base on the body with three
+    // short lobes bunched close together, tipped up and in toward the head.
+    group: 'top', ranges: { len: [0.14, 0.18] },
     build: (p, q) => [-1, 1].flatMap((s) => {
-      const out = [];
+      const yc = q.faceY + 0.1;
+      const xc = q.surfSide(yc, s, q.partZ);
+      if (xc == null) return [];
+      const out = [g(S(xc + s * 0.03, yc, q.partZ, 0.1, 0.05), 2)];
       for (let i = 0; i < 3; i++) {
-        const yb = q.faceY + 0.04 + i * 0.08;
-        const xb = q.surfSide(yb, s, q.partZ);
-        if (xb == null) continue;
-        const a = 0.1 + i * 0.42;
+        const yb = yc + (i - 1) * 0.075;
+        const xb = xc + s * 0.03;
+        const a = 0.95 + (i - 1) * 0.38;
         const tx = xb + s * Math.cos(a) * p.len, ty = yb + Math.sin(a) * p.len;
-        out.push(g(C(xb - s * 0.03, yb, q.partZ, tx, ty, q.partZ, 0.06, 0.055, 0.04), 2), g(S(tx, ty, q.partZ, 0.075, 0.02), 2));
+        out.push(g(C(xb, yb, q.partZ, tx, ty, q.partZ, 0.075, 0.07, 0.03), 2));
       }
       return out;
     }),
