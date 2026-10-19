@@ -31,7 +31,7 @@ const MESH_CELL = 0.035;
 // Limbs are identical on every creature: thin black tubes ending in balls.
 const LIMB_R = 0.0093;
 // How far a waving arm rocks, in radians.
-const WAVE_ARC = 0.85;
+const WAVE_ARC = 1.35;
 const BALL_R = 0.027;
 const INK = [0.106, 0.102, 0.122];
 
@@ -1496,7 +1496,7 @@ export class Creature {
           arm.hv.set(0, 0, 0);
           arm.relSet = true;
         } else {
-          const k = this.waveT > 0 && a.s > 0 ? 900 : 160;
+          const k = this.waveT > 0 && a.s > 0 ? 1400 : 160;
           const c = Math.sqrt(k) * 1.2;
           const h = Math.min(dt, 1 / 30);
           arm.hv.addScaledVector(tmp4.sub(arm.rel), k * h).multiplyScalar(Math.max(0, 1 - c * h));
