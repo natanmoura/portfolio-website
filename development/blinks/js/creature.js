@@ -1351,8 +1351,9 @@ export class Creature {
           const g = this.hopT > 0 ? HOP_GRAVITY : GRAVITY;
           const rise = this.vel.y > 0 ? clamp((this.vel.y + g * leg.lag) / 2.5, 0, 1) : 0;
           leg.airT = (leg.airT || 0) + dt;
-          // Little hops on the spot barely spread; big launches spread like wings.
-          const splay = (this.smallJump() ? 0.14 : 1.0) * rise;
+          // Little hops barely spread. The pop out of a birth spreads only a little,
+          // while a big launch like a throw spreads like wings.
+          const splay = (this.smallJump() ? 0.14 : this.popLand ? 0.35 : 1.0) * rise;
           const side = h.x < -0.01 ? -1 : h.x > 0.01 ? 1 : 0;
           const sx = Math.cos(this.heading) * side, sz = -Math.sin(this.heading) * side;
           tmp.set(sx * Math.sin(splay), -Math.cos(splay), sz * Math.sin(splay));
