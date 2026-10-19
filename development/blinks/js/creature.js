@@ -32,6 +32,10 @@ const MESH_CELL = 0.035;
 const LIMB_R = 0.0093;
 // How far a waving arm rocks, in radians.
 const WAVE_ARC = 1.35;
+// The furthest a waving arm leans out from straight up, in radians, and how far
+// forward of the body it waves.
+const WAVE_TOP = 1.2;
+const WAVE_FWD = 0.5;
 const BALL_R = 0.027;
 const INK = [0.106, 0.102, 0.122];
 
@@ -1436,6 +1440,11 @@ export class Creature {
         const sh = (arm.shW ||= V());
         this.pivot.localToWorld(this.bodyPoint(a.x, a.y, a.z, a.w, sh));
         const len = a.len * S;
+        // A waving shoulder eases a touch out and forward from the body, so the
+        // arm can rise past the curve of the body above it.
+        const waving = this.waveT > 0 && a.s > 0;
+        arm.lift = (arm.lift || 0) + ((waving ? 1 : 0) - (arm.lift || 0)) * Math.min(1, dt * 12);
+        if (arm.lift > 0.001) sh.addScaledVector(right, a.s * 0.04 * arm.lift).addScaledVector(fwd, 0.03 * arm.lift);
         // Rest hangs outward and down. Walking swings opposite the legs,
         // being held flails, noticing waves the outer arm.
         let out = 0.55, dn = -0.75, fw = 0;
@@ -1452,11 +1461,14 @@ export class Creature {
           // Rocks through a fixed arc, starting from the most upright angle
           // that clears this body, so round and tall shapes wave just as
           // much as narrow ones.
+          // The swing tops out at WAVE_TOP from straight up, so the hand rocks
+          // overhead instead of drooping out to the side.
           const base = this.waveBase(arm, sh, len, right, fwd, a.s);
-          const ang = base + smooth(0.2, 0.8, tri) * WAVE_ARC;
+          const arc = Math.max(0.5, Math.min(WAVE_ARC, WAVE_TOP - base));
+          const ang = base + smooth(0.2, 0.8, tri) * arc;
           out = Math.sin(ang);
           dn = Math.cos(ang);
-          fw = 0.3;
+          fw = WAVE_FWD;
         }
         if (this.state === 'dance') { const sw = Math.sin(t * (this.danceRate || 6) - 1.1 + arm.i * Math.PI); out = 0.6; dn = 0.6 + sw * 0.4; fw = 0.2; }
         if (this.hoverLoveT > 0 || this.state === 'merge') { out = 0.45; dn = 0.7 + Math.sin(t * 10 + arm.i * Math.PI) * 0.3; }
@@ -1562,7 +1574,7 @@ export class Creature {
   waveBase(arm, sh, len, right, fwd, side) {
     const d = (arm.waveDir ||= V());
     for (let a = 0; a < 1.6; a += 0.06) {
-      d.copy(right).multiplyScalar(side * Math.sin(a)).addScaledVector(up, Math.cos(a)).addScaledVector(fwd, 0.3).normalize();
+      d.copy(right).multiplyScalar(side * Math.sin(a)).addScaledVector(up, Math.cos(a)).addScaledVector(fwd, WAVE_FWD).normalize();
       if (this.armClear(sh, d, len)) return a;
     }
     return 1.6;
