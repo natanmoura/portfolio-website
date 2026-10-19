@@ -20,7 +20,7 @@ const TAGS = { current: ['', 'in game'], blocks: ['new', 'primitive'], new: ['ne
 
 // Ears and toppers are shown on three in-game bodies, with the part coloured.
 const PART_BODIES = ['blob', 'pear', 'box'];
-const PART_NAMES = { roundEars: 'round ears', pointyEars: 'pointy ears', bunnyEars: 'bunny ears', sideEars: 'side ears', tail: 'tail (back)', spikes: 'spikes (back)' };
+const PART_NAMES = { roundEars: 'round ears', pointyEars: 'pointy ears', bunnyEars: 'bunny ears', sideEars: 'side ears' };
 
 const SECTIONS = {
   bodies: {
@@ -34,7 +34,8 @@ const SECTIONS = {
   },
   parts: {
     store: 'goo-part-picks',
-    items: Object.keys(PARTS).filter((k) => k !== 'arms').map((name) => {
+    // Head and ear pieces only. A creature wears at most one of these.
+    items: Object.keys(PARTS).filter((k) => PARTS[k].group === 'top').map((name) => {
       const on = !OFF_PARTS.includes(name);
       return { name, part: true, current: on, kind: on ? 'current' : 'retired' };
     }),
@@ -172,10 +173,10 @@ function output() {
   t += `Add new: ${keep.filter((s) => !s.current).map((s) => s.name).join(', ') || 'none'}\n`;
   t += `Remove from game: ${b.items.filter((s) => s.current && !b.picks.has(s.name)).map((s) => s.name).join(', ') || 'none'}`;
   if (b.notes.trim()) t += `\nBody notes: ${b.notes.trim()}`;
-  t += `\n\nEars and parts:\n`;
+  t += `\n\nHead and ear pieces (a creature wears one at most):\n`;
   t += `Keep: ${p.items.filter((s) => p.picks.has(s.name)).map((s) => s.name).join(', ') || 'none'}\n`;
   t += `Remove: ${p.items.filter((s) => !p.picks.has(s.name)).map((s) => s.name).join(', ') || 'none'}`;
-  if (p.notes.trim()) t += `\nPart notes: ${p.notes.trim()}`;
+  if (p.notes.trim()) t += `\nHead piece notes: ${p.notes.trim()}`;
   return t;
 }
 

@@ -440,8 +440,10 @@ function pickLegs(r) {
 const BODY_TYPES = Object.keys(BODIES);
 export { BODIES, PARTS, OFF_PARTS };
 // Parts Natan has turned off. They stay defined so the picker can show them.
-const OFF_PARTS = ['tail'];
+const OFF_PARTS = ['tail', 'spikes'];
 const LIVE_PARTS = Object.keys(PARTS).filter((k) => !OFF_PARTS.includes(k));
+// Every head and ear piece shares the 'top' group, and a creature holds at
+// most one part per group, so it wears one head piece or ears, never both.
 const TOP_PARTS = LIVE_PARTS.filter((k) => PARTS[k].group === 'top');
 // Arms can be switched off here. Only two-legged creatures ever get them.
 const ARMS_ON = true;
