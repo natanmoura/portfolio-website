@@ -334,6 +334,17 @@ const PARTS = {
       return [g(C(x, y - 0.04, q.partZ, tx, ty, q.partZ, 0.06, 0.055, 0.04), 2), g(S(tx, ty, q.partZ, p.ball, 0.03), 2)];
     }),
   },
+  bobble: {
+    // A single antenna straight up from the top of the head: a short stem
+    // with one round ball on the end.
+    group: 'top', ranges: { len: [0.32, 0.38], ball: [0.13, 0.15] },
+    build: (p, q) => {
+      const y = q.surfTop(0, q.partZ);
+      if (y == null) return [];
+      const ty = y + p.len;
+      return [g(C(0, y - 0.04, q.partZ, 0, ty, q.partZ, 0.06, 0.055, 0.04), 2), g(S(0, ty, q.partZ, p.ball, 0.03), 2)];
+    },
+  },
   sprout: {
     // A short, thick stem with two plump oval leaves rising up and out from
     // its top in a shallow V, each fullest toward its tip.
