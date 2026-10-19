@@ -76,6 +76,8 @@ export class Intro {
         row.textContent = line.text.join('');
         row.style.visibility = 'hidden';
         row.addEventListener('click', () => onAction?.());
+        // iOS Safari only shows the pressed look on elements that listen for touches.
+        row.addEventListener('touchstart', () => {}, { passive: true });
         this.buttons.push({ row, line: li });
         this.rows.push(row);
         this.hazes.push(haze.appendChild(document.createElement('div')));

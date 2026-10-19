@@ -79,6 +79,10 @@ html, body {
   text-transform: uppercase; letter-spacing: 0.05em;
 }
 .intro-action:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+/* Pressed: it greys and sinks a little. scale works on top of the pop, which
+   is driven through transform. */
+.intro-action { transition: background-color 0.1s, scale 0.1s; }
+.intro-action:active { background: #a3a3a3; scale: 0.92; }
 
 
 
