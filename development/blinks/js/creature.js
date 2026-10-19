@@ -32,6 +32,8 @@ const MESH_CELL = 0.035;
 const LIMB_R = 0.0093;
 // How far a waving arm rocks, in radians.
 const WAVE_ARC = 1.35;
+// Seconds for one full swing out and back.
+const WAVE_PERIOD = 0.3;
 // The furthest a waving arm leans out from straight up, in radians, and how far
 // forward of the body it waves.
 const WAVE_TOP = 1.2;
@@ -563,8 +565,12 @@ export class Creature {
         this.emoteT = 3;
       }
     }
+    const wasWaving = this.waveT > 0;
     for (const k of ['hopT', 'fastWake', 'dodgeT', 'waveT', 'loveT', 'angerT', 'surpriseT', 'happyT', 'breedCD', 'noticeCD', 'attendT', 'hoverLoveT']) this[k] = Math.max(0, this[k] - dt);
     if (this.loveT <= 0) this.loveTarget = null;
+    // A wave never stops mid-swing: it runs on until the hand is back at the
+    // start of its arc.
+    if (wasWaving && this.waveT <= 0 && fract(t / WAVE_PERIOD) > 0.08) this.waveT = 1e-3;
 
     if (this.age >= LIFE && !this.isBusy() && !(this.hoverLoveT > 0)) {
       // Held creatures hang on until they are put down, then die on landing.
@@ -579,7 +585,10 @@ export class Creature {
     }
     const attending = this.attendT > 0 && this.grounded() && !this.isBusy();
     if (attending) this.greet();
-    if (this.waveT > 0 && this.canWalk()) {
+    // While waving it stands still and faces you, and its own plans wait
+    // until the wave is done.
+    const waving = this.waveT > 0 && this.canWalk() && this.state !== 'flee';
+    if (waving) {
       const cam = app.camera.position;
       this.desHeading = Math.atan2(cam.x - this.pos.x, cam.z - this.pos.z);
     }
@@ -588,7 +597,7 @@ export class Creature {
       const cam = app.camera.position;
       this.desHeading = Math.atan2(cam.x - this.pos.x, cam.z - this.pos.z);
       this.noticeT = 0;
-    } else switch (this.state) {
+    } else if (!waving) switch (this.state) {
       case 'wander': {
         if (this.lookAtT > 0 && this.lookAt && !this.lookAt.dead) {
           this.lookAtT -= dt;
@@ -1456,7 +1465,7 @@ export class Creature {
         // One full wave every 0.3 seconds. The hand eases into each end and
         // lingers there, then whips across, so the wave reads as snappy.
         if (this.waveT > 0 && a.s > 0) {
-          const p = fract(t / 0.3);
+          const p = fract(t / WAVE_PERIOD);
           const tri = p < 0.5 ? p * 2 : 2 - p * 2;
           // Rocks through a fixed arc, starting from the most upright angle
           // that clears this body, so round and tall shapes wave just as
