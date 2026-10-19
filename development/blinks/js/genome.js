@@ -337,7 +337,7 @@ const PARTS = {
   },
   antennae: {
     // Stalks leaning well out, each topped with a big round ball.
-    group: 'top', ranges: { len: [0.36, 0.44], ball: [0.17, 0.2], splay: [0.45, 0.7], spread: [0.4, 0.7] },
+    group: 'top', ranges: { len: [0.36, 0.44], ball: [0.12, 0.145], splay: [0.45, 0.7], spread: [0.4, 0.7] },
     build: (p, q) => [-1, 1].flatMap((s) => {
       const x = s * (q.topW * p.spread + 0.04);
       const y = q.surfTop(x, q.partZ);
