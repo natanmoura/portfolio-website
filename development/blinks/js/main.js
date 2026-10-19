@@ -229,6 +229,16 @@ class App {
     document.getElementById('again').addEventListener('click', () => this.start());
     this.last = performance.now();
     this.start();
+    // Open the page with ?ending to jump straight to the end card, for working
+    // on it: the garden starts empty, as if a few minutes and generations went by.
+    if (new URLSearchParams(location.search).has('ending')) {
+      for (const c of this.creatures) c.dispose();
+      this.creatures = [];
+      this.drops = [];
+      this.clock = 192;
+      this.bestGen = 5;
+      this.ui.hint.hidden = true;
+    }
     const loop = (now) => {
       // The first frame's timestamp can land just before the constructor's clock.
       const dt = Math.max(0, Math.min(1 / 30, (now - this.last) / 1000));
