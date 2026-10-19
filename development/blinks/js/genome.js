@@ -284,16 +284,6 @@ const BODIES = {
       return { prims, desc: { topW: p.R * 0.6, hw: p.R + p.r, hd: p.r, faceY: cy + p.R, faceW: p.R * 1.1, stance: p.R / (p.R + p.r) } };
     },
   },
-  wobbletower: {
-    ranges: { a: [0.2, 0.24], b: [0.36, 0.42], c: [0.16, 0.19] },
-    build: (p) => {
-      const y2 = p.a * 2 + p.b * 0.75, y3 = y2 + p.b + p.c * 0.6;
-      return {
-        prims: [g(S(0, p.a, 0, p.a), 0), g(S(0, y2, 0, p.b, 0.1), 1), g(S(0, y3, 0, p.c, 0.08), 2)],
-        desc: { topW: p.c * 0.6, hw: p.b, hd: p.b, faceY: y2, faceW: p.b * 1.3, stance: 0.4 },
-      };
-    },
-  },
   butter: {
     ranges: { w: [0.36, 0.42], h: [1.25, 1.45] },
     build: (p) => ({
@@ -477,7 +467,7 @@ function pickLegs(r) {
 const BODY_TYPES = Object.keys(BODIES);
 export { BODIES, PARTS, OFF_PARTS };
 // Parts Natan has turned off. They stay defined so the picker can show them.
-const OFF_PARTS = ['tail', 'spikes'];
+const OFF_PARTS = ['tail', 'spikes', 'roundEars', 'pointyEars', 'tuft'];
 const LIVE_PARTS = Object.keys(PARTS).filter((k) => !OFF_PARTS.includes(k));
 // Every head and ear piece shares the 'top' group, and a creature holds at
 // most one part per group, so it wears one head piece or ears, never both.

@@ -522,4 +522,14 @@ export const CANDIDATES = {
       desc: { topW: p.head, hw: p.r, hd: p.r * 0.85, faceY: p.r * 0.9, faceW: p.r * 1.1 },
     }),
   },
+  wobbletower: {
+    ranges: { a: [0.2, 0.24], b: [0.36, 0.42], c: [0.16, 0.19] },
+    build: (p) => {
+      const y2 = p.a * 2 + p.b * 0.75, y3 = y2 + p.b + p.c * 0.6;
+      return {
+        prims: [g(S(0, p.a, 0, p.a), 0), g(S(0, y2, 0, p.b, 0.1), 1), g(S(0, y3, 0, p.c, 0.08), 2)],
+        desc: { topW: p.c * 0.6, hw: p.b, hd: p.b, faceY: y2, faceW: p.b * 1.3, stance: 0.4 },
+      };
+    },
+  },
 };
