@@ -28,7 +28,8 @@ html, body {
   cursor: grab;
 }
 
-#hint {
+/* The welcome and the ending share one look. */
+#hint, #ending {
   position: fixed;
   left: 50%;
   top: max(28px, 7vh);
@@ -68,41 +69,19 @@ html, body {
 .intro-letter.key { color: var(--ink); }
 .intro-letter.cta { color: #e12224; }
 
-#hint.gone { opacity: 0; }
+#hint.gone, #ending.gone { opacity: 0; }
+#ending[hidden] { display: none; }
 
-#over {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.55);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.8s;
+/* A line that is a button: it looks like the rest of the text, in black. */
+.intro-action {
+  display: block; margin-left: auto; margin-right: auto; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; line-height: inherit; cursor: pointer; pointer-events: auto;
 }
+.intro-action:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 8px; }
 
-#over.show { opacity: 1; pointer-events: auto; }
 
-.card {
-  text-align: center;
-  padding: 28px 26px;
-  max-width: min(88vw, 360px);
-}
 
-.card h2 { margin: 0 0 6px; font-size: 26px; font-weight: 600; }
-.card p { margin: 0 0 18px; color: var(--soft); line-height: 1.45; }
 
-#again {
-  font: inherit;
-  font-weight: 600;
-  font-size: 16px;
-  padding: 11px 22px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ink);
-  color: #fff;
-  cursor: pointer;
-}
 
 #dials {
   position: fixed;

@@ -6,7 +6,7 @@ import { Merge } from './merge.js';
 import { seedPopulation, randomGenome } from './genome.js';
 import { makeRng } from './rng.js';
 import { setupDials } from './dials.js';
-import { Intro } from './intro.js';
+import { Intro, WELCOME, ENDING } from './intro.js';
 
 // Fade the welcome text once the player has made a couple of babies.
 const HIDE_INTRO = false;
@@ -219,14 +219,15 @@ class App {
     this.merges = [];
     this.time = 0;
     this.ui = {
-      over: document.getElementById('over'),
-      overText: document.getElementById('over-text'),
+      ending: document.getElementById('ending'),
       hint: document.getElementById('hint'),
     };
-    this.intro = new Intro(this.ui.hint, this.stage.look);
+    this.intro = new Intro(this.ui.hint, this.stage.look, WELCOME);
+    // When the garden empties, the ending types out the same way, and its
+    // Restart line starts a new garden.
+    this.ending = new Intro(this.ui.ending, this.stage.look, ENDING, () => this.restart());
     // Any tap in the scene, but not on the Look panel, sends the text away.
     addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#dials')) this.intro.dismiss(); });
-    document.getElementById('again').addEventListener('click', () => this.start());
     this.last = performance.now();
     this.start();
     // Open the page with ?ending to jump straight to the end card, for working
@@ -251,6 +252,12 @@ class App {
 
   get arena() { return this.stage.arena; }
 
+  restart() {
+    this.start();
+    this.ui.hint.hidden = false;
+    this.intro.reset();
+  }
+
   start() {
     for (const m of this.merges) if (!m.done) m.pop();
     for (const c of this.creatures) c.dispose();
@@ -263,7 +270,8 @@ class App {
     this.births = 0;
     this.bestGen = 1;
     this.overShown = false;
-    this.ui.over.classList.remove('show');
+    this.ui.ending.hidden = true;
+    this.ending.reset();
     const genomes = seedPopulation(this.rng, START_COUNT);
     // Everyone drops in from the sky. The first lands right away, the last
     // 0.7 seconds later, the rest scattered in between.
@@ -520,6 +528,7 @@ class App {
 
     this.stage.updateIntro(dt);
     this.intro.update(dt, !this.drops?.length && this.creatures.every((c) => c.state !== 'air'));
+    if (!this.ui.ending.hidden) this.ending.update(dt, false);
     this.stage.holding = !!this.input.held;
     this.stage.updateOrbit(dt);
     this.stage.cloudActive = this.merges.length > 0;
@@ -538,13 +547,15 @@ class App {
 
   updateUI() {
     const n = this.creatures.length;
-    const s = Math.floor(this.clock);
-    const time = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     // Not over while the opening drop is still on its way down.
     if (!n && !this.merges.length && !this.drops?.length && !this.overShown) {
       this.overShown = true;
-      this.ui.overText.textContent = `They kept going for ${time} and made it to generation ${this.bestGen}.`;
-      setTimeout(() => this.ui.over.classList.add('show'), 900);
+      setTimeout(() => {
+        if (!this.overShown) return;
+        this.intro.dismiss();
+        this.ui.ending.hidden = false;
+        this.ending.replay();
+      }, 900);
     }
   }
 }

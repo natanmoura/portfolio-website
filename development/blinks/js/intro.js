@@ -1,34 +1,56 @@
-// The welcome text. It types itself out one letter at a time, each letter
+// Typed, floating text: the welcome at the start and the ending when the
+// garden empties. It types itself out one letter at a time, each letter
 // popping into place and then bobbing, drifting and tilting on its own like
 // something suspended in water. All of the timing and motion reads its
 // numbers from the Look settings, so it can be tuned live.
 
-// Words between asterisks are key and print bold black, words between carets
-// are the call to action and print bold red. The rest is grey. A line starting
-// with > carries on typing from the line above, with no pause between them.
-const SOURCE = [
+// How a line is written:
+//   *words*  key words, bold black
+//   ^words^  the call to action, bold red
+//   the rest is grey
+// And what a line can start with:
+//   ~  sits a blank line's worth below the line above
+//   >  carries on typing from the line above, with no pause between them
+//   !  the whole line is a button, in black
+export const WELCOME = [
   'Meet the *Blinks*.',
   'They only live one minute...',
-  '^Drag them together^',
+  '~^Drag them together^',
   '>to grow new ones!',
 ];
+export const ENDING = [
+  "Everyone's gone...",
+  '~!Restart',
+];
+
 const MARKS = { '*': 'key', '^': 'key cta' };
-const CARRIES = SOURCE.map((s) => s.startsWith('>'));
-const LINES = SOURCE.map((s) => s.replace(/^>/, '').replace(/[*^]/g, ''));
-const KEY = SOURCE.map((s) => s.replace(/^>/, '')).map((s) => {
-  const out = [];
-  let on = '';
-  for (const ch of s) {
-    if (MARKS[ch]) on = on ? '' : MARKS[ch];
-    else out.push(on);
-  }
-  return out;
-});
+
+function parse(source) {
+  return source.map((raw) => {
+    let s = raw, spaced = false, carries = false, action = false;
+    for (;;) {
+      if (s[0] === '~') spaced = true;
+      else if (s[0] === '>') carries = true;
+      else if (s[0] === '!') action = true;
+      else break;
+      s = s.slice(1);
+    }
+    const text = [], key = [];
+    let on = '';
+    for (const ch of s) {
+      if (MARKS[ch]) on = on ? '' : MARKS[ch];
+      else { text.push(ch); key.push(action ? 'key' : on); }
+    }
+    return { text, key, spaced, carries, action };
+  });
+}
 
 export class Intro {
-  constructor(el, look) {
+  // onAction runs when a button line is clicked or tapped.
+  constructor(el, look, source = WELCOME, onAction = null) {
     this.el = el;
     this.look = look;
+    this.lines = parse(source);
     this.t = 0;
     this.letters = [];
     el.textContent = '';
@@ -41,20 +63,25 @@ export class Intro {
     text.appendChild(haze);
     this.rows = [];
     this.hazes = [];
-    LINES.forEach((line, li) => {
-      const row = document.createElement('div');
-      // The call to action sits a blank line's worth below the lines above it.
-      row.className = li === 2 ? 'intro-line spaced' : 'intro-line';
+    this.lines.forEach((line, li) => {
+      const row = document.createElement(line.action ? 'button' : 'div');
+      row.className = 'intro-line' + (line.spaced ? ' spaced' : '') + (line.action ? ' intro-action' : '');
+      if (line.action) {
+        row.type = 'button';
+        // Read as a word, not letter by letter.
+        row.setAttribute('aria-label', line.text.join(''));
+        row.addEventListener('click', () => onAction?.());
+      }
       this.rows.push(row);
       const h = document.createElement('div');
       h.className = 'intro-haze-line';
       haze.appendChild(h);
       this.hazes.push(h);
-      [...line].forEach((ch, k) => {
+      line.text.forEach((ch, k) => {
         const span = document.createElement('span');
-        span.className = `intro-letter ${KEY[li][k]}`.trim();
+        span.className = `intro-letter ${line.key[k]}`.trim();
         // A plain space collapses inside an inline-block, so use a fixed one.
-        span.textContent = ch === ' ' ? '\u00a0' : ch;
+        span.textContent = ch === ' ' ? ' ' : ch;
         span.style.visibility = 'hidden';
         row.appendChild(span);
         // Every letter gets its own phase so the line ripples rather than
@@ -66,10 +93,18 @@ export class Intro {
     el.appendChild(text);
   }
 
+  // Types the text again from the start, right away.
   replay() {
     this.t = 0;
+    this.started = true;
     for (const h of this.hazes) h.classList.remove('live');
     this.el.classList.remove('gone');
+  }
+
+  // Back to blank, waiting to be told to start.
+  reset() {
+    this.replay();
+    this.started = false;
   }
 
   // The first tap anywhere fades the text out over a second.
@@ -82,15 +117,15 @@ export class Intro {
     const L = this.look;
     const per = 1 / Math.max(1, L.typeSpeed ?? 22);
     let at = L.textDelay ?? 1.2;
-    for (let i = 0; i < l.line; i++) at += LINES[i].length * per + (CARRIES[i + 1] ? per : L.lineGap ?? 1);
+    for (let i = 0; i < l.line; i++) at += this.lines[i].text.length * per + (this.lines[i + 1].carries ? per : L.lineGap ?? 1);
     return at + l.index * per;
   }
 
-  // landed: whether the opening drop has finished. The typing clock, start
-  // delay included, only begins once every first creature is on the ground.
-  update(dt, landed = true) {
+  // ready: whether the text may begin. The typing clock, start delay
+  // included, only runs once it is.
+  update(dt, ready = true) {
     const L = this.look;
-    if (landed) this.started = true;
+    if (ready) this.started = true;
     if (this.started) this.t += dt;
     const t = this.started ? this.t : -1;
     const speed = L.floatSpeed ?? 1.3;
