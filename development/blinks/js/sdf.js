@@ -8,6 +8,30 @@ export const B = (x, y, z, hx, hy, hz, r, k = 0) => ({ t: 3, x, y, z, hx, hy, hz
 export const T = (x, y, z, R, r, k = 0) => ({ t: 4, x, y, z, R, r, k });
 // A ring lying flat, like a halo or a hoop on the ground.
 export const H = (x, y, z, R, r, k = 0) => ({ t: 5, x, y, z, R, r, k });
+// A triangular prism lying on its flat base: the triangle stands in x/y with
+// its base at y and its point h above, and runs hd either way along z.
+// r rounds every edge and adds to the size.
+export const P = (x, y, z, hw, h, hd, r, k = 0) => ({ t: 6, x, y, z, hw, h, hd, r, k });
+// A cylinder on its side, lying along z, with rounded rims.
+export const Z = (x, y, z, R, hd, r, k = 0) => ({ t: 7, x, y, z, R, hd, r, k });
+
+// Extrudes a 2D distance d along z by half-length dz into 3D.
+function extrude(d, dz) {
+  return Math.min(Math.max(d, dz), 0) + Math.hypot(Math.max(d, 0), Math.max(dz, 0));
+}
+
+// Distance to an upright isosceles triangle: base from -hw to hw at y = 0,
+// point at (0, h).
+function triangle(px, py, hw, h) {
+  const ax = Math.abs(px), ay = h - py;
+  const t1 = Math.min(1, Math.max(0, (ax * hw + ay * h) / (hw * hw + h * h)));
+  const bx = ax - hw * t1, by = ay - h * t1;
+  const t2 = Math.min(1, Math.max(0, ax / hw));
+  const cx = ax - hw * t2, cy = ay - h;
+  const d = Math.sqrt(Math.min(bx * bx + by * by, cx * cx + cy * cy));
+  const inside = ay >= 0 && ay <= h && ax * h <= hw * ay;
+  return inside ? -d : d;
+}
 
 function capsule(p) {
   p.t = 2;
@@ -40,6 +64,10 @@ export function primDist(p, x, y, z) {
       const qx = px - p.dx * h, qy = py - p.dy * h, qz = pz - p.dz * h;
       return Math.sqrt(qx * qx + qy * qy + qz * qz) - (p.r1 + (p.r2 - p.r1) * h);
     }
+    case 6:
+      return extrude(triangle(x - p.x, y - p.y, p.hw, p.h), Math.abs(z - p.z) - p.hd) - p.r;
+    case 7:
+      return extrude(Math.hypot(x - p.x, y - p.y) - p.R, Math.abs(z - p.z) - p.hd) - p.r;
     case 5: {
       const dx = x - p.x, dz = z - p.z;
       const q = Math.sqrt(dx * dx + dz * dz) - p.R, dy = y - p.y;
@@ -87,6 +115,8 @@ export function primsBounds(prims, pad = 0) {
       add(p.bx, p.by, p.bz, r, r, r);
     } else if (p.t === 4) add(p.x, p.y, p.z, p.R + p.r, p.R + p.r, p.r);
     else if (p.t === 5) add(p.x, p.y, p.z, p.R + p.r, p.r, p.R + p.r);
+    else if (p.t === 6) add(p.x, p.y + p.h / 2, p.z, p.hw + p.r, p.h / 2 + p.r, p.hd + p.r);
+    else if (p.t === 7) add(p.x, p.y, p.z, p.R + p.r, p.R + p.r, p.hd + p.r);
     else add(p.x, p.y, p.z, p.hx + p.r, p.hy + p.r, p.hz + p.r);
   }
   for (let i = 0; i < 3; i++) { min[i] -= pad; max[i] += pad; }
@@ -102,6 +132,8 @@ export function scalePrim(p, w, h) {
     case 2: return C(p.ax * w, p.ay * h, p.az * w, p.bx * w, p.by * h, p.bz * w, p.r1 * w, p.r2 * w, p.k * w);
     case 4: return T(p.x * w, p.y * h, p.z * w, p.R * (w + h) * 0.5, p.r * w, p.k * w);
     case 5: return H(p.x * w, p.y * h, p.z * w, p.R * w, p.r * w, p.k * w);
+    case 6: return P(p.x * w, p.y * h, p.z * w, p.hw * w, p.h * h, p.hd * w, p.r * w, p.k * w);
+    case 7: return Z(p.x * w, p.y * h, p.z * w, p.R * (w + h) * 0.5, p.hd * w, p.r * w, p.k * w);
     default: {
       const r = p.r * w;
       return B(p.x * w, p.y * h, p.z * w, (p.hx + p.r) * w - r, (p.hy + p.r) * h - r, (p.hz + p.r) * w - r, r, p.k * w);

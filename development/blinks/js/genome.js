@@ -1,4 +1,4 @@
-import { S, E, C, B, T, evalPrims, primDist, primsBounds, scalePrim } from './sdf.js';
+import { S, E, C, B, T, P, Z, evalPrims, primDist, primsBounds, scalePrim } from './sdf.js';
 
 // Genome units: a newborn body is about 1 tall, bottom at y = 0, facing +z.
 // Every shape is mirror symmetric across x = 0.
@@ -42,6 +42,31 @@ const BODIES = {
     build: (p) => ({
       prims: [g(S(0, p.r1, 0, p.r1), 0), g(S(0, p.h - p.r2, 0, p.r2, 0.3), 1)],
       desc: { topW: p.r2 * 0.6, hw: p.r1, hd: p.r1, faceY: p.r1 * 1.05, faceW: p.r1 * 1.25 },
+    }),
+  },
+  slab: {
+    // A long rounded block lying on its side, face on the front end.
+    ranges: { w: [0.5, 0.6], h: [0.42, 0.52], len: [0.95, 1.15], rd: [0.08, 0.12] },
+    build: (p) => ({
+      prims: [g(B(0, p.h / 2, 0, p.w / 2 - p.rd, p.h / 2 - p.rd, p.len / 2 - p.rd, p.rd), 0)],
+      desc: { topW: p.w * 0.35, hw: p.w / 2, hd: p.len / 2, faceY: p.h * 0.55, faceZ: p.len / 2 - 0.08, faceW: p.w * 0.8, partZ: p.len * 0.3, legN: 4 },
+    }),
+  },
+  wedge: {
+    // A triangular prism on its flat base, ridge running front to back, with
+    // the face on the flat triangle at the front.
+    ranges: { w: [0.66, 0.8], h: [0.6, 0.74], len: [0.85, 1.05], r: [0.05, 0.08] },
+    build: (p) => ({
+      prims: [g(P(0, p.r, 0, p.w / 2 - p.r * 1.5, p.h - p.r * 2.5, p.len / 2 - p.r, p.r), 0)],
+      desc: { topW: 0.1, hw: p.w / 2, hd: p.len / 2, faceY: p.h * 0.3, faceZ: p.len / 2 - 0.08, faceW: p.w * 0.6, partZ: p.len * 0.3, legN: 4 },
+    }),
+  },
+  drum: {
+    // A cylinder on its side, lying front to back, face on the round end.
+    ranges: { R: [0.3, 0.36], len: [0.85, 1.05], r: [0.06, 0.09] },
+    build: (p) => ({
+      prims: [g(Z(0, p.R, 0, p.R - p.r, p.len / 2 - p.r, p.r), 0)],
+      desc: { topW: p.R * 0.5, hw: p.R, hd: p.len / 2, faceY: p.R, faceZ: p.len / 2 - 0.08, faceW: p.R * 1.3, partZ: p.len * 0.3, legN: 4 },
     }),
   },
   pig: {
@@ -313,11 +338,12 @@ const PARTS = {
     }),
   },
   bunnyEars: {
-    // Plump rounded ovals, a little fuller at the tip than at the base, close
-    // to upright.
-    group: 'top', ranges: { len: [0.3, 0.4], r: [0.11, 0.135], splay: [0.03, 0.18], spread: [0.45, 0.8] },
+    // Plump rounded ovals, a little fuller at the tip than at the base. They
+    // always sit close together with a small gap between their bases, leaning
+    // only slightly outward, so the tips part a little more.
+    group: 'top', ranges: { len: [0.3, 0.4], r: [0.11, 0.135], splay: [0.1, 0.2], gap: [0.025, 0.045] },
     build: (p, q) => [-1, 1].flatMap((s) => {
-      const x = s * Math.min(q.topW * p.spread + 0.05, q.hw * 0.7);
+      const x = s * (p.r * 0.85 + p.gap);
       const y = q.surfTop(x, q.partZ);
       if (y == null) return [];
       return [g(C(x, y - 0.06, q.partZ, x + s * Math.sin(p.splay) * p.len, y - 0.06 + Math.cos(p.splay) * p.len, q.partZ - 0.04, p.r * 0.85, p.r * 1.12, 0.06), 2)];
