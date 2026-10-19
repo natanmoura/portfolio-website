@@ -1391,7 +1391,9 @@ export class Creature {
           foot.lerp(tmp, Math.min(1, dt * 12));
           foot.y = floor;
         }
-        if (!leg.frozen) foot.y = Math.max(foot.y, floor);
+        // Feet stay on or above the floor, frozen ones included, until the
+        // body starts to sink.
+        if (!(this.die.sink > 0)) foot.y = Math.max(foot.y, floor);
       } else {
         if (this.landFeet) { leg.plant.set(hip.x, floor, hip.z); leg.swing = false; }
         // Crouching to jump or soaking up a landing, the feet stay right under
@@ -1484,6 +1486,7 @@ export class Creature {
         if (this.hoverLoveT > 0 || this.state === 'merge') { out = 0.45; dn = 0.7 + Math.sin(t * 10 + arm.i * Math.PI) * 0.3; }
         if (arm.frozen) {
           this.pivot.localToWorld(arm.hand.copy(arm.frozen));
+          if (!(this.die.sink > 0)) arm.hand.y = Math.max(arm.hand.y, floor);
           this.drawLimb(arm.meshes, sh, arm.hand, len, fwd, false);
           continue;
         }
