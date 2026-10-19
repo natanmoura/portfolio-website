@@ -25,6 +25,9 @@ export const ENDING = [
 ];
 
 const MARKS = { '*': 'key', '^': 'key cta' };
+// Button pop: the size it appears at and the size it swells to before settling.
+const BTN_FROM = 0.9;
+const BTN_PEAK = 1.06;
 
 function parse(source) {
   return source.map((raw) => {
@@ -163,8 +166,10 @@ export class Intro {
       const age = t - this.appearAt({ line: b.line });
       if (age < 0) { b.row.style.visibility = 'hidden'; continue; }
       b.row.style.visibility = 'visible';
+      // A gentle pop: it appears nearly full size, swells a touch past it and
+      // settles.
       const k = Math.min(1, age / (popTime * 2));
-      const scale = k < 0.5 ? (k / 0.5) * over : over + (1 - over) * ((k - 0.5) / 0.5) ** 0.7;
+      const scale = k < 0.4 ? BTN_FROM + (BTN_PEAK - BTN_FROM) * (k / 0.4) : BTN_PEAK + (1 - BTN_PEAK) * ((k - 0.4) / 0.6) ** 0.7;
       b.row.style.transform = `scale(${scale.toFixed(3)})`;
     }
     this.letters.forEach((l, i) => {
