@@ -564,18 +564,39 @@ export function randomGenome(r, opts = {}) {
   };
 }
 
+// The opening garden. Every body shape is different, at least one creature
+// walks on four legs, and three or four of the two-legged ones have arms from
+// the start. Nobody else grows arms later, so the count holds.
+const SIDE_PARTS = ['sideEars', 'frills'];
+const midParams = (ranges) => Object.fromEntries(Object.entries(ranges).map(([k, [lo, hi]]) => [k, (lo + hi) / 2]));
+const legsOf = (type) => BODIES[type].build(midParams(BODIES[type].ranges)).desc.legN || 2;
+
 export function seedPopulation(r, n) {
   const start = r.range(0, 360);
   const hues = r.shuffle(Array.from({ length: n }, (_, i) => start + (i * 360) / n + r.range(-12, 12)));
-  let bodies = [], tops = [];
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    if (!bodies.length) bodies = r.shuffle(BODY_TYPES);
+  const quads = BODY_TYPES.filter((t) => legsOf(t) > 2);
+  const first = r.pick(quads);
+  const bodies = [first, ...r.shuffle(BODY_TYPES.filter((t) => t !== first)).slice(0, n - 1)];
+  const bipeds = r.shuffle(bodies.filter((t) => legsOf(t) === 2));
+  const armed = new Set(bipeds.slice(0, r.int(3, 4)));
+  let tops = [];
+  return r.shuffle(bodies).map((type, i) => {
+    const g = randomGenome(r, { hue: hues[i], body: type, nParts: 0 });
+    const withArms = armed.has(type);
+    // Side ears and frills push arms down or off the body, so creatures that
+    // start with arms wear something on top of the head instead.
+    const pool = withArms ? TOP_PARTS.filter((t) => !SIDE_PARTS.includes(t)) : TOP_PARTS;
     if (!tops.length) tops = r.shuffle(TOP_PARTS);
-    out.push(randomGenome(r, { hue: hues[i], body: bodies.pop(), top: tops.pop(), nParts: i % 3 === 0 ? 0 : i % 3 }));
-  }
-  return out;
+    const top = tops.pop();
+    g.parts = [];
+    if (r.chance(withArms ? 0.6 : 0.7)) g.parts.push(makePart(pool.includes(top) ? top : r.pick(pool), r));
+    if (withArms) g.parts.push(makePart('arms', r));
+    g.growth = makeGrowth(r, g.parts.map((p) => p.type))
+      .filter((p) => p.type !== 'arms' && !(withArms && SIDE_PARTS.includes(p.type)));
+    return g;
+  });
 }
+
 
 export function breed(a, b, r) {
   const src = r.chance(0.5) ? a : b;
