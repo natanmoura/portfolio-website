@@ -16,7 +16,7 @@ const projects = [
     title: "Playdate Intro",
     slug: "playdate",
     thumbnailScale: 1.4,
-    thumbnail: "https://image.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y/animated.gif?start=28.3&end=35&fps=15&width=576",
+    thumbnail: "assets/videos/thumbs/playdate.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y?metadata-video-title=Playdate+Intro+Sequence+-+Device&video-title=Playdate+Intro+Sequence+-+Device&autoplay&muted" },
@@ -40,9 +40,60 @@ const projects = [
     },
   },
   {
+    title: "Rising Tides",
+    slug: "rising-tides",
+    thumbnail: "assets/videos/thumbs/rising-tides.mp4",
+    page: {
+      content: [
+        { type: "text-media-group", rows: [
+          { type: "text-media-row", mediaSide: "left", text: `Rising Tides is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits. I co-directed the story, designed and animated the characters for this prototype at Company Picnic.`, media: [
+            { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
+          ]},
+          { type: "text-media-row", mediaSide: "left", text: `Characters were animated in Rive and brought into Unity, where our LLM brain architecture would control their animations and interactions with the player and other in-game characters.`, media: [
+            { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
+          ]},
+        ]},
+        { type: "image", src: "assets/images/company-picnic/rt-character-lineup.jpg" },
+        { type: "media-grid", cols: 3, items: [
+          { type: "image", src: "assets/images/company-picnic/rt-style-2.jpg" },
+          { type: "image", src: "assets/images/company-picnic/rt-style-1.jpg" },
+          { type: "image", src: "assets/images/company-picnic/rt-style-3.jpg" },
+        ]},
+        { type: "image", src: "assets/images/company-picnic/rt-pirate-ship.jpg", narrow: true },
+      ],
+      links: [],
+    },
+  },
+  {
+    title: "Ursula Demo",
+    slug: "ursula",
+    thumbnail: "assets/videos/thumbs/ursula.mp4",
+    page: {
+      content: [
+        { type: "mux", src: "https://player.mux.com/ApOY01Rt01w6fLUAuVpxij4enRfrt6xXDL02wgK02dldbx00?metadata-video-title=Ursula+Demo+at+Betaworks&video-title=Ursula+Demo+at+Betaworks", clip: [205, 421], startTime: 1, endTime: 216 },
+        { type: "caption", html: `Founder Pedro Lucca presenting our demo at Betaworks AI Camp.` },
+        { type: "text", html: `I helped build the Ursula prototype at Betaworks AI Camp that secured initial seed funding. This allowed us to grow the team at Company Picnic and continue developing other conversation-driven character experiences.` },
+        { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
+        { type: "image", src: "assets/images/company-picnic/ursula-poses.jpg" },
+        { type: "media-grid", cols: 2, items: [
+          { type: "image", src: "assets/images/company-picnic/ursula-expressions.jpg" },
+          { type: "image", src: "assets/images/company-picnic/ursula-rotation-eyes.jpg" },
+        ]},
+        { type: "text", html: `I also helped design a cast of friends for Ursula's world.` },
+        { type: "media-grid", cols: 2, items: [
+          { type: "image", src: "assets/images/company-picnic/ursula-ghost.jpg" },
+          { type: "image", src: "assets/images/company-picnic/ursula-gnome.jpg" },
+          { type: "image", src: "assets/images/company-picnic/ursula-porcupine.jpg" },
+          { type: "image", src: "assets/images/company-picnic/ursula-flower.jpg" },
+        ]},
+      ],
+      links: [],
+    },
+  },
+  {
     title: "Yuki 7",
     slug: "yuki-7",
-    thumbnail: "assets/gifs/thumbs/yuki-7-cover.gif",
+    thumbnail: "assets/videos/thumbs/yuki-7.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/aVATvQRy01N53fzzREi92ZAkUlDecUBGKmSZOC9R9VmA?metadata-video-title=Yuki+7+Micro-Series+Trailer&video-title=Yuki+7+Micro-Series+Trailer&thumbnail-time=0&autoplay&muted", aspectRatio: "4/3", narrow: true },
@@ -61,7 +112,7 @@ const projects = [
   {
     title: "Mall Stories",
     slug: "mall-stories",
-    thumbnail: "https://image.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg/animated.gif?start=141.4&end=144.8&fps=15&width=480",
+    thumbnail: "assets/videos/thumbs/mall-stories.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg?thumbnail-time=0&autoplay&muted" },
@@ -75,7 +126,7 @@ const projects = [
     title: "City of Ghosts",
     slug: "city-of-ghosts",
     thumbnailScale: 1.1,
-    thumbnail: "https://image.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY/animated.gif?start=74.5&end=76.4&fps=15&width=480",
+    thumbnail: "assets/videos/thumbs/city-of-ghosts.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY?thumbnail-time=0&autoplay&muted" },
@@ -97,7 +148,7 @@ const projects = [
   {
     title: "My Moon",
     slug: "my-moon",
-    thumbnail: "assets/gifs/thumbs/my-moon-cover.gif",
+    thumbnail: "assets/videos/thumbs/my-moon.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/iODGnSn8xnKg8oROoNl01E1akrpHEm601wER3jgec00Myo?thumbnail-time=0&autoplay&muted", aspectRatio: "2.35/1" },
@@ -110,8 +161,7 @@ const projects = [
   {
     title: "Namoo",
     slug: "namoo-2d",
-    thumbnailScale: 1.05,
-    thumbnail: "assets/gifs/thumbs/namoo-2d.gif",
+    thumbnail: "assets/videos/thumbs/namoo-2d.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/rT5mLXjAqdvocYw9fMrzHPFzeULEkVnv2a00PmaqrQN8?thumbnail-time=0&autoplay&muted" },
@@ -141,7 +191,7 @@ const projects = [
   {
     title: "Airbnb Japan",
     slug: "airbnb-japan",
-    thumbnail: "assets/gifs/thumbs/airbnb-japan-02.gif",
+    thumbnail: "assets/videos/thumbs/airbnb-japan.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/eh1rpxFbD6ZmhHB5h00us2gpeG01UOohznvbopngMlIeI?thumbnail-time=0&autoplay&muted" },
@@ -161,7 +211,7 @@ const projects = [
   {
     title: "Sinclair Snake",
     slug: "sinclair-snake",
-    thumbnail: "https://image.mux.com/8Bi6AQe9cv02XdnW35B879ae7QVkNw1GqFZ7mWcpwZH00/animated.gif?start=64.9&end=66.2&fps=15&width=480",
+    thumbnail: "assets/videos/thumbs/sinclair-snake.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/8Bi6AQe9cv02XdnW35B879ae7QVkNw1GqFZ7mWcpwZH00?thumbnail-time=0&autoplay&muted" },
@@ -174,7 +224,7 @@ const projects = [
   {
     title: "Steven Universe: The Movie - Opening Titles",
     slug: "steven-universe-movie-titles",
-    thumbnail: "assets/gifs/thumbs/steven-universe-cover.gif",
+    thumbnail: "assets/videos/thumbs/steven-universe-movie-titles.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/wX4PiGnk9VsOF8hVedaCTRWGcGLP5DF26l7p3YNCPbE?thumbnail-time=0&autoplay&muted" },
@@ -189,7 +239,7 @@ const projects = [
   {
     title: "Eden and the Army of Paradise",
     slug: "eden-army-of-paradise",
-    thumbnail: "assets/gifs/thumbs/eden-cover.gif",
+    thumbnail: "assets/videos/thumbs/eden-army-of-paradise.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/tfPcptKYgz4PNnAU31tpUWDEVFE00D3Ng2w4u1uS8DTU?thumbnail-time=0&autoplay&muted" },
@@ -209,7 +259,7 @@ const projects = [
   {
     title: "Volta-X",
     slug: "volta-x",
-    thumbnail: "assets/gifs/thumbs/voltax-cover.gif",
+    thumbnail: "assets/videos/thumbs/volta-x.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/0000jzfBrVZ395K00vetgSR01kVOHjdg02m4heRqT00qSFwVA?thumbnail-time=0&autoplay&muted" },
@@ -229,7 +279,7 @@ const projects = [
   {
     title: "Storybots Song Videos",
     slug: "storybots-song-videos",
-    thumbnail: "https://image.mux.com/02phDUfkw517NYdqbjvn8ACE2GpYcHvB1DRraFaBflIQ/animated.gif?start=61&fps=15&width=480",
+    thumbnail: "assets/videos/thumbs/storybots-song-videos.mp4",
     page: {
       content: [
         { type: "text", html: `As a production artist on the <em>Storybots</em> team, I designed, animated and directed many song videos for the show. Below are a sample of some videos I made.` },
@@ -246,7 +296,7 @@ const projects = [
   {
     title: "Storybots Learning App",
     slug: "storybots-learning-app",
-    thumbnail: "assets/gifs/storybots/personal-01.gif",
+    thumbnail: "assets/videos/thumbs/storybots-learning-app.mp4",
     page: {
       content: [
         { type: "text", html: `On the <em>Storybots</em> team, I collaborated with designers and engineers to bring customizable in-app characters to life.` },

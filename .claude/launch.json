@@ -56,6 +56,12 @@
       "port": 5184
     },
     {
+      "name": "paper-pets",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/website/development/paper-pets/tools/serve.js", "5186"],
+      "port": 5186
+    },
+    {
       "name": "resume",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],

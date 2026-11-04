@@ -33,6 +33,16 @@ navToggle.addEventListener('click', () => {
 });
 
 navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
+
+// Growing past the header breakpoint swaps the hamburger out for the inline
+// nav, which leaves the full-screen menu stranded with nothing to close it.
+// Reading the toggle's own display keeps the breakpoint in one place, the CSS.
+// NOTE: js/main-nav.js carries a second copy of this nav block for the About
+// and Contact pages. Changes here need to be made there too.
+window.addEventListener('resize', () => {
+  if (navOverlay.classList.contains('is-open') &&
+      getComputedStyle(navToggle).display === 'none') closeNav();
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProject(); });
 
 // ── Emoji bounce on nav hover ──
@@ -65,16 +75,30 @@ projects.forEach((p, i) => {
   item.className = 'gallery-item';
   item.dataset.index = i;
   const scaleVar = p.thumbnailScale ? ` style="--thumb-scale:${p.thumbnailScale}"` : '';
+  const media = /\.mp4$/.test(p.thumbnail)
+    ? `<video src="${p.thumbnail}" poster="${p.thumbnail.replace(/\.mp4$/, '.jpg')}" muted loop playsinline preload="none" aria-label="${p.title}"${scaleVar}></video>`
+    : `<img src="${p.thumbnail}" alt="${p.title}" loading="lazy"${scaleVar} />`;
   item.innerHTML = `
-    <div class="gallery-item-thumb">
-      <img src="${p.thumbnail}" alt="${p.title}" loading="lazy"${scaleVar} />
-      <div class="gallery-item-overlay"><span>${p.title}</span></div>
-    </div>
+    <div class="gallery-item-thumb">${media}</div>
     <div class="gallery-item-label">${p.title}</div>
   `;
+  // Opens with the page's own rise-and-fade entrance (.project-page--enter),
+  // the same movement the rest of the site uses.
   item.addEventListener('click', () => openProject(i));
   gallery.appendChild(item);
 });
+
+// ── Play thumbnail loops only while on screen ──
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(({ target: v, isIntersecting }) => {
+      if (isIntersecting) { v.preload = 'auto'; v.play().catch(() => {}); }
+      else v.pause();
+    });
+  }, { threshold: 0.25 });
+  gallery.querySelectorAll('.gallery-item-thumb video').forEach(v => io.observe(v));
+}());
 
 // ── Retry thumbnails that fail to load (transient network blips) ──
 gallery.querySelectorAll('.gallery-item-thumb img').forEach(img => {
@@ -87,6 +111,26 @@ gallery.querySelectorAll('.gallery-item-thumb img').forEach(img => {
     setTimeout(() => { img.src = baseSrc + sep + 'retry=' + attempts; }, attempts * 800);
   });
 });
+
+// A player.mux.com URL rendered as a <mux-player> in this document rather than
+// an iframe. An iframe is a separate document and takes no styling from this
+// page at all, so its controls cannot be moved; the element's exported parts
+// can be. Used where the frame is rounded enough to clip the control bar.
+function muxPlayerFromSrc(src, inlineStyle) {
+  let url;
+  try { url = new URL(src, location.href); } catch { return ''; }
+  const q = url.searchParams;
+  const attrs = ['playback-id="' + url.pathname.replace(/^\//, '') + '"'];
+  // metadata-video-title goes to Mux Data only. video-title would draw the
+  // title over the video, which we never want on any player here.
+  const title = q.get('metadata-video-title') || q.get('video-title');
+  if (title) attrs.push('metadata-video-title="' + title.replace(/"/g, '&quot;') + '"');
+  if (q.has('thumbnail-time')) attrs.push('thumbnail-time="' + (q.get('thumbnail-time') || 0) + '"');
+  if (q.has('autoplay')) attrs.push(q.get('autoplay') === 'any' ? 'autoplay="any"' : 'autoplay');
+  if (q.has('muted') || q.get('autoplay') !== 'any') attrs.push('muted');
+  return '<mux-player ' + attrs.join(' ') +
+    ' style="width:100%;overflow:hidden;' + (inlineStyle || '') + '"></mux-player>';
+}
 
 // ── Project page ──
 function buildProjectHTML(i) {
@@ -112,7 +156,7 @@ function buildProjectHTML(i) {
       }
     }
 
-    bodyHTML = chunks.map(item => {
+    const renderBlock = (item, inGroup) => {
       if (item.type === 'text')    return `<p class="project-page-description fade-in-item">${item.html}</p>`;
       if (item.type === 'caption') return `<p class="project-page-caption fade-in-item">${item.html}</p>`;
       if (item.type === 'instruction') return `<p class="project-page-instruction fade-in-item">${item.html}</p>`;
@@ -122,34 +166,58 @@ function buildProjectHTML(i) {
         const arStyle = item.aspectRatio ? ` style="aspect-ratio:${item.aspectRatio}"` : '';
         const narrowClass = item.narrow ? ' project-page-media-item--narrow' : '';
         if (item.endTime != null) {
-          const playbackId = item.src.replace(/^https?:\/\/player\.mux\.com\//, '').split('?')[0];
-          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" end-time="${item.endTime}" thumbnail-time="0" autoplay muted style="width:100%;height:100%"></mux-player></div>`;
+          const baseId = item.src.replace(/^https?:\/\/player\.mux\.com\//, '').split('?')[0];
+          const clipQS = item.clip ? `asset_start_time=${item.clip[0]}&asset_end_time=${item.clip[1]}` : '';
+          const playbackId = clipQS ? `${baseId}?${clipQS}` : baseId;
+          // Mux Player derives its poster as image.mux.com/<playback-id>/thumbnail.webp,
+          // which puts the clip query in the middle of the path and 404s — that is the
+          // broken-image icon. Hand it a correctly ordered URL instead.
+          const poster = `https://image.mux.com/${baseId}/thumbnail.webp?time=${item.startTime || 0}` +
+            (clipQS ? `&${clipQS}` : '');
+          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player></div>`;
         }
         return `<div class="project-page-media-item${narrowClass} fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe></div>`;
       }
       if (item.type === 'video')
-        return `<div class="project-page-media-item fade-in-item"><video src="${item.src}" controls playsinline></video></div>`;
+        return `<div class="project-page-media-item fade-in-item"><video src="${item.src}"${item.poster ? ` poster="${item.poster}"` : ''} controls playsinline></video></div>`;
       if (item.type === 'image' || item.type === 'gif')
-        return `<div class="project-page-media-item fade-in-item"><img src="${item.src}" alt="${p.title}" /></div>`;
+        return `<div class="project-page-media-item${item.narrow ? ' project-page-media-item--narrow' : ''} fade-in-item"><img src="${item.src}" alt="${p.title}" /></div>`;
       if (item.type === 'beforeafter-group')
         return `<div class="ba-grid fade-in-item">${item.items.map(it =>
           `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">Before</span></div>`
         ).join('')}</div>`;
+      // Several split rows laid out as one band: on desktop the group's grid
+      // takes over and their columns flatten into it (see the CSS), on phones
+      // they stay ordinary stacked rows.
+      if (item.type === 'text-media-group')
+        return `<div class="project-text-media-group fade-in-item">${item.rows.map(r => renderBlock(r, true)).join('')}</div>`;
       if (item.type === 'text-media-row') {
         const rowStyle = item.gridCols ? ` style="--tmr-cols:${item.gridCols}"` : '';
         const textHTML = `<div class="project-text-media-row__text">${item.heading ? `<h3 class="project-page-subheading">${item.heading}</h3>` : ''}<p class="project-page-description">${item.text}</p></div>`;
         const mediaHTML = item.media.map(it => {
           let el = '';
-          if (it.type === 'mux' || it.type === 'video-embed')
-            el = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+          if (it.type === 'mux' || it.type === 'video-embed') {
+            const css = (it.aspectRatio ? `aspect-ratio:${it.aspectRatio};` : '') + (it.radius ? `border-radius:${it.radius};` : '');
+            el = muxPlayerFromSrc(it.src, css);
+          }
           else if (it.type === 'video')
-            el = `<video src="${it.src}" controls playsinline></video>`;
+            el = `<video src="${it.src}"${it.poster ? ` poster="${it.poster}"` : ''} controls playsinline></video>`;
           else if (it.type === 'image' || it.type === 'gif')
             el = `<img src="${it.src}" alt="${p.title}" />`;
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
           return el + cap;
         }).join('');
-        return `<div class="project-text-media-row fade-in-item"${rowStyle}>${textHTML}<div class="project-text-media-row__media">${mediaHTML}</div></div>`;
+        const mediaClass = item.mediaRow ? ' project-text-media-row__media--row' : '';
+        const mediaBlock = `<div class="project-text-media-row__media${mediaClass}">${mediaHTML}</div>`;
+        // A staggered row always puts its media first in the DOM, so when the
+        // row stacks on a phone the media leads regardless of which side it
+        // takes on desktop. CSS order does the swapping at desktop width.
+        const stagger = item.mediaSide
+          ? ' project-text-media-row--stagger' +
+            (item.mediaSide === 'right' ? ' project-text-media-row--media-right' : '')
+          : '';
+        const inner = item.mediaSide ? mediaBlock + textHTML : textHTML + mediaBlock;
+        return `<div class="project-text-media-row${inGroup ? '' : ' fade-in-item'}${stagger}"${rowStyle}>${inner}</div>`;
       }
       if (item.type === 'media-grid') {
         const cols = item.cols || 2;
@@ -159,8 +227,10 @@ function buildProjectHTML(i) {
             const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
             media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe>`;
           }
-          else if (it.type === 'video')
-            media = `<video src="${it.src}" controls playsinline></video>`;
+          else if (it.type === 'video') {
+            const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
+            media = `<video src="${it.src}"${it.poster ? ` poster="${it.poster}"` : ''} controls playsinline${arStyle}></video>`;
+          }
           else if (it.type === 'image' || it.type === 'gif')
             media = `<img src="${it.src}" alt="${p.title}" />`;
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
@@ -170,7 +240,9 @@ function buildProjectHTML(i) {
         return `<div class="project-media-grid fade-in-item" style="--cols:${cols}">${cells}</div>`;
       }
       return '';
-    }).join('\n');
+    };
+
+    bodyHTML = chunks.map(it => renderBlock(it)).join('\n');
   } else {
     const mediaHTML = (pg.media || []).map(m => {
       if (m.type === 'mux' || m.type === 'video-embed')
@@ -218,19 +290,20 @@ function buildProjectHTML(i) {
 function setupMuxEndTimes(container) {
   container.querySelectorAll('[data-end-time]').forEach(function(wrapper) {
     const end = parseFloat(wrapper.dataset.endTime);
+    const start = parseFloat(wrapper.dataset.startTime) || 0;
     const player = wrapper.querySelector('mux-player');
     if (!player) return;
     const timer = setInterval(function() {
-      if (player.currentTime >= end) {
-        player.pause();
-        clearInterval(timer);
-      }
+      if (player.currentTime < start) player.currentTime = start;
+      if (player.currentTime > end) player.currentTime = end;
+      if (player.currentTime >= end && !player.paused) player.pause();
     }, 100);
     wrapper._muxCleanup = function() { clearInterval(timer); };
   });
 }
 
-function openProject(i) {
+
+function openProject(i, { skipEnter = false } = {}) {
   const p = projects[i];
   history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
   projectContent.innerHTML = buildProjectHTML(i);
@@ -240,7 +313,7 @@ function openProject(i) {
   setupMuxEndTimes(projectContent);
   requestAnimationFrame(() => {
     const page = projectContent.querySelector('.project-page');
-    if (page) {
+    if (page && !skipEnter) {
       page.classList.add('project-page--enter');
       requestAnimationFrame(() => page.classList.add('project-page--enter-active'));
     }

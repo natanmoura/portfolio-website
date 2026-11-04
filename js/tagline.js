@@ -19,9 +19,13 @@
 
   if (!textEl || !highlight || !taglineEl) return;
 
-  // Tagline now sits on its own line below the name, so it always has room —
-  // keep it visible at every width (it clips gracefully if a snippet is wide).
-  taglineEl.style.visibility = 'visible';
+  // Tagline sits on its own line below the name, so it always has room at any
+  // width (it clips gracefully if a snippet is wide). While the intro is on
+  // screen, hide it outright: the overlay fades to transparent before it is
+  // removed, and a blinking cursor showing through that fade reads as the
+  // tagline starting up behind the intro.
+  const introOverlay = document.getElementById('introOverlay');
+  taglineEl.style.visibility = introOverlay ? 'hidden' : 'visible';
 
   // ── Typewriter ──────────────────────────────────────────────────────────
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -70,13 +74,16 @@
     }
   }
 
-  // If the intro takeover animation is still on screen, wait for it to
-  // finish (and fade away) before the first snippet starts typing —
-  // otherwise the wizard overlay hides it.
-  const introOverlay = document.getElementById('introOverlay');
-  if (introOverlay) {
-    document.addEventListener('introDone', () => setTimeout(run, 800), { once: true });
-  } else {
+  // Show the cursor only once the yellow has gone and the wizard is off screen,
+  // then give it a beat to blink before the first snippet types.
+  function start() {
+    taglineEl.style.visibility = 'visible';
     setTimeout(run, 800);
+  }
+
+  if (introOverlay) {
+    document.addEventListener('introDone', start, { once: true });
+  } else {
+    start();
   }
 })();

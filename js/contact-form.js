@@ -50,6 +50,7 @@
     card.style.height = '';
     status.className = 'form-status';
     status.textContent = '';
+    clearErrors();
     const submitBtn = form.querySelector('.form-submit');
     if (submitBtn) submitBtn.disabled = false;
   }
@@ -64,9 +65,69 @@
     if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
   });
 
+  // ── Validation ──────────────────────────────────────────────────────────
+  // The browser's own "Please fill out this field" bubble is drawn by the
+  // browser and cannot be styled, so the form carries novalidate and this
+  // stands in for it, in the card's own type and colours.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Give every field its message slot up front. Paired with .form-error's
+  // reserved height, that keeps the form's spacing identical whether or not
+  // anything is being flagged.
+  form.querySelectorAll('.form-field').forEach(function (field) {
+    if (!field.querySelector('input, textarea')) return;
+    const el = document.createElement('span');
+    el.className = 'form-error';
+    field.appendChild(el);
+  });
+
+  function setError(field, msg) {
+    const el = field.querySelector('.form-error');
+    if (el) el.textContent = msg || '';
+    field.classList.toggle('is-invalid', !!msg);
+  }
+
+  function checkField(field) {
+    const input = field.querySelector('input, textarea');
+    if (!input || !input.required) return true;
+    const value = input.value.trim();
+    if (!value) { setError(field, "This one's required"); return false; }
+    if (input.type === 'email' && !EMAIL_RE.test(value)) {
+      setError(field, 'That email looks off');
+      return false;
+    }
+    setError(field, '');
+    return true;
+  }
+
+  function validate() {
+    let firstBad = null;
+    form.querySelectorAll('.form-field').forEach(function (field) {
+      if (!checkField(field) && !firstBad) firstBad = field;
+    });
+    if (firstBad) {
+      const input = firstBad.querySelector('input, textarea');
+      if (input) input.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function clearErrors() {
+    form.querySelectorAll('.form-field').forEach(function (f) { setError(f, ''); });
+  }
+
+  // Re-check a field once it has been flagged, so the message clears as the
+  // person fixes it rather than only on the next submit.
+  form.addEventListener('input', function (e) {
+    const field = e.target.closest('.form-field');
+    if (field && field.classList.contains('is-invalid')) checkField(field);
+  });
+
   // Submit via Web3Forms without leaving the page.
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
+    if (!validate()) return;
     const submitBtn = form.querySelector('.form-submit');
     status.className = 'form-status is-pending';
     status.textContent = 'Sending…';

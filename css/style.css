@@ -10,6 +10,16 @@ body.page-loaded > *:not(.site-header):not(.nav-overlay):not(.form-modal) {
   opacity: 1;
 }
 
+/* Leaving for another page on this site: take the content out first so the
+   swap reads as a transition rather than a snap. The header is left alone —
+   it is the same yellow bar on every page, so holding it still is the thing
+   that makes the change feel continuous. Must follow .page-loaded above:
+   same specificity, so source order decides. */
+body.page-leaving > *:not(.site-header):not(.nav-overlay):not(.form-modal) {
+  opacity: 0;
+  transition: opacity calc(var(--page-leave-ms) * 1ms) ease;
+}
+
 /* ── Content fade-in items ── */
 .fade-in-item {
   opacity: 0;
@@ -30,6 +40,9 @@ body.page-loaded > *:not(.site-header):not(.nav-overlay):not(.form-modal) {
   --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --max: 1200px;
   --gap: 2rem;
+  /* How long the outgoing page takes to fade. fade.js reads this same value
+     and waits exactly this long before navigating, so there is one number. */
+  --page-leave-ms: 90;
 }
 
 html { scroll-behavior: smooth; }
@@ -128,6 +141,11 @@ a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.ga
   justify-content: space-between;
   padding: 1.25rem 2rem;
   background: #fde104;
+  /* The bar is yellow on every page, so its ink must not follow the page
+     theme. Without this, body.projects' white --fg leaves the logo, tagline
+     and nav white on yellow. */
+  --fg: #0a0a0a;
+  color: var(--fg);
 }
 
 .logo {
@@ -230,6 +248,10 @@ body.nav-open .logo-group {
   inset: 0;
   z-index: 150;
   background: #fde104;
+  /* Same reason as .site-header: this panel is yellow on every page, so its
+     ink must not follow the page theme. Without this, body.projects' white
+     --fg leaves the links white on yellow and barely readable. */
+  --fg: #0a0a0a;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -351,6 +373,23 @@ body.nav-open .logo-group {
   color: var(--bg);
 }
 
+/* The two page CTAs, Email Me and View Resume, are solid yellow rather than
+   outlined, and invert on hover. border-color rather than border: none keeps
+   the button's exact footprint, including the 2px the Swiss theme sets.
+   The form modal's Send button keeps the outlined style. */
+body.page-about .btn,
+body.page-contact .btn:not(.form-submit) {
+  background: #fde104;
+  border: none;
+  color: #0a0a0a;
+}
+
+body.page-about .btn:hover,
+body.page-contact .btn:not(.form-submit):hover {
+  background: #0a0a0a;
+  color: #fde104;
+}
+
 /* ── Sections ── */
 .section {
   padding: 6rem 2rem;
@@ -387,7 +426,7 @@ body.nav-open .logo-group {
 .gallery-item-thumb {
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: #f0f0f0;
+  background: #1c1c1c;
 }
 
 .gallery-item-thumb img,
@@ -405,62 +444,20 @@ body.nav-open .logo-group {
   transform: scale(calc(var(--thumb-scale, 1) * 1.06));
 }
 
-/* Overlay: desktop hover only */
 .gallery-item-thumb {
   position: relative;
 }
 
-.gallery-item-overlay {
-  display: none;
-}
-
-@media (hover: hover) {
-  .gallery-item-overlay {
-    display: flex;
-    position: absolute;
-    inset: 0;
-    align-items: flex-end;
-    padding: 0.875rem 1rem;
-    background: linear-gradient(transparent 40%, rgba(0,0,0,0.55));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-  }
-
-  .gallery-item-overlay span {
-    color: #fff;
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    transform: translateY(6px);
-    transition: transform 0.3s ease;
-    line-height: 1;
-  }
-
-  .gallery-item:hover .gallery-item-overlay {
-    opacity: 1;
-  }
-
-  .gallery-item:hover .gallery-item-overlay span {
-    transform: translateY(0);
-  }
-
-  .gallery-item-label {
-    display: none;
-  }
-}
-
-@media (hover: none) {
-  .gallery-item-label {
-    display: block;
-  }
-}
-
 .gallery-item-label {
-  padding: 0.6rem 0 0;
-  font-size: 0.9375rem;
+  padding: 0.7rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--muted);
+  transition: color 0.25s ease;
+}
+
+.gallery-item:hover .gallery-item-label {
   color: var(--fg);
-  text-align: center;
 }
 
 /* Gallery staggered fade-in */
@@ -489,9 +486,6 @@ body.page-contact main {
   width: 100%;
   display: flex;
   align-items: center;
-}
-
-body.page-about main {
   background: #f8f8f8;
 }
 
@@ -717,6 +711,26 @@ body.page-contact > .site-footer {
 .form-status.is-error { color: #c0392b; }
 .form-status.is-pending { color: var(--muted); }
 
+/* Validation. The browser's own bubble can't be styled, so the form carries
+   novalidate and these stand in for it: a black ring on the field and a line
+   of type under it, in the card's own black on yellow. */
+.form-field.is-invalid input,
+.form-field.is-invalid textarea {
+  box-shadow: inset 0 0 0 2px #0a0a0a;
+}
+
+/* The slot is always in the layout, empty or not, so a message appearing or
+   clearing never moves the fields below it. min-height is one line at this
+   size, which is all any of the messages need. */
+.form-error {
+  min-height: 0.9rem;
+  font-size: 0.72rem;
+  font-style: italic;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: #0a0a0a;
+}
+
 /* Thank-you completion state: box shrinks to show only the message */
 .form-modal-done {
   display: none;
@@ -855,7 +869,8 @@ body.page-contact > .site-footer {
   padding: 2rem;
   font-size: 0.8125rem;
   color: var(--muted);
-  border-top: 1px solid var(--border);
+  /* No rule above the footer on any page: where the background changes the
+     edge reads on its own, and on the dark projects page there is no edge. */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1156,6 +1171,23 @@ body.projects #main-content {
   display: block;
 }
 
+.project-text-media-row__media video,
+.project-text-media-row__media img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.project-text-media-row__media--row {
+  flex-direction: row;
+  gap: 1rem;
+}
+
+.project-text-media-row__media--row > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .project-text-media-row__media .project-page-caption {
   max-width: none;
   margin: 0.5rem 0 1.5rem;
@@ -1166,13 +1198,73 @@ body.projects #main-content {
   margin-bottom: 0;
 }
 
+/* Staggered rows alternate which side the media takes. Their columns are
+   sized rather than fractional, so the band stays the same width on both
+   rows and centres in the page. */
+.project-text-media-row--stagger {
+  justify-content: center;
+}
+
+@media (min-width: 861px) {
+  /* Media is first in the DOM; pull the text ahead of it where the media
+     belongs on the right. */
+  .project-text-media-row--media-right .project-text-media-row__text {
+    order: -1;
+  }
+}
+
 @media (max-width: 860px) {
   .project-text-media-row {
     grid-template-columns: 1fr;
+    /* Stacked, every gap matches the gap between blocks, so the desktop
+       grouping does not read as uneven spacing down the page. */
+    gap: var(--space-section);
   }
   .project-text-media-row__text {
     position: static;
   }
+}
+
+/* ── Split rows joined into one band ── */
+/* Desktop wants a single copy column on the left, both paragraphs stacked,
+   with both players beside it on the right. Phones want the original
+   interleave — player, its paragraph, player, its paragraph — so the rows
+   stay separate elements and only flatten into the shared grid above the
+   breakpoint, where `display: contents` hands their own children to it. */
+.project-text-media-group {
+  display: grid;
+  gap: var(--space-section);
+  max-width: 1290px;
+  margin-inline: auto;
+}
+
+@media (min-width: 861px) {
+  .project-text-media-group {
+    grid-template-columns: minmax(0, 420px) minmax(0, 380px) minmax(0, 380px);
+    /* Each player spans both rows. Row 1 is sized by the first paragraph and
+       row 2 absorbs all the leftover height, so the second paragraph sits
+       right under the first instead of being pushed down beside the players. */
+    grid-template-rows: auto 1fr;
+    justify-content: center;
+    gap: 3rem;
+  }
+
+  .project-text-media-group > .project-text-media-row { display: contents; }
+
+  .project-text-media-group > :nth-child(1) > .project-text-media-row__media { grid-column: 2; }
+  .project-text-media-group > :nth-child(2) > .project-text-media-row__media { grid-column: 3; }
+  .project-text-media-group > .project-text-media-row > .project-text-media-row__media { grid-row: 1 / 3; }
+
+  .project-text-media-group > .project-text-media-row > .project-text-media-row__text {
+    grid-column: 1;
+    align-self: start;
+    /* The copy is one stacked column here, so there is nothing for a sticky
+       paragraph to travel against — it would only slide out of step with the
+       one above it. */
+    position: static;
+  }
+  .project-text-media-group > :nth-child(1) > .project-text-media-row__text { grid-row: 1; }
+  .project-text-media-group > :nth-child(2) > .project-text-media-row__text { grid-row: 2; }
 }
 
 #project-view a:not(.btn):not(.project-nav-link) {
@@ -1507,7 +1599,12 @@ body.projects #main-content {
   line-height: 1.6;
   text-align: left;
   white-space: pre-line;
-  min-height: 3.2em;
+  /* Fixed box, both axes, set by intro.js from the biggest greeting: the height
+     keeps the wizard below from shifting, the width keeps this centred box from
+     resizing, which would walk the cursor's start point sideways between lines.
+     The 1.6em multiplier must stay in step with line-height above. */
+  height: calc(var(--intro-lines, 2) * 1.6em);
+  width: calc(var(--intro-cols, 24) * 1ch);
 }
 
 .intro-text-ghost { visibility: hidden; }
@@ -1542,4 +1639,53 @@ body.projects #main-content {
 @keyframes intro-sparkle-fade {
   0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+}
+
+/* ── Projects page: dark throughout, matching the project view ── */
+body.projects {
+  --bg: #111;
+  --fg: #fff;
+  --muted: rgba(255, 255, 255, 0.5);
+  --border: rgba(255, 255, 255, 0.12);
+  background: #111;
+  color: #fff;
+}
+
+body.projects .gallery {
+  row-gap: 1.75rem;
+}
+
+body.projects .site-footer {
+  color: rgba(255, 255, 255, 0.45);
+  /* The gallery is dark all the way down, so without a rule the footer has no
+     edge at all. Same line the project pages draw above their prev/next nav
+     (.project-nav), so the two read as the same divider. About and Contact
+     need none: there the background changes at the footer. */
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* The card used to morph into the project's hero via a View Transition.
+   Opening now uses .project-page--enter instead, so none of that is left. */
+
+/* Phone-shaped players: the frame is rounded enough that the curve eats the
+   mute button and the fullscreen button at the bottom corners. Mux has no
+   setting for this, but the player exports its control bar and scrubber as
+   parts, so they can be lifted clear. Only works because these are
+   <mux-player> elements — an iframe embed takes no styling from this page. */
+.project-text-media-row__media mux-player {
+  /* One number lifts the whole control stack. Custom properties cross the
+     shadow boundary, so the parts below can read it.
+
+     It has to be proportional, or the bar sits at a different height in the
+     frame at every player size. A percentage margin resolves against the
+     container's WIDTH, never its height — but these players have a locked
+     aspect ratio, so a share of the width is a fixed share of the height
+     too. 26.3% of width is 12.7% of height on a 924x1920 frame. */
+  --player-lift: 26.3%;
+}
+
+/* Only the bar needs the margin. The scrubber sits above it in normal flow,
+   so it rides up with it and keeps its own spacing. */
+.project-text-media-row__media mux-player::part(control-bar) {
+  margin-bottom: var(--player-lift);
 }

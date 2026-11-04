@@ -1,7 +1,7 @@
 // ── Intro "hello" animation ──
 // Full-screen yellow takeover: a bouncing wizard, typed greeting, a small shake,
 // then the wizard flies up off the top of the screen as the yellow fades away.
-// Plays once per browser session (gate disabled during testing).
+// Plays once per session, never in a background tab; ?intro in the URL forces a replay.
 (function () {
   const overlay = document.getElementById('introOverlay');
   if (!overlay) return;
@@ -9,8 +9,12 @@
   const textEl = document.getElementById('introText');
   const wizard = document.getElementById('introWizard');
 
+  // Both greetings, written once each. Use \n for a line break.
+  const LINE1 = 'Hello magical creature!';
+  const LINE2 = 'Welcome to my corner\nof the internet...';
+
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion || window.location.hash || sessionStorage.getItem('introPlayed')) {
+  if (!/[?&]intro\b/.test(location.search) && (reduceMotion || document.hidden || window.location.hash || sessionStorage.getItem('introPlayed'))) {
     overlay.remove();
     document.dispatchEvent(new CustomEvent('introDone'));
     return;
@@ -18,6 +22,20 @@
   sessionStorage.setItem('introPlayed', '1');
 
   document.body.style.overflow = 'hidden';
+
+  // One way out, taken once, however the intro ends. Browsers throttle timers
+  // and stop rAF in a backgrounded tab, so the sequence below cannot be relied
+  // on to reach its own last line — and until it does, the page cannot scroll.
+  let finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    document.body.style.overflow = '';
+    overlay.remove();
+    document.dispatchEvent(new CustomEvent('introDone'));
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) finish(); });
+  setTimeout(finish, 15000);          // backstop: never leave the page locked
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -48,6 +66,16 @@
   textEl.appendChild(ghost);
   textEl.appendChild(live);
 
+  // Reserve the biggest greeting's box up front: tallest so the wizard below
+  // holds its place, widest so this centred box never resizes and the cursor
+  // starts at the same point on every line. The spare column is for the cursor
+  // itself, which would otherwise wrap at the end of a full line.
+  const allLines = (LINE1 + '\n' + LINE2).split('\n');
+  textEl.style.setProperty('--intro-lines',
+    String(Math.max(LINE1.split('\n').length, LINE2.split('\n').length)));
+  textEl.style.setProperty('--intro-cols',
+    String(Math.max.apply(null, allLines.map(l => l.length)) + 1));
+
   async function typeLine(str) {
     typed.textContent = '';
     for (const ch of str) {
@@ -74,8 +102,13 @@
   function spawnSparkleTrail(duration) {
     return new Promise(resolve => {
       const interval = 75;
-      let elapsed = 0;
+      const start = performance.now();
       const id = setInterval(() => {
+        // Against the clock, not a tick count: a throttled tab stretches each
+        // tick to ~1s, which used to drag this out to twelve seconds.
+        if (finished || performance.now() - start >= duration) {
+          clearInterval(id); resolve(); return;
+        }
         const wr = wizard.getBoundingClientRect();
         const or = overlay.getBoundingClientRect();
         const s = document.createElement('span');
@@ -84,50 +117,52 @@
         s.style.left = (wr.left + wr.width  / 2 - or.left + (Math.random() * 16 - 8)) + 'px';
         s.style.top  = (wr.top  + wr.height / 2 - or.top  + (Math.random() * 16 - 8)) + 'px';
         overlay.appendChild(s);
-        setTimeout(() => s.remove(), 920);
-        elapsed += interval;
-        if (elapsed >= duration) { clearInterval(id); resolve(); }
+        setTimeout(() => s.remove(), 900);   // must match intro-sparkle-fade in style.css
       }, interval);
     });
   }
 
   async function run() {
     wizard.classList.add('bouncing');
-    ghost.textContent = 'Hello magical creature!';
-    await typeLine('Hello magical creature!');
-    await sleep(1000);
+    ghost.textContent = LINE1;
+    await typeLine(LINE1);
+    await sleep(800);
 
     typed.textContent = '';
-    ghost.textContent = 'Welcome to my corner\nof the internet...';
+    ghost.textContent = LINE2;
+    // Restart the blink so the cursor is solid the instant the line clears.
+    // Left mid-cycle it can sit invisible through the whole pause, which reads
+    // as the text being erased rather than as a cursor waiting to type.
+    cursor.style.animation = 'none';
+    void cursor.offsetWidth;
+    cursor.style.animation = '';
     // Complete the current bounce cycle before stopping.
     await Promise.race([
       new Promise(resolve => wizard.addEventListener('animationiteration', resolve, { once: true })),
-      sleep(500)
+      sleep(400)
     ]);
     wizard.classList.remove('bouncing');
-    await typeLine('Welcome to my corner\nof the internet...');
-    await sleep(1000);
+    await typeLine(LINE2);
+    await sleep(800);
 
     // Text disappears, brief pause, then shake.
     typed.textContent = '';
     ghost.textContent = '';
     cursor.style.display = 'none';
-    await sleep(300);
+    await sleep(100);
 
-    await shake(800);
+    await shake(600);
 
     // Wizard flies up; sparkles trail it for the full duration.
-    // Fade starts halfway through the fly so the reveal overlaps the exit.
+    // Fade starts partway through the fly so the reveal overlaps the exit.
     wizard.style.transition = 'transform 0.85s cubic-bezier(0.4, 0, 1, 1)';
     wizard.style.transform = 'translateY(-160vh)';
     const trailDone = spawnSparkleTrail(850);
     await sleep(400);
     overlay.style.pointerEvents = 'none';
-    const fadeDone = fadeOut(overlay, 600);
+    const fadeDone = fadeOut(overlay, 500);
     await Promise.all([trailDone, fadeDone]);
-    document.body.style.overflow = '';
-    overlay.remove();
-    document.dispatchEvent(new CustomEvent('introDone'));
+    finish();
   }
 
   run();

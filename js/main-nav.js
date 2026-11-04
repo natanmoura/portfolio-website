@@ -28,6 +28,14 @@ navToggle.addEventListener('click', () => {
 navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); });
 
+// Growing past the header breakpoint swaps the hamburger out for the inline
+// nav, which leaves the full-screen menu stranded with nothing to close it.
+// Reading the toggle's own display keeps the breakpoint in one place, the CSS.
+window.addEventListener('resize', () => {
+  if (navOverlay.classList.contains('is-open') &&
+      getComputedStyle(navToggle).display === 'none') closeNav();
+});
+
 // ── Emoji bounce on nav hover ──
 document.querySelectorAll('.site-header nav a').forEach(link => {
   const emoji = link.querySelector('.nav-emoji');
