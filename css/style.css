@@ -1225,48 +1225,6 @@ body.projects #main-content {
   }
 }
 
-/* ── Split rows joined into one band ── */
-/* Desktop wants a single copy column on the left, both paragraphs stacked,
-   with both players beside it on the right. Phones want the original
-   interleave — player, its paragraph, player, its paragraph — so the rows
-   stay separate elements and only flatten into the shared grid above the
-   breakpoint, where `display: contents` hands their own children to it. */
-.project-text-media-group {
-  display: grid;
-  gap: var(--space-section);
-  max-width: 1290px;
-  margin-inline: auto;
-}
-
-@media (min-width: 861px) {
-  .project-text-media-group {
-    grid-template-columns: minmax(0, 420px) minmax(0, 380px) minmax(0, 380px);
-    /* Each player spans both rows. Row 1 is sized by the first paragraph and
-       row 2 absorbs all the leftover height, so the second paragraph sits
-       right under the first instead of being pushed down beside the players. */
-    grid-template-rows: auto 1fr;
-    justify-content: center;
-    gap: 3rem;
-  }
-
-  .project-text-media-group > .project-text-media-row { display: contents; }
-
-  .project-text-media-group > :nth-child(1) > .project-text-media-row__media { grid-column: 2; }
-  .project-text-media-group > :nth-child(2) > .project-text-media-row__media { grid-column: 3; }
-  .project-text-media-group > .project-text-media-row > .project-text-media-row__media { grid-row: 1 / 3; }
-
-  .project-text-media-group > .project-text-media-row > .project-text-media-row__text {
-    grid-column: 1;
-    align-self: start;
-    /* The copy is one stacked column here, so there is nothing for a sticky
-       paragraph to travel against — it would only slide out of step with the
-       one above it. */
-    position: static;
-  }
-  .project-text-media-group > :nth-child(1) > .project-text-media-row__text { grid-row: 1; }
-  .project-text-media-group > :nth-child(2) > .project-text-media-row__text { grid-row: 2; }
-}
-
 #project-view a:not(.btn):not(.project-nav-link) {
   color: inherit;
   text-decoration: underline;
@@ -1672,7 +1630,8 @@ body.projects .site-footer {
    setting for this, but the player exports its control bar and scrubber as
    parts, so they can be lifted clear. Only works because these are
    <mux-player> elements — an iframe embed takes no styling from this page. */
-.project-text-media-row__media mux-player {
+.project-text-media-row__media mux-player,
+.project-media-grid-item mux-player {
   /* One number lifts the whole control stack. Custom properties cross the
      shadow boundary, so the parts below can read it.
 
@@ -1686,6 +1645,7 @@ body.projects .site-footer {
 
 /* Only the bar needs the margin. The scrubber sits above it in normal flow,
    so it rides up with it and keeps its own spacing. */
-.project-text-media-row__media mux-player::part(control-bar) {
+.project-text-media-row__media mux-player::part(control-bar),
+.project-media-grid-item mux-player::part(control-bar) {
   margin-bottom: var(--player-lift);
 }

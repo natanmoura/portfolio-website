@@ -45,14 +45,12 @@ const projects = [
     thumbnail: "assets/videos/thumbs/rising-tides.mp4",
     page: {
       content: [
-        { type: "text-media-group", rows: [
-          { type: "text-media-row", mediaSide: "left", text: `Rising Tides is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits. I co-directed the story, designed and animated the characters for this prototype at Company Picnic.`, media: [
-            { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
-          ]},
-          { type: "text-media-row", mediaSide: "left", text: `Characters were animated in Rive and brought into Unity, where our LLM brain architecture would control their animations and interactions with the player and other in-game characters.`, media: [
-            { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
-          ]},
+        { type: "media-grid", cols: 2, maxWidth: "800px", items: [
+          { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
+          { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
         ]},
+        { type: "text", html: `Rising Tides is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits. I co-directed the story, designed and animated the characters for this prototype at Company Picnic.` },
+        { type: "text", html: `Characters were animated in Rive and brought into Unity, where our LLM brain architecture would control their animations and interactions with the player and other in-game characters.` },
         { type: "image", src: "assets/images/company-picnic/rt-character-lineup.jpg" },
         { type: "media-grid", cols: 3, items: [
           { type: "image", src: "assets/images/company-picnic/rt-style-2.jpg" },

@@ -156,7 +156,7 @@ function buildProjectHTML(i) {
       }
     }
 
-    const renderBlock = (item, inGroup) => {
+    bodyHTML = chunks.map(item => {
       if (item.type === 'text')    return `<p class="project-page-description fade-in-item">${item.html}</p>`;
       if (item.type === 'caption') return `<p class="project-page-caption fade-in-item">${item.html}</p>`;
       if (item.type === 'instruction') return `<p class="project-page-instruction fade-in-item">${item.html}</p>`;
@@ -186,11 +186,6 @@ function buildProjectHTML(i) {
         return `<div class="ba-grid fade-in-item">${item.items.map(it =>
           `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">Before</span></div>`
         ).join('')}</div>`;
-      // Several split rows laid out as one band: on desktop the group's grid
-      // takes over and their columns flatten into it (see the CSS), on phones
-      // they stay ordinary stacked rows.
-      if (item.type === 'text-media-group')
-        return `<div class="project-text-media-group fade-in-item">${item.rows.map(r => renderBlock(r, true)).join('')}</div>`;
       if (item.type === 'text-media-row') {
         const rowStyle = item.gridCols ? ` style="--tmr-cols:${item.gridCols}"` : '';
         const textHTML = `<div class="project-text-media-row__text">${item.heading ? `<h3 class="project-page-subheading">${item.heading}</h3>` : ''}<p class="project-page-description">${item.text}</p></div>`;
@@ -217,15 +212,23 @@ function buildProjectHTML(i) {
             (item.mediaSide === 'right' ? ' project-text-media-row--media-right' : '')
           : '';
         const inner = item.mediaSide ? mediaBlock + textHTML : textHTML + mediaBlock;
-        return `<div class="project-text-media-row${inGroup ? '' : ' fade-in-item'}${stagger}"${rowStyle}>${inner}</div>`;
+        return `<div class="project-text-media-row fade-in-item${stagger}"${rowStyle}>${inner}</div>`;
       }
       if (item.type === 'media-grid') {
         const cols = item.cols || 2;
         const cells = item.items.map(it => {
           let media = '';
           if (it.type === 'mux' || it.type === 'video-embed') {
-            const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
-            media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe>`;
+            // A radius means a phone-shaped player, and only a real
+            // <mux-player> takes a corner radius or lets the control bar be
+            // lifted clear of it — an iframe embed ignores this page's CSS.
+            if (it.radius) {
+              media = muxPlayerFromSrc(it.src,
+                (it.aspectRatio ? `aspect-ratio:${it.aspectRatio};` : '') + `border-radius:${it.radius};`);
+            } else {
+              const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
+              media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe>`;
+            }
           }
           else if (it.type === 'video') {
             const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
@@ -237,12 +240,13 @@ function buildProjectHTML(i) {
           const spanStyle = it.span ? ` style="grid-column:span ${it.span}"` : '';
           return `<div class="project-media-grid-item"${spanStyle}>${media}${cap}</div>`;
         }).join('');
-        return `<div class="project-media-grid fade-in-item" style="--cols:${cols}">${cells}</div>`;
+        // maxWidth narrows the band for tall portrait media, which would
+        // otherwise be sized by the full 1290px grid and tower over the page.
+        const gridWidth = item.maxWidth ? `;max-width:${item.maxWidth}` : '';
+        return `<div class="project-media-grid fade-in-item" style="--cols:${cols}${gridWidth}">${cells}</div>`;
       }
       return '';
-    };
-
-    bodyHTML = chunks.map(it => renderBlock(it)).join('\n');
+    }).join('\n');
   } else {
     const mediaHTML = (pg.media || []).map(m => {
       if (m.type === 'mux' || m.type === 'video-embed')
