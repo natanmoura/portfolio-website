@@ -206,6 +206,15 @@ a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.ga
   padding: 0;
   position: relative;
   z-index: 151;
+  /* No grey box over the burger or the X when a finger lands on it. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A tap should leave nothing behind. Keyboard focus still gets a ring, since
+   :focus-visible is not matched by touch or mouse. */
+.nav-toggle:focus:not(:focus-visible),
+.nav-overlay a:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .nav-toggle span {
@@ -217,8 +226,10 @@ a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.ga
   transform-origin: center;
   will-change: transform, opacity;
   transform: translateZ(0);
-  transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
-              opacity 0.35s ease;
+  /* Snappy on purpose. The old 0.35s on a long-tailed ease-out spent most of
+     its time crawling to a stop, which reads as lag on a phone. */
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1),
+              opacity 0.12s linear;
 }
 
 .nav-toggle span:nth-child(1) { transform: translateY(-6px); }
@@ -252,17 +263,25 @@ body.nav-open .logo-group {
      ink must not follow the page theme. Without this, body.projects' white
      --fg leaves the links white on yellow and barely readable. */
   --fg: #0a0a0a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  /* Grid, not flex: the single implicit column sizes itself to the widest
+     link, justify-content centres that column in the panel, and justify-items
+     left-aligns each link inside it. So the labels are left justified and the
+     emoji line up, while the block as a whole stays centred. */
+  display: grid;
+  align-content: center;
   justify-content: center;
-  gap: 4.5rem;
+  justify-items: start;
+  /* The links now carry their own padding, so this is the clear space between
+     two 48px targets rather than the whole separation. */
+  gap: 2rem;
   /* sit slightly above true center — optically more natural.
      Use padding (not transform) so the background still covers the full screen. */
   padding-bottom: 7rem;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 0.18s ease-out;
+  /* No grey box when a finger lands on this panel or its links. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .nav-overlay.is-open {
@@ -271,18 +290,24 @@ body.nav-open .logo-group {
 }
 
 .nav-overlay a {
-  font-size: clamp(2rem, 8vw, 5rem);
+  /* Floors at 24px on a phone, which is where it sits for most of this
+     menu's life, and grows from there. 6vw keeps the ramp a round number. */
+  font-size: clamp(1.5rem, 6vw, 3.75rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--fg);
   text-decoration: none;
   line-height: 1;
+  /* The text alone is a 24px-tall target, under both Apple's 44pt and
+     Android's 48dp minimums. This padding makes each link a 48px target
+     rather than leaving the space between them untappable. */
+  padding: 0.75rem 0;
   position: relative;
   transition: color 0.2s;
   /* stagger in */
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
 }
 
 .nav-overlay.is-open a {
@@ -290,10 +315,11 @@ body.nav-open .logo-group {
   transform: translateY(0);
 }
 
-.nav-overlay.is-open a:nth-child(1) { transition-delay: 0.08s; }
-.nav-overlay.is-open a:nth-child(2) { transition-delay: 0.14s; }
-.nav-overlay.is-open a:nth-child(3) { transition-delay: 0.20s; }
-.nav-overlay.is-open a:nth-child(4) { transition-delay: 0.26s; }
+/* Tightened with the rest: the last link used to land 0.66s after the tap. */
+.nav-overlay.is-open a:nth-child(1) { transition-delay: 0.03s; }
+.nav-overlay.is-open a:nth-child(2) { transition-delay: 0.06s; }
+.nav-overlay.is-open a:nth-child(3) { transition-delay: 0.09s; }
+.nav-overlay.is-open a:nth-child(4) { transition-delay: 0.12s; }
 
 .nav-overlay a:hover { color: white; }
 
@@ -453,6 +479,7 @@ body.page-contact .btn:not(.form-submit):hover {
   font-size: 0.8125rem;
   line-height: 1.3;
   color: var(--muted);
+  text-align: center;
   transition: color 0.25s ease;
 }
 
@@ -534,6 +561,11 @@ body.page-contact > .site-footer {
   aspect-ratio: 1 / 1;
   overflow: visible;
   position: relative;
+  /* A vertical drag should scroll the page, not be swallowed by the embed;
+     a tap should still reach Rive. Whether this crosses into a cross-origin
+     iframe is browser-dependent, so it may not hold on iOS — the reliable
+     fix is the canvas runtime rather than the share-link embed. */
+  touch-action: pan-y;
 }
 
 .rive-wrap iframe {
@@ -546,6 +578,7 @@ body.page-contact > .site-footer {
   display: block;
   transform: scale(1.2);
   transform-origin: center center;
+  touch-action: pan-y;
 }
 
 .about-text h2 {
@@ -554,7 +587,7 @@ body.page-contact > .site-footer {
 
 .about-text p {
   margin-bottom: 2rem;
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.75;
   color: #333;
 }
@@ -757,7 +790,7 @@ body.page-contact > .site-footer {
 .contact p {
   color: #333;
   margin-bottom: 2rem;
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.75;
 }
 
@@ -946,7 +979,7 @@ body.projects #main-content {
 }
 
 .project-page-description {
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.75;
   color: rgba(255,255,255,0.75);
   max-width: 680px;
@@ -1016,7 +1049,7 @@ body.projects #main-content {
 
 /* ── Instruction line — left-aligned to the media block edge ── */
 .project-page-instruction {
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.75;
   font-style: italic;
   color: rgba(255,255,255,0.75);
@@ -1059,7 +1092,8 @@ body.projects #main-content {
   top: 0;
   left: 0;
   padding: 4px 10px;
-  font-size: 1.1rem;
+  /* Matches body copy. Was 1.1rem, left behind when body text moved to 1rem. */
+  font-size: 1rem;
   font-style: normal;
   color: white;
   text-shadow: 0 0 4px rgba(0,0,0,0.8);
@@ -1232,7 +1266,7 @@ body.projects #main-content {
 }
 
 .project-page-subheading {
-  font-size: 1.0625rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   max-width: 680px;
@@ -1487,7 +1521,10 @@ body.projects #main-content {
   }
 
   .about-image {
-    justify-content: flex-start;
+    /* Single column here, so the graphic centres rather than hugging an edge.
+       .rive-wrap is narrower than the column, so flex-start left it looking
+       off-centre with all the slack on the right. */
+    justify-content: center;
   }
 
   .about-image img {
@@ -1629,9 +1666,13 @@ body.projects .site-footer {
    mute button and the fullscreen button at the bottom corners. Mux has no
    setting for this, but the player exports its control bar and scrubber as
    parts, so they can be lifted clear. Only works because these are
-   <mux-player> elements — an iframe embed takes no styling from this page. */
-.project-text-media-row__media mux-player,
-.project-media-grid-item mux-player {
+   <mux-player> elements — an iframe embed takes no styling from this page.
+
+   Scoped to .is-phone-frame, which main.js puts on exactly the players that
+   carry a corner radius — the radius is what clips the bar, so it is also
+   what decides whether the lift is wanted. Every other player keeps Mux's
+   own position, and this follows the phone players wherever they are placed. */
+mux-player.is-phone-frame {
   /* One number lifts the whole control stack. Custom properties cross the
      shadow boundary, so the parts below can read it.
 
@@ -1645,7 +1686,7 @@ body.projects .site-footer {
 
 /* Only the bar needs the margin. The scrubber sits above it in normal flow,
    so it rides up with it and keeps its own spacing. */
-.project-text-media-row__media mux-player::part(control-bar),
-.project-media-grid-item mux-player::part(control-bar) {
+mux-player.is-phone-frame::part(control-bar) {
   margin-bottom: var(--player-lift);
 }
+

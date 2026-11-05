@@ -32,7 +32,16 @@ navToggle.addEventListener('click', () => {
   navToggle.classList.contains('is-open') ? closeNav() : openNav();
 });
 
-navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
+// Deliberately not closing the menu here. These links leave the page, and
+// fade.js holds the navigation for a moment first, so closing the menu would
+// uncover the old page for that moment — you see where you just were, then it
+// switches. Leaving the yellow panel up covers the whole handover instead, and
+// the new document arrives with it already closed. (page-leaving in style.css
+// excludes .nav-overlay for the same reason.)
+//
+// Coming back through the browser cache restores this page with the menu still
+// open, so clear it on pageshow.
+window.addEventListener('pageshow', closeNav);
 
 // Growing past the header breakpoint swaps the hamburger out for the inline
 // nav, which leaves the full-screen menu stranded with nothing to close it.
@@ -89,15 +98,50 @@ projects.forEach((p, i) => {
 });
 
 // ── Play thumbnail loops only while on screen ──
+// Pausing is not enough on iOS: a <video> that has loaded keeps a decoder
+// attached even while paused, and once a tab runs out of them it stops
+// playing anything until the tab is closed. That is why a reload does not
+// clear it. So anything well away from the viewport is unloaded back to its
+// poster, which releases the decoder, and re-attached when it comes near.
 (function () {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const io = new IntersectionObserver(entries => {
+  const vids = [...gallery.querySelectorAll('.gallery-item-thumb video')];
+
+  function attach(v) {
+    if (v.getAttribute('src')) return;
+    v.preload = 'auto';
+    v.setAttribute('src', v.dataset.src);
+    v.load();
+  }
+
+  function release(v) {
+    if (!v.getAttribute('src')) return;
+    v.pause();
+    v.removeAttribute('src');
+    v.load();                    // detaches the decoder; the poster shows
+  }
+
+  // In view: loaded and playing.
+  const playing = new IntersectionObserver(entries => {
     entries.forEach(({ target: v, isIntersecting }) => {
-      if (isIntersecting) { v.preload = 'auto'; v.play().catch(() => {}); }
+      if (isIntersecting) { attach(v); v.play().catch(() => {}); }
       else v.pause();
     });
   }, { threshold: 0.25 });
-  gallery.querySelectorAll('.gallery-item-thumb video').forEach(v => io.observe(v));
+
+  // Within a couple of screens: kept loaded so scrolling back is instant.
+  // Beyond that: released.
+  const loaded = new IntersectionObserver(entries => {
+    entries.forEach(({ target: v, isIntersecting }) => {
+      if (isIntersecting) attach(v); else release(v);
+    });
+  }, { rootMargin: '150% 0px' });
+
+  vids.forEach(v => {
+    v.dataset.src = v.getAttribute('src');
+    playing.observe(v);
+    loaded.observe(v);
+  });
 }());
 
 // ── Retry thumbnails that fail to load (transient network blips) ──
@@ -128,8 +172,41 @@ function muxPlayerFromSrc(src, inlineStyle) {
   if (q.has('thumbnail-time')) attrs.push('thumbnail-time="' + (q.get('thumbnail-time') || 0) + '"');
   if (q.has('autoplay')) attrs.push(q.get('autoplay') === 'any' ? 'autoplay="any"' : 'autoplay');
   if (q.has('muted') || q.get('autoplay') !== 'any') attrs.push('muted');
+  // A corner radius means a phone-shaped frame, whose curve clips the control
+  // bar. Flag those so the stylesheet can lift the bar on them alone.
+  const rounded = /border-radius/.test(inlineStyle || '');
   return '<mux-player ' + attrs.join(' ') +
+    (rounded ? ' class="is-phone-frame"' : '') +
     ' style="width:100%;overflow:hidden;' + (inlineStyle || '') + '"></mux-player>';
+}
+
+// ── Project page: only play what is on screen ──
+// Mobile browsers cap how many videos can decode at once, and these pages
+// autoplay every player on them, so a page with several of them stalls them
+// all a few seconds in. Same treatment the gallery thumbnails already get.
+let projectMediaObserver = null;
+function observeProjectMedia(root) {
+  if (projectMediaObserver) projectMediaObserver.disconnect();
+  const players = root.querySelectorAll('mux-player');
+  if (!players.length) return;
+  projectMediaObserver = new IntersectionObserver(entries => {
+    entries.forEach(({ target, isIntersecting }) => {
+      if (isIntersecting) { const r = target.play(); if (r && r.catch) r.catch(() => {}); }
+      else target.pause();
+    });
+  }, { threshold: 0.2 });
+  players.forEach(p => {
+    projectMediaObserver.observe(p);
+    // One audio source at a time: unmuting any player mutes the rest, so two
+    // clips can never talk over each other. Muting rather than pausing keeps
+    // the other videos moving.
+    p.addEventListener('volumechange', () => {
+      if (p.muted) return;
+      root.querySelectorAll('mux-player').forEach(other => {
+        if (other !== p) other.muted = true;
+      });
+    });
+  });
 }
 
 // ── Project page ──
@@ -176,7 +253,7 @@ function buildProjectHTML(i) {
             (clipQS ? `&${clipQS}` : '');
           return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player></div>`;
         }
-        return `<div class="project-page-media-item${narrowClass} fade-in-item"><iframe src="${item.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe></div>`;
+        return `<div class="project-page-media-item${narrowClass} fade-in-item">${muxPlayerFromSrc(item.src, item.aspectRatio ? `aspect-ratio:${item.aspectRatio};` : '')}</div>`;
       }
       if (item.type === 'video')
         return `<div class="project-page-media-item fade-in-item"><video src="${item.src}"${item.poster ? ` poster="${item.poster}"` : ''} controls playsinline></video></div>`;
@@ -227,7 +304,7 @@ function buildProjectHTML(i) {
                 (it.aspectRatio ? `aspect-ratio:${it.aspectRatio};` : '') + `border-radius:${it.radius};`);
             } else {
               const arStyle = it.aspectRatio ? ` style="aspect-ratio:${it.aspectRatio}"` : '';
-              media = `<iframe src="${it.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen${arStyle}></iframe>`;
+              media = muxPlayerFromSrc(it.src, it.aspectRatio ? `aspect-ratio:${it.aspectRatio};` : '');
             }
           }
           else if (it.type === 'video') {
@@ -250,7 +327,7 @@ function buildProjectHTML(i) {
   } else {
     const mediaHTML = (pg.media || []).map(m => {
       if (m.type === 'mux' || m.type === 'video-embed')
-        return `<iframe src="${m.src}" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;" allowfullscreen></iframe>`;
+        return muxPlayerFromSrc(m.src, '');
       if (m.type === 'video') return `<video src="${m.src}" controls playsinline></video>`;
       return `<img src="${m.src}" alt="${p.title}" />`;
     }).join('');
@@ -311,17 +388,23 @@ function openProject(i, { skipEnter = false } = {}) {
   const p = projects[i];
   history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
   projectContent.innerHTML = buildProjectHTML(i);
+  // Put the page into its start state BEFORE it is shown. Added a frame
+  // later instead, the browser gets one painted frame of the page at its
+  // final position, and the class then snaps it down 28px to start — which
+  // reads as the page dropping in rather than rising. That frame only gets
+  // painted sometimes, which is why the entrance looked inconsistent.
+  const page = projectContent.querySelector('.project-page');
+  if (page && !skipEnter) page.classList.add('project-page--enter');
   mainContent.style.display = 'none';
   projectView.style.display = 'block';
   window.scrollTo(0, 0);
   setupMuxEndTimes(projectContent);
+  // Flush the start state so the transition has something to animate from.
+  if (page && !skipEnter) void page.offsetWidth;
   requestAnimationFrame(() => {
-    const page = projectContent.querySelector('.project-page');
-    if (page && !skipEnter) {
-      page.classList.add('project-page--enter');
-      requestAnimationFrame(() => page.classList.add('project-page--enter-active'));
-    }
+    if (page && !skipEnter) page.classList.add('project-page--enter-active');
     if (typeof observeFadeItems === 'function') observeFadeItems(projectContent);
+    observeProjectMedia(projectContent);
     projectContent.querySelectorAll('.ba-compare').forEach(el => {
       el.addEventListener('click', () => el.classList.toggle('is-before'));
     });
@@ -351,7 +434,7 @@ function closeProject(pushHistory = true) {
     if (w._muxCleanup) { w._muxCleanup(); delete w._muxCleanup; }
   });
   projectView.style.display = 'none';
-  projectContent.querySelectorAll('iframe').forEach(f => f.src = f.src);
+  if (projectMediaObserver) projectMediaObserver.disconnect();
   projectContent.innerHTML = '';
   mainContent.style.display = '';
 }

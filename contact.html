@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact — Natan Moura</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧙</text></svg>" />
-  <link rel="stylesheet" href="css/style.css?v=64" />
+  <link rel="stylesheet" href="css/style.css?v=81" />
   <script src="js/emoji-fluent.js?v=6"></script>
-  <link rel="stylesheet" href="css/theme-2-swiss.css?v=6" />
+  <link rel="stylesheet" href="css/theme-2-swiss.css?v=9" />
 </head>
 <body class="page-contact">
 
@@ -29,18 +29,15 @@
 
   <!-- FULLSCREEN NAV OVERLAY -->
   <div class="nav-overlay" id="navOverlay">
-    <a href="projects.html" class="nav-overlay-link">Projects</a>
-    <a href="about.html"   class="nav-overlay-link">About</a>
-    <a href="contact.html" class="nav-overlay-link">Contact</a>
+    <a href="projects.html" class="nav-overlay-link"><span class="nav-emoji">🪄</span> Projects</a>
+    <a href="about.html"   class="nav-overlay-link"><span class="nav-emoji">🧙</span> About</a>
+    <a href="contact.html" class="nav-overlay-link"><span class="nav-emoji">🔮</span> Contact</a>
   </div>
 
   <!-- CONTACT -->
   <main>
     <section class="section" style="padding-top: 8rem;">
       <div class="contact fade-in-item">
-        <p>Currently open for full-time and freelance work.</p>
-        <p>Let's slay some projects together!</p>
-
         <!-- Slay animation stage -->
         <div class="slay-stage" id="slayStage">
           <span class="slay-exclaim-1" id="slayExclaim1">❗</span>
@@ -50,6 +47,9 @@
           <span class="slay-weapon-wrap" id="slayWeaponWrap"><span id="slayWeapon"></span></span>
           <span class="slay-monster"   id="slayMonster"></span>
         </div>
+
+        <p>Let's slay some projects together!</p>
+
 
         <a href="mailto:natanmoura@gmail.com" class="btn" id="contactOpen">Email Me</a>
         <div class="social-links">
@@ -118,7 +118,7 @@
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
   <script src="js/fade.js?v=3"></script>
-  <script src="js/main-nav.js?v=2"></script>
+  <script src="js/main-nav.js?v=3"></script>
   <script src="js/tagline.js?v=23"></script>
   <script src="js/nav-indicator.js?v=4"></script>
   <script src="js/slay-animation.js"></script>

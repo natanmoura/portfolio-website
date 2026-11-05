@@ -25,7 +25,16 @@ navToggle.addEventListener('click', () => {
   navToggle.classList.contains('is-open') ? closeNav() : openNav();
 });
 
-navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
+// Deliberately not closing the menu here. These links leave the page, and
+// fade.js holds the navigation for a moment first, so closing the menu would
+// uncover the old page for that moment — you see where you just were, then it
+// switches. Leaving the yellow panel up covers the whole handover instead, and
+// the new document arrives with it already closed. (page-leaving in style.css
+// excludes .nav-overlay for the same reason.)
+//
+// Coming back through the browser cache restores this page with the menu still
+// open, so clear it on pageshow.
+window.addEventListener('pageshow', closeNav);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); });
 
 // Growing past the header breakpoint swaps the hamburger out for the inline

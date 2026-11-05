@@ -24,8 +24,8 @@ const projects = [
         { type: "text", html: `Collaborating with <a href="http://chromosphere-la.com">Chromosphere</a>, I animated and composited the interactive first time user experience for the Playdate — a quirky little handheld device from <a href="https://panic.com">Panic</a>.` },
         { type: "text", html: `The sequence runs in two versions: a full-colour promotional cut and a black &amp; white interactive version designed for the Playdate's 1-bit screen.` },
         { type: "media-grid", cols: 2, items: [
-          { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?thumbnail-time=0&autoplay&muted", caption: "Colour promotional version — 800×480 pixels", aspectRatio: "5/3" },
-          { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?thumbnail-time=0&autoplay&muted", caption: "Interactive version as seen on the Playdate — 400×240 pixels", aspectRatio: "5/3" },
+          { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?thumbnail-time=0&autoplay&muted", caption: "Promotional color version — 800×480 pixels", aspectRatio: "5/3" },
+          { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?thumbnail-time=0&autoplay&muted", caption: "Interactive Playdate version — 400×240 pixels", aspectRatio: "5/3" },
         ]},
         { type: "text", html: `I also created UI animations and transitions for the Playdate's menu and lock screen.` },
         { type: "media-grid", cols: 2, items: [
@@ -70,7 +70,7 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/ApOY01Rt01w6fLUAuVpxij4enRfrt6xXDL02wgK02dldbx00?metadata-video-title=Ursula+Demo+at+Betaworks&video-title=Ursula+Demo+at+Betaworks", clip: [205, 421], startTime: 1, endTime: 216 },
         { type: "caption", html: `Founder Pedro Lucca presenting our demo at Betaworks AI Camp.` },
-        { type: "text", html: `I helped build the Ursula prototype at Betaworks AI Camp that secured initial seed funding. This allowed us to grow the team at Company Picnic and continue developing other conversation-driven character experiences.` },
+        { type: "text", html: `I helped build the Ursula prototype at Betaworks AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-driven character experiences.` },
         { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
         { type: "image", src: "assets/images/company-picnic/ursula-poses.jpg" },
         { type: "media-grid", cols: 2, items: [
@@ -220,13 +220,13 @@ const projects = [
     },
   },
   {
-    title: "Steven Universe: The Movie - Opening Titles",
+    title: "Steven Universe: The Movie",
     slug: "steven-universe-movie-titles",
     thumbnail: "assets/videos/thumbs/steven-universe-movie-titles.mp4",
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/wX4PiGnk9VsOF8hVedaCTRWGcGLP5DF26l7p3YNCPbE?thumbnail-time=0&autoplay&muted" },
-        { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> on this project for the opening credit sequence for the Steven Universe movie. The credit sequence was designed to evoke the classic Disney storybook-style openings from their early films.` },
+        { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> on this project for the opening titles for the Steven Universe movie. The sequence was designed to evoke the classic Disney storybook-style openings from their early films.` },
         { type: "text", html: `Here you can see a breakdown of some of the scenes I helped animate and composite alongside a small team.` },
         { type: "mux", src: "https://player.mux.com/7002g2t8xx9XOzk1xCgjZHAdLWiQbd02Rywxa6s028Gr8o?thumbnail-time=0&autoplay&muted" },
         { type: "text-media-row", heading: "Teaser.", text: `I also created this small teaser for the film in Blender!`, gridCols: "1fr 1fr", media: [{ type: "mux", src: "https://player.mux.com/gidTstHDStdIIl9Zi39sc9jVpe28r7Sj3OTV02BlyclA?thumbnail-time=0&autoplay&muted" }] },
