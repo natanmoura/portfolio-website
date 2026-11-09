@@ -32,10 +32,10 @@
       "port": 5180
     },
     {
-      "name": "yes-mlady",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "D:/Dropbox/Projects/website/development/yes-mlady/app", "--", "--port", "5181"],
-      "port": 5181
+      "name": "tiny-choir",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/tiny-choir/tools/serve.cjs", "5187"],
+      "port": 5187
     },
     {
       "name": "awesome-town",

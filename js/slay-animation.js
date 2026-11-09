@@ -88,12 +88,12 @@
       await sleep(900);
       resetAnim(monsterEl);
 
-      // ── 6. Skull floats up and fades (0.9 s) — fires concurrently ───────
+      // ── 6. Skull floats up and fades (1.15 s) — fires concurrently ───────
       //    Heroes start celebrating at the same time
       monsterEl.textContent = '💀';
       monsterEl.style.opacity = '1';
       resetAnim(monsterEl);
-      monsterEl.style.animation = 'slay-skull-exit 0.9s ease-out forwards';
+      monsterEl.style.animation = 'slay-skull-exit 1.15s ease-out forwards';
       // No await — let skull exit play while heroes celebrate below
 
       // ── 7. Heroes celebrate  (10 × 0.38 s = 3.8 s, elf offset 0.17 s) ──

@@ -22,10 +22,10 @@ const projects = [
         { type: "mux", src: "https://player.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y?metadata-video-title=Playdate+Intro+Sequence+-+Device&video-title=Playdate+Intro+Sequence+-+Device&autoplay&muted" },
         { type: "caption", html: `Video courtesy of <a href="https://www.youtube.com/@RetroDodo">Retro Dodo</a>.` },
         { type: "text", html: `Collaborating with <a href="http://chromosphere-la.com">Chromosphere</a>, I animated and composited the interactive first time user experience for the Playdate — a quirky little handheld device from <a href="https://panic.com">Panic</a>.` },
-        { type: "text", html: `The sequence runs in two versions: a full-colour promotional cut and a black &amp; white interactive version designed for the Playdate's 1-bit screen.` },
+        { type: "text", html: `To make it all work I broke down my animations into many layers and loops and defined how to put it all together on the engineering side for the final interaction. We also made a video version in color for promotional purposes.` },
         { type: "media-grid", cols: 2, items: [
-          { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?thumbnail-time=0&autoplay&muted", caption: "Promotional color version — 800×480 pixels", aspectRatio: "5/3" },
           { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?thumbnail-time=0&autoplay&muted", caption: "Interactive Playdate version — 400×240 pixels", aspectRatio: "5/3" },
+          { type: "mux", src: "https://player.mux.com/000013pfy1vF5mvkXA9VKck2Se4G2tNGPHOE32RjWjxdQ?thumbnail-time=0&autoplay&muted", caption: "Promotional color version — 800×480 pixels", aspectRatio: "5/3" },
         ]},
         { type: "text", html: `I also created UI animations and transitions for the Playdate's menu and lock screen.` },
         { type: "media-grid", cols: 2, items: [
@@ -40,7 +40,7 @@ const projects = [
     },
   },
   {
-    title: "Rising Tides",
+    title: "Rising Tides Prototype",
     slug: "rising-tides",
     thumbnail: "assets/videos/thumbs/rising-tides.mp4",
     page: {
@@ -49,8 +49,9 @@ const projects = [
           { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
           { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
         ]},
-        { type: "text", html: `Rising Tides is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits. I co-directed the story, designed and animated the characters for this prototype at Company Picnic.` },
-        { type: "text", html: `Characters were animated in Rive and brought into Unity, where our LLM brain architecture would control their animations and interactions with the player and other in-game characters.` },
+        { type: "text", html: `<em>Rising Tides</em> is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits.` },
+        { type: "text", html: `This was one of several prototypes we created at Company Picnic to explore entertaining LLM characters with more complex personalities than the usual chatbot. I co-directed the project creatively as well as designed and animated the characters for this prototype.` },
+        { type: "text", html: `For the characters to come alive we developed a proprietary LLM brain architecture to drive their emotions and memory system. I then worked closely with the engineers to design how those emotions would translate dynamically to character performances in real-time.` },
         { type: "image", src: "assets/images/company-picnic/rt-character-lineup.jpg" },
         { type: "media-grid", cols: 3, items: [
           { type: "image", src: "assets/images/company-picnic/rt-style-2.jpg" },
@@ -70,14 +71,14 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/ApOY01Rt01w6fLUAuVpxij4enRfrt6xXDL02wgK02dldbx00?metadata-video-title=Ursula+Demo+at+Betaworks&video-title=Ursula+Demo+at+Betaworks", clip: [205, 421], startTime: 1, endTime: 216 },
         { type: "caption", html: `Founder Pedro Lucca presenting our demo at Betaworks AI Camp.` },
-        { type: "text", html: `I helped build the Ursula prototype at Betaworks AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-driven character experiences.` },
+        { type: "text", html: `I helped build the <em>Ursula</em> prototype at Betaworks AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-first character experiences.` },
         { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
         { type: "image", src: "assets/images/company-picnic/ursula-poses.jpg" },
         { type: "media-grid", cols: 2, items: [
           { type: "image", src: "assets/images/company-picnic/ursula-expressions.jpg" },
           { type: "image", src: "assets/images/company-picnic/ursula-rotation-eyes.jpg" },
         ]},
-        { type: "text", html: `I also helped design a cast of friends for Ursula's world.` },
+        { type: "text", html: `I also designed a cast of friends for Ursula's world.` },
         { type: "media-grid", cols: 2, items: [
           { type: "image", src: "assets/images/company-picnic/ursula-ghost.jpg" },
           { type: "image", src: "assets/images/company-picnic/ursula-gnome.jpg" },
@@ -129,7 +130,6 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/500qHgKZEFcpNm8pfxh94uJK834XTc7nLiOPMudziIAY?thumbnail-time=0&autoplay&muted" },
         { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> on the Netflix series <em>City of Ghosts</em> to create flashback sequences using toys to tell the story. I animated the characters and camera to capture the charm and feel of home-videos made by kids.` },
-        { type: "heading", text: "Water FX." },
         { type: "text", html: `I also animated and composited the water FX in the fourth episode.` },
         { type: "media-grid", cols: 3, items: [
           { type: "gif", src: "assets/gifs/cog-water-01.gif" },
@@ -229,7 +229,7 @@ const projects = [
         { type: "text", html: `I joined <a href="http://chromosphere-la.com">Chromosphere</a> on this project for the opening titles for the Steven Universe movie. The sequence was designed to evoke the classic Disney storybook-style openings from their early films.` },
         { type: "text", html: `Here you can see a breakdown of some of the scenes I helped animate and composite alongside a small team.` },
         { type: "mux", src: "https://player.mux.com/7002g2t8xx9XOzk1xCgjZHAdLWiQbd02Rywxa6s028Gr8o?thumbnail-time=0&autoplay&muted" },
-        { type: "text-media-row", heading: "Teaser.", text: `I also created this small teaser for the film in Blender!`, gridCols: "1fr 1fr", media: [{ type: "mux", src: "https://player.mux.com/gidTstHDStdIIl9Zi39sc9jVpe28r7Sj3OTV02BlyclA?thumbnail-time=0&autoplay&muted" }] },
+        { type: "text-media-row", text: `I also created this small teaser for the film in Blender!`, gridCols: "1fr 1fr", media: [{ type: "mux", src: "https://player.mux.com/gidTstHDStdIIl9Zi39sc9jVpe28r7Sj3OTV02BlyclA?thumbnail-time=0&autoplay&muted" }] },
       ],
       links: [],
     },
