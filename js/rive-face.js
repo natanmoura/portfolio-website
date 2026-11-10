@@ -3,7 +3,7 @@
   if (!canvas || !window.rive) return;
 
   const face = new rive.Rive({
-    src: "assets/natan-face.riv?v=2",
+    src: "assets/rive/natan-face.riv?v=3",
     canvas,
     artboard: "Profile",
     stateMachines: "State Machine",
