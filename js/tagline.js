@@ -3,7 +3,6 @@
     "Animator & Creative Technologist ✏️",
     "Emmy award-winner 🏆",
     "Curious tinkerer 🧠",
-    "Born Brazilian, raised Canadian 🌎",
     "Boy dad ❤️",
     "Vegetarian 🌱",
     "Dungeon crawler 🎲",
