@@ -1,6 +1,11 @@
 // ── Year ──
 document.getElementById('year').textContent = new Date().getFullYear();
 
+// The gallery page this script is running on (projects.html or lab.html), so
+// opening and closing an item keeps the URL on the same page. Each page loads
+// its own data file defining `projects`.
+const PAGE = location.pathname.split('/').pop() || 'projects.html';
+
 // ── Header height CSS var ──
 (function() {
   const hdr = document.querySelector('.site-header');
@@ -97,6 +102,10 @@ projects.forEach((p, i) => {
   gallery.appendChild(item);
 });
 
+if (!projects.length && gallery.dataset.empty) {
+  gallery.insertAdjacentHTML('afterend', `<p class="gallery-empty">${gallery.dataset.empty}</p>`);
+}
+
 // ── Tape labels: tilt as far as 4° but never so far that either end lifts
 // off the thumbnail's top edge. A strip of height h and width w rises
 // w·sin(θ) across its length, so it needs w·sin(θ) ≤ h − 2·margin.
@@ -113,14 +122,38 @@ fitLabelTilt();
 if (document.fonts) document.fonts.ready.then(fitLabelTilt);
 window.addEventListener('resize', fitLabelTilt);
 
-// ── Play thumbnail loops only while on screen ──
+// ── Video decoders ──
 // Pausing is not enough on iOS: a <video> that has loaded keeps a decoder
-// attached even while paused, and once a tab runs out of them it stops
-// playing anything until the tab is closed. That is why a reload does not
-// clear it. So anything well away from the viewport is unloaded back to its
-// poster, which releases the decoder, and re-attached when it comes near.
-(function () {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+// attached even while paused, and once a tab runs out of them every video in
+// it freezes, across reloads too, until the tab is closed. So nothing is left
+// loaded that isn't on or next to the screen, and anything removed, hidden
+// or left behind on navigation is unloaded first, which hands its decoder back.
+function releaseVideo(v) {
+  if (typeof v.pause === 'function') v.pause();
+  if (v.tagName === 'MUX-PLAYER') {
+    const native = v.media && v.media.nativeEl;
+    v.removeAttribute('playback-id');
+    if (native) { native.removeAttribute('src'); native.load(); }
+  } else if (v.getAttribute('src')) {
+    v.removeAttribute('src');
+    v.load();                    // detaches the decoder; the poster shows
+  }
+}
+
+// Videos that are on screen and should be playing. Retried when the tab
+// comes back, when the page is restored from the back/forward cache, and on
+// any tap, because iOS pauses video in the background and Low Power Mode
+// refuses autoplay until the visitor touches the page.
+const wantsPlay = new Set();
+function playVideo(v) {
+  if (typeof v.play !== 'function' || !v.paused) return;
+  const r = v.play();
+  if (r && r.catch) r.catch(() => {});
+}
+
+// ── Play thumbnail loops only while on screen ──
+const thumbs = (function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
   const vids = [...gallery.querySelectorAll('.gallery-item-thumb video')];
 
   function attach(v) {
@@ -130,35 +163,55 @@ window.addEventListener('resize', fitLabelTilt);
     v.load();
   }
 
-  function release(v) {
-    if (!v.getAttribute('src')) return;
-    v.pause();
-    v.removeAttribute('src');
-    v.load();                    // detaches the decoder; the poster shows
-  }
-
   // In view: loaded and playing.
   const playing = new IntersectionObserver(entries => {
     entries.forEach(({ target: v, isIntersecting }) => {
-      if (isIntersecting) { attach(v); v.play().catch(() => {}); }
-      else v.pause();
+      if (isIntersecting) { wantsPlay.add(v); attach(v); playVideo(v); }
+      else { wantsPlay.delete(v); v.pause(); }
     });
   }, { threshold: 0.25 });
 
-  // Within a couple of screens: kept loaded so scrolling back is instant.
-  // Beyond that: released.
+  // Just past the screen edge: kept loaded so scrolling is seamless. Any
+  // further: released. On a phone this holds about five at once.
   const loaded = new IntersectionObserver(entries => {
     entries.forEach(({ target: v, isIntersecting }) => {
-      if (isIntersecting) attach(v); else release(v);
+      if (isIntersecting) attach(v); else releaseVideo(v);
     });
-  }, { rootMargin: '150% 0px' });
+  }, { rootMargin: '25% 0px' });
 
   vids.forEach(v => {
     v.dataset.src = v.getAttribute('src');
     playing.observe(v);
     loaded.observe(v);
   });
+
+  return {
+    attach,
+    releaseAll: () => vids.forEach(releaseVideo),
+  };
 }());
+
+function resumeVideos() {
+  wantsPlay.forEach(v => {
+    if (!v.isConnected) { wantsPlay.delete(v); return; }
+    if (thumbs && v.dataset.src) thumbs.attach(v);
+    playVideo(v);
+  });
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeVideos(); });
+['touchend', 'click'].forEach(t => document.addEventListener(t, resumeVideos, { passive: true }));
+
+// Leaving or reloading the page: give every decoder back now rather than
+// whenever the old page is garbage collected.
+window.addEventListener('pagehide', () => {
+  if (thumbs) thumbs.releaseAll();
+  releaseProjectMedia();
+});
+window.addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  if (currentProject != null) openProject(currentProject, { skipEnter: true, push: false });
+  resumeVideos();
+});
 
 // ── Retry thumbnails that fail to load (transient network blips) ──
 gallery.querySelectorAll('.gallery-item-thumb img').forEach(img => {
@@ -207,12 +260,16 @@ function observeProjectMedia(root) {
   if (!players.length) return;
   projectMediaObserver = new IntersectionObserver(entries => {
     entries.forEach(({ target, isIntersecting }) => {
-      if (isIntersecting) { const r = target.play(); if (r && r.catch) r.catch(() => {}); }
-      else target.pause();
+      if (isIntersecting) wantsPlay.add(target); else wantsPlay.delete(target);
+      // <mux-player> has no play() until its module has loaded and upgraded it.
+      if (typeof target.play !== 'function') return;
+      if (isIntersecting) playVideo(target); else target.pause();
     });
   }, { threshold: 0.2 });
   players.forEach(p => {
     projectMediaObserver.observe(p);
+    // The autoplay attribute starts every player, on screen or not.
+    p.addEventListener('playing', () => { if (!wantsPlay.has(p)) p.pause(); });
     // One audio source at a time: unmuting any player mutes the rest, so two
     // clips can never talk over each other. Muting rather than pausing keeps
     // the other videos moving.
@@ -423,11 +480,33 @@ function waitForVisibleMedia(root, timeout = 2500) {
 }
 
 let openToken = 0;
+let currentProject = null;
 
-function openProject(i, { skipEnter = false } = {}) {
+function releaseProjectMedia() {
+  projectContent.querySelectorAll('mux-player, video').forEach(v => {
+    wantsPlay.delete(v);
+    releaseVideo(v);
+  });
+}
+
+// Every way out of a project page (close, Escape, back swipe, prev/next)
+// comes through here, so no player is ever dropped still holding a decoder.
+function teardownProject() {
+  projectContent.querySelectorAll('[data-end-time]').forEach(function(w) {
+    if (w._muxCleanup) { w._muxCleanup(); delete w._muxCleanup; }
+  });
+  if (projectMediaObserver) { projectMediaObserver.disconnect(); projectMediaObserver = null; }
+  releaseProjectMedia();
+  projectContent.innerHTML = '';
+  currentProject = null;
+}
+
+function openProject(i, { skipEnter = false, push = true } = {}) {
   const token = ++openToken;
   const p = projects[i];
-  history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
+  if (push) history.pushState({ projectIndex: i }, '', PAGE + '#' + (p.slug || i));
+  teardownProject();
+  currentProject = i;
   projectContent.innerHTML = buildProjectHTML(i);
   // Put the page into its start state BEFORE it is shown. Added a frame
   // later instead, the browser gets one painted frame of the page at its
@@ -476,28 +555,18 @@ function openProject(i, { skipEnter = false } = {}) {
 }());
 
 function closeProject(pushHistory = true) {
-  if (pushHistory) history.pushState(null, '', 'projects.html');
-  projectContent.querySelectorAll('[data-end-time]').forEach(function(w) {
-    if (w._muxCleanup) { w._muxCleanup(); delete w._muxCleanup; }
-  });
+  if (pushHistory) history.pushState(null, '', PAGE);
+  teardownProject();
   projectView.style.display = 'none';
-  if (projectMediaObserver) projectMediaObserver.disconnect();
-  projectContent.innerHTML = '';
   mainContent.style.display = '';
 }
 
 // Handle browser back/forward
 window.addEventListener('popstate', e => {
   if (e.state && e.state.projectIndex != null) {
-    const i = e.state.projectIndex;
-    projectContent.innerHTML = buildProjectHTML(i);
-    mainContent.style.display = 'none';
-    projectView.style.display = 'block';
-    window.scrollTo(0, 0);
+    openProject(e.state.projectIndex, { skipEnter: true, push: false });
   } else {
-    projectView.style.display = 'none';
-    projectContent.innerHTML = '';
-    mainContent.style.display = '';
+    closeProject(false);
   }
 });
 
