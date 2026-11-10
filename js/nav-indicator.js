@@ -1,3 +1,16 @@
+// ── Name press feedback ──
+// White from the moment a finger or mouse goes down on the name until the
+// next page arrives. Dragging off or scrolling away cancels it.
+(function () {
+  const logo = document.querySelector('.site-header .logo');
+  if (!logo) return;
+  const off = () => logo.classList.remove('is-pressed');
+  logo.addEventListener('pointerdown', () => logo.classList.add('is-pressed'));
+  logo.addEventListener('pointerleave', off);
+  logo.addEventListener('pointercancel', off);
+  window.addEventListener('pageshow', off);
+})();
+
 (function () {
   const header = document.querySelector('.site-header');
   const nav = header && header.querySelector('nav');

@@ -161,6 +161,15 @@ a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.ga
   outline: none;
 }
 
+/* Press feedback: the name goes white the moment it is touched or clicked,
+   like the menu links, and stays white while the page changes. The class
+   comes from nav-indicator.js, because iOS only honours :active on pages
+   that listen for touches. */
+.site-header .logo:active,
+.site-header .logo.is-pressed {
+  color: #fff;
+}
+
 /* Nav: always visible on right, white bg covers tagline overflow */
 .site-header nav {
   display: flex;
