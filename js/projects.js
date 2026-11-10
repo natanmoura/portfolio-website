@@ -49,9 +49,9 @@ const projects = [
           { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
           { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
         ]},
-        { type: "text", html: `<em>Rising Tides</em> is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits.` },
-        { type: "text", html: `This was one of several prototypes we created at Company Picnic to explore entertaining LLM characters with more complex personalities than the usual chatbot. I co-directed the project creatively as well as designed and animated the characters for this prototype.` },
-        { type: "text", html: `For the characters to come alive we developed a proprietary LLM brain architecture to drive their emotions and memory system. I then worked closely with the engineers to design how those emotions would translate dynamically to character performances in real-time.` },
+        { type: "text", html: `<em>Rising Tides</em> is a pirate adventure where you're the captain in charge of a crew of sea-faring misfits!` },
+        { type: "text", html: `This was one of several prototypes we created at Company Picnic to explore character conversations and performances driven by LLMs. I co-directed the project as well as designed and animated the characters for this prototype.` },
+        { type: "text", html: `For the characters to come alive we developed a proprietary LLM brain architecture to drive their emotions and memory system. I worked closely with the engineers to design how the animations would trigger dynamically to create the characters' performances in real-time.` },
         { type: "image", src: "assets/images/company-picnic/rt-character-lineup.jpg" },
         { type: "media-grid", cols: 3, items: [
           { type: "image", src: "assets/images/company-picnic/rt-style-2.jpg" },
