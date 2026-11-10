@@ -2069,7 +2069,7 @@ mux-player.is-phone-frame::part(control-bar) {
     /* Centred by arithmetic, so it stays centred on the dock even when it
        is wider than a phone screen and runs off both sides. */
     left: calc(50% - var(--blur-w) / 2);
-    bottom: 0;
+    bottom: var(--vv-cover, 0px);
     width: var(--blur-w);
     height: calc(var(--core-h) + var(--blur-step) * 15 + env(safe-area-inset-bottom, 0px));
     z-index: 148;
@@ -2229,7 +2229,9 @@ mux-player.is-phone-frame::part(control-bar) {
 .dock {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--dock-lift, 0.9rem) + env(safe-area-inset-bottom, 0px));
+  /* --vv-cover: how much of the page bottom the browser's own toolbar is
+     covering right now (js/bottom-nav.js). Normally 0. */
+  bottom: calc(var(--dock-lift, 0.9rem) + env(safe-area-inset-bottom, 0px) + var(--vv-cover, 0px));
   transform: translateX(-50%);
   z-index: 150;
   padding: 0.55rem 0.5rem;

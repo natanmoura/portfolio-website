@@ -70,6 +70,34 @@
 
   requestAnimationFrame(() => requestAnimationFrame(() => dock.classList.add('is-ready')));
 
+  // ── Stay above the browser's own bottom bar ──
+  // On phones the browser's toolbar can slide up over the bottom of the
+  // page while scrolling (Safari's address bar, Chrome's bottom bar), and
+  // the page underneath doesn't always shrink to match, so a dock pinned to
+  // the bottom of the page would be covered. The visual viewport is the
+  // part of the screen you can actually see. Whatever the page extends past
+  // its bottom edge is lifted off the dock (--vv-cover in style.css).
+  // Ignored while pinch-zoomed, where the visible part is meant to move.
+  const vv = window.visualViewport;
+  if (vv) {
+    let cover = -1;
+    const update = () => {
+      if (vv.scale > 1.01) return;
+      const pageBottom = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      const seenBottom = vv.offsetTop + vv.height;
+      const c = Math.max(0, Math.round(pageBottom - seenBottom));
+      if (c === cover) return;
+      cover = c;
+      document.documentElement.style.setProperty('--vv-cover', c + 'px');
+      // Anything fitted around the dock (the Projects drum) refits.
+      window.dispatchEvent(new Event('resize'));
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+
   dock.addEventListener('click', e => {
     const link = e.target.closest('.dock-link');
     if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
