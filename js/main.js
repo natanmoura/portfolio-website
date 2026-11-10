@@ -145,11 +145,69 @@ function releaseVideo(v) {
 // any tap, because iOS pauses video in the background and Low Power Mode
 // refuses autoplay until the visitor touches the page.
 const wantsPlay = new Set();
+
+// True while the browser is refusing to start video without a tap. iPhone
+// Low Power Mode does this to every video, muted or not, and it survives a
+// reload, so a page can look frozen until the visitor touches it.
+let autoplayBlocked = false;
+
+// ?mediadebug on the URL shows a live readout of every video on the page.
+const mediaDebug = new URLSearchParams(location.search).has('mediadebug');
+const mediaLogLines = [];
+function mediaLog(v, msg) {
+  if (!mediaDebug) return;
+  mediaLogLines.push(new Date().toTimeString().slice(3, 8) + ' ' + mediaName(v) + ' ' + msg);
+  if (mediaLogLines.length > 40) mediaLogLines.shift();
+}
+function mediaName(v) {
+  if (!v || !v.tagName) return '';
+  if (v.tagName === 'MUX-PLAYER') return 'mux:' + (v.getAttribute('playback-id') || 'released').slice(0, 6);
+  return (v.dataset.src || v.getAttribute('src') || '').split('/').pop().replace(/\.mp4$/, '');
+}
+
 function playVideo(v) {
   if (typeof v.play !== 'function' || !v.paused) return;
   const r = v.play();
-  if (r && r.catch) r.catch(() => {});
+  if (r && r.then) r.then(
+    () => { autoplayBlocked = false; },
+    err => {
+      if (err && err.name === 'NotAllowedError') autoplayBlocked = true;
+      mediaLog(v, 'play refused: ' + (err && err.name));
+    });
 }
+
+// ── Watchdog ──
+// Every 1.5 s, anything that should be playing gets checked. A thumbnail
+// that was paused behind our back (iOS does this) is restarted. Anything
+// that claims to be playing but whose time has not moved for about 4.5 s
+// has stalled, usually a dropped network read, and is reloaded. Project
+// players paused by hand are left alone: only frozen ones are nudged.
+setInterval(() => {
+  if (document.hidden) return;
+  wantsPlay.forEach(v => {
+    if (!v.isConnected) { wantsPlay.delete(v); return; }
+    const isMux = v.tagName === 'MUX-PLAYER';
+    if (v.paused || v.ended) {
+      v._watch = null;
+      if (!isMux && !autoplayBlocked) playVideo(v);
+      return;
+    }
+    const t = v.currentTime || 0;
+    if (v._watch && v._watch.t === t) v._watch.n++;
+    else v._watch = { t, n: 0 };
+    if (v._watch.n < 3) return;
+    v._watch = null;
+    mediaLog(v, 'frozen at ' + t.toFixed(1) + 's, restarting');
+    if (isMux) {
+      v.pause();
+      playVideo(v);
+    } else if (thumbs) {
+      releaseVideo(v);
+      thumbs.attach(v);
+      playVideo(v);
+    }
+  });
+}, 1500);
 
 // ── Play thumbnail loops only while on screen ──
 const thumbs = (function () {
@@ -199,6 +257,18 @@ function resumeVideos() {
   });
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeVideos(); });
+
+if (mediaDebug) {
+  ['stalled', 'waiting', 'error', 'abort', 'emptied', 'playing', 'pause', 'ended'].forEach(type =>
+    document.addEventListener(type, e => mediaLog(e.target, type), true));
+  const s = document.createElement('script');
+  s.src = 'js/media-debug.js?v=1';
+  document.body.appendChild(s);
+  window.__media = {
+    wantsPlay, log: mediaLogLines, name: mediaName,
+    get blocked() { return autoplayBlocked; },
+  };
+}
 ['touchend', 'click'].forEach(t => document.addEventListener(t, resumeVideos, { passive: true }));
 
 // Leaving or reloading the page: give every decoder back now rather than
