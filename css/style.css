@@ -1755,6 +1755,12 @@ body.projects #main-content {
   --intro-emoji: var(--dock-emoji, clamp(1.75rem, 5.5vw, 2rem));
 }
 
+/* The intro isn't playing this time (decided in projects.html's head), so
+   it's never drawn at all. */
+html.no-intro .intro-overlay {
+  display: none;
+}
+
 .intro-overlay.intro-out {
   opacity: 0;
   pointer-events: none;

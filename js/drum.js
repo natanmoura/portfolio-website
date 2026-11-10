@@ -111,7 +111,8 @@
   let spin = null;
   const DOCK_BEAT = 500;       // ms after you've learned to scroll, if sooner
   const DOCK_AFTER_BOUNCE = 700; // ms after the bounce off the top
-  const introOverlay = document.getElementById('introOverlay');
+  // Only when it's actually playing this time (see projects.html's head).
+  const introOverlay = document.documentElement.classList.contains('no-intro') ? null : document.getElementById('introOverlay');
   let revealing = false, revealStarted = false;
   let dockWaiting = !!introOverlay, dockDue = Infinity, dockTimer = 0;
   if (dockWaiting) document.body.classList.add('dock-await');

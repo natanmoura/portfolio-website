@@ -23,7 +23,7 @@
   // screen, hide it outright: the overlay fades to transparent before it is
   // removed, and a blinking cursor showing through that fade reads as the
   // tagline starting up behind the intro.
-  const introOverlay = document.getElementById('introOverlay');
+  const introOverlay = document.documentElement.classList.contains('no-intro') ? null : document.getElementById('introOverlay');
   taglineEl.style.visibility = introOverlay ? 'hidden' : 'visible';
 
   // ── Typewriter ──────────────────────────────────────────────────────────

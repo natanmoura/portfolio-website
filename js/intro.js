@@ -13,12 +13,12 @@
   const LINE1 = "Hi, I'm Natan!";
   const LINE2 = 'Welcome to my corner\nof the internet...';
 
-  // Testing switch: true plays the intro on every load. Keep it false in
-  // anything committed (?intro on the URL replays it once instead).
-  const ALWAYS_PLAY = false;
-
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!ALWAYS_PLAY && !/[?&]intro\b/.test(location.search) && (reduceMotion || document.hidden || window.location.hash || sessionStorage.getItem('introPlayed'))) {
+  // Whether it plays is decided by the small script in the page's <head>,
+  // before anything is drawn, which marks <html> with no-intro when it
+  // won't. Deciding here, at the end of the page, was too late: the yellow
+  // and the wizard got drawn first and flashed on every later visit.
+  // (The testing switch to play it every time lives in that head script.)
+  if (document.documentElement.classList.contains('no-intro')) {
     overlay.remove();
     document.dispatchEvent(new CustomEvent('introDone'));
     return;
