@@ -45,7 +45,7 @@ const projects = [
     thumbnail: "assets/videos/thumbs/rising-tides.mp4",
     page: {
       content: [
-        { type: "media-grid", cols: 2, maxWidth: "800px", items: [
+        { type: "media-grid", cols: 2, maxWidth: "740px", gap: "2rem", items: [
           { type: "mux", src: "https://player.mux.com/hj89C2wGrzg801K44Ridno81m9LNRjfLrV63026M028lyM?metadata-video-title=Rising+Tides+-+Single+Character+Chat&video-title=Rising+Tides+-+Single+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "924/1920", radius: "15% / 7.3%" },
           { type: "mux", src: "https://player.mux.com/DwGASrba2A5zlpRd01udAD5EKuihp0001n01ilJSFULYbO8?metadata-video-title=Rising+Tides+-+Multi+Character+Chat&video-title=Rising+Tides+-+Multi+Character+Chat&thumbnail-time=0&autoplay&muted", aspectRatio: "926/1920", radius: "15% / 7.3%" },
         ]},
@@ -71,7 +71,7 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/ApOY01Rt01w6fLUAuVpxij4enRfrt6xXDL02wgK02dldbx00?metadata-video-title=Ursula+Demo+at+Betaworks&video-title=Ursula+Demo+at+Betaworks", clip: [205, 421], startTime: 1, endTime: 216 },
         { type: "caption", html: `Founder Pedro Lucca presenting our demo at Betaworks AI Camp.` },
-        { type: "text", html: `I helped build the <em>Ursula</em> prototype at Betaworks AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-first character experiences.` },
+        { type: "text", html: `I helped build the <em>Ursula</em> prototype at <a href="https://www.betaworks.com/">Betaworks</a> AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-first character experiences.` },
         { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
         { type: "image", src: "assets/images/company-picnic/ursula-poses.jpg" },
         { type: "media-grid", cols: 2, items: [

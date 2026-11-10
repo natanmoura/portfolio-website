@@ -10,7 +10,7 @@
   const wizard = document.getElementById('introWizard');
 
   // Both greetings, written once each. Use \n for a line break.
-  const LINE1 = 'Hello magical creature!';
+  const LINE1 = "Hi, I'm Natan!";
   const LINE2 = 'Welcome to my corner\nof the internet...';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -73,8 +73,11 @@
   const allLines = (LINE1 + '\n' + LINE2).split('\n');
   textEl.style.setProperty('--intro-lines',
     String(Math.max(LINE1.split('\n').length, LINE2.split('\n').length)));
-  textEl.style.setProperty('--intro-cols',
-    String(Math.max.apply(null, allLines.map(l => l.length)) + 1));
+  const introCols = Math.max.apply(null, allLines.map(l => l.length)) + 1;
+  textEl.style.setProperty('--intro-cols', String(introCols));
+  // The first greeting is one short line, so start it at the offset that
+  // centres it (cursor included) in the box. Monospace, so ch is exact.
+  const line1Indent = Math.max(0, (introCols - (LINE1.length + 1)) / 2);
 
   async function typeLine(str) {
     typed.textContent = '';
@@ -125,11 +128,15 @@
   async function run() {
     wizard.classList.add('bouncing');
     ghost.textContent = LINE1;
+    live.style.left = line1Indent + 'ch';
+    // A beat on the empty cursor before the greeting starts.
+    await sleep(700);
     await typeLine(LINE1);
     await sleep(800);
 
     typed.textContent = '';
     ghost.textContent = LINE2;
+    live.style.left = '';
     // Restart the blink so the cursor is solid the instant the line clears.
     // Left mid-cycle it can sit invisible through the whole pause, which reads
     // as the text being erased rather than as a cursor waiting to type.

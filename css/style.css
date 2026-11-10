@@ -452,7 +452,7 @@ body.page-contact .btn:not(.form-submit):hover {
 .gallery-item-thumb {
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: #1c1c1c;
+  background: #e8e8e8;
 }
 
 .gallery-item-thumb img,
@@ -529,6 +529,19 @@ body.page-contact main > section > .contact {
   max-width: var(--max);
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Contact centres its block in the space you can actually see: below the
+   fixed header and above the footer. The slay stage keeps empty headroom
+   above the heroes for the monster's flight, so the bottom padding is larger
+   by that much to centre what is actually drawn, not the stage box. */
+body.page-contact main {
+  padding-top: var(--header-h, 81px);
+}
+
+body.page-contact main > section {
+  padding-top: 3rem;
+  padding-bottom: calc(3rem + 66px);
 }
 
 body.page-about > .site-footer,
@@ -985,14 +998,14 @@ body.projects #main-content {
 
 /* ── Project page dark theme ── */
 #project-view {
-  background: #111;
+  background: #f8f8f8;
   min-height: 100vh;
-  color: #fff;
+  color: var(--fg);
 }
 
 .project-page {
   margin: 0 auto;
-  padding: 2.5rem 2rem 6rem;
+  padding: 3.5rem 2rem 6rem;
 }
 
 .project-page-title {
@@ -1003,7 +1016,7 @@ body.projects #main-content {
   margin: 0;
   margin-left: max(0px, calc(50% - 645px));
   line-height: 1;
-  color: #fde104;
+  color: var(--fg);
 }
 
 /* Project page slide-up entrance */
@@ -1021,7 +1034,7 @@ body.projects #main-content {
 .project-page-description {
   font-size: 1rem;
   line-height: 1.75;
-  color: rgba(255,255,255,0.75);
+  color: #333;
   max-width: 680px;
   margin-inline: auto;
 }
@@ -1033,6 +1046,7 @@ body.projects #main-content {
    zeroed) so changing a token here propagates to every project page. */
 .project-page {
   --space-section: 4.5rem;   /* media ↔ copy, and any unlisted break   */
+  --space-title: 1.5rem;     /* title → hero media                     */
   --space-para: 2rem;        /* paragraph → paragraph                  */
   --space-head: 3rem;        /* copy → subheading (new subsection)     */
   --space-head-body: 0.5rem; /* subheading → its first copy            */
@@ -1042,6 +1056,10 @@ body.projects #main-content {
 
 /* Default: full section breath between any two adjacent blocks */
 .project-page > * + * { margin-top: var(--space-section); }
+
+/* The title labels the hero, so it sits close to it and well clear of the
+   header: more air above than below. */
+.project-page > .project-page-title + * { margin-top: var(--space-title); }
 
 /* Consecutive paragraphs sit tight */
 .project-page-description + .project-page-description { margin-top: var(--space-para); }
@@ -1078,7 +1096,7 @@ body.projects #main-content {
   font-size: 0.75rem;
   line-height: 1.5;
   font-style: italic;
-  color: rgba(255,255,255,0.45);
+  color: var(--muted);
   max-width: 680px;
   margin-inline: auto;
   text-align: right;
@@ -1092,7 +1110,7 @@ body.projects #main-content {
   font-size: 1rem;
   line-height: 1.75;
   font-style: italic;
-  color: rgba(255,255,255,0.75);
+  color: #333;
   max-width: 1290px;
   margin-inline: auto;
   text-align: left;
@@ -1311,15 +1329,15 @@ body.projects #main-content {
   letter-spacing: -0.01em;
   max-width: 680px;
   margin-inline: auto;
-  color: #fde104;
+  color: var(--fg);
   text-align: left;
 }
 
 .project-page-bracket {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: rgba(255,255,255,0.4);
-  border: 1px dashed rgba(255,255,255,0.2);
+  color: rgba(0,0,0,0.4);
+  border: 1px dashed rgba(0,0,0,0.2);
   padding: 1rem 1.25rem;
   margin-inline: auto;
   max-width: 680px;
@@ -1376,7 +1394,7 @@ body.projects #main-content {
   align-items: center;
   margin-top: 6rem;
   padding-top: 2rem;
-  border-top: 1px solid rgba(255,255,255,0.2);
+  border-top: 1px solid rgba(0,0,0,0.15);
   max-width: 1290px;
   margin-left: auto;
   margin-right: auto;
@@ -1394,7 +1412,7 @@ body.projects #main-content {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--fg);
   padding: 0;
   transition: opacity 0.2s;
 }
@@ -1677,27 +1695,45 @@ body.projects #main-content {
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
 }
 
-/* ── Projects page: dark throughout, matching the project view ── */
+/* ── Projects page: light grey like About and Contact, white footer below ── */
 body.projects {
-  --bg: #111;
-  --fg: #fff;
-  --muted: rgba(255, 255, 255, 0.5);
-  --border: rgba(255, 255, 255, 0.12);
-  background: #111;
-  color: #fff;
+  background: #f8f8f8;
 }
 
+/* The title sits on the card as a strip of tape, so rows no longer need room
+   for a label underneath and both gaps can be equal. */
 body.projects .gallery {
-  row-gap: 1.75rem;
+  gap: 2rem;
+}
+
+body.projects .gallery-item {
+  position: relative;
+}
+
+body.projects .gallery-item-label {
+  position: absolute;
+  /* Centred on the thumbnail's top edge and tilted about its middle, so the
+     left end covers the image corner and the right end overlaps the image.
+     main.js eases --tilt off on long titles, where a full 4° would lift one
+     end clear of the edge. */
+  top: 0;
+  left: -0.6rem;
+  z-index: 2;
+  padding: 0.2rem 0.4rem;
+  background: #fff;
+  color: #000;
+  font-size: 0.7rem;
+  letter-spacing: normal;
+  line-height: 1.2;
+  text-align: left;
+  max-width: 90%;
+  transform: translateY(-50%) rotate(var(--tilt, -4deg));
+  transform-origin: center;
+  pointer-events: none;
 }
 
 body.projects .site-footer {
-  color: rgba(255, 255, 255, 0.45);
-  /* The gallery is dark all the way down, so without a rule the footer has no
-     edge at all. Same line the project pages draw above their prev/next nav
-     (.project-nav), so the two read as the same divider. About and Contact
-     need none: there the background changes at the footer. */
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg);
 }
 
 /* The card used to morph into the project's hero via a View Transition.

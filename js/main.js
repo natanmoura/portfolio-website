@@ -97,6 +97,22 @@ projects.forEach((p, i) => {
   gallery.appendChild(item);
 });
 
+// ── Tape labels: tilt as far as 4° but never so far that either end lifts
+// off the thumbnail's top edge. A strip of height h and width w rises
+// w·sin(θ) across its length, so it needs w·sin(θ) ≤ h − 2·margin.
+function fitLabelTilt() {
+  const MAX = 4, MARGIN = 3;
+  gallery.querySelectorAll('.gallery-item-label').forEach(l => {
+    const w = l.offsetWidth, h = l.offsetHeight;
+    if (!w) return;
+    const fit = Math.asin(Math.min(1, Math.max(0, h - 2 * MARGIN) / w)) * 180 / Math.PI;
+    l.style.setProperty('--tilt', `-${Math.min(MAX, fit).toFixed(2)}deg`);
+  });
+}
+fitLabelTilt();
+if (document.fonts) document.fonts.ready.then(fitLabelTilt);
+window.addEventListener('resize', fitLabelTilt);
+
 // ── Play thumbnail loops only while on screen ──
 // Pausing is not enough on iOS: a <video> that has loaded keeps a decoder
 // attached even while paused, and once a tab runs out of them it stops
@@ -320,7 +336,8 @@ function buildProjectHTML(i) {
         // maxWidth narrows the band for tall portrait media, which would
         // otherwise be sized by the full 1290px grid and tower over the page.
         const gridWidth = item.maxWidth ? `;max-width:${item.maxWidth}` : '';
-        return `<div class="project-media-grid fade-in-item" style="--cols:${cols}${gridWidth}">${cells}</div>`;
+        const gridGap = item.gap ? `;gap:${item.gap}` : '';
+        return `<div class="project-media-grid fade-in-item" style="--cols:${cols}${gridWidth}${gridGap}">${cells}</div>`;
       }
       return '';
     }).join('\n');
@@ -384,7 +401,31 @@ function setupMuxEndTimes(container) {
 }
 
 
+// Resolves once the media in the first screenful can show a frame, so the page
+// never rises in with players still black or resizing. Capped so a slow
+// network can't leave the page blank.
+function waitForVisibleMedia(root, timeout = 2500) {
+  const vh = window.innerHeight;
+  const inView = el => { const r = el.getBoundingClientRect(); return r.top < vh && r.bottom > 0; };
+  const waits = [];
+  root.querySelectorAll('mux-player, video').forEach(v => {
+    if (!inView(v)) return;
+    waits.push(new Promise(res => {
+      if (v.readyState >= 2) return res();
+      ['loadeddata', 'canplay', 'error'].forEach(e => v.addEventListener(e, res, { once: true }));
+    }));
+  });
+  root.querySelectorAll('img').forEach(img => {
+    if (inView(img) && img.decode) waits.push(img.decode().catch(() => {}));
+  });
+  if (!waits.length) return Promise.resolve();
+  return Promise.race([Promise.all(waits), new Promise(r => setTimeout(r, timeout))]);
+}
+
+let openToken = 0;
+
 function openProject(i, { skipEnter = false } = {}) {
+  const token = ++openToken;
   const p = projects[i];
   history.pushState({ projectIndex: i }, '', 'projects.html#' + (p.slug || i));
   projectContent.innerHTML = buildProjectHTML(i);
@@ -401,14 +442,20 @@ function openProject(i, { skipEnter = false } = {}) {
   setupMuxEndTimes(projectContent);
   // Flush the start state so the transition has something to animate from.
   if (page && !skipEnter) void page.offsetWidth;
-  requestAnimationFrame(() => {
-    if (page && !skipEnter) page.classList.add('project-page--enter-active');
-    if (typeof observeFadeItems === 'function') observeFadeItems(projectContent);
-    observeProjectMedia(projectContent);
-    projectContent.querySelectorAll('.ba-compare').forEach(el => {
-      el.addEventListener('click', () => el.classList.toggle('is-before'));
-    });
+  // Start loading and playing right away, while the page is still invisible.
+  observeProjectMedia(projectContent);
+  projectContent.querySelectorAll('.ba-compare').forEach(el => {
+    el.addEventListener('click', () => el.classList.toggle('is-before'));
   });
+  const reveal = () => {
+    if (token !== openToken) return;
+    requestAnimationFrame(() => {
+      if (page && !skipEnter) page.classList.add('project-page--enter-active');
+      if (typeof observeFadeItems === 'function') observeFadeItems(projectContent);
+    });
+  };
+  if (skipEnter) reveal();
+  else waitForVisibleMedia(projectContent).then(reveal);
 }
 
 // ── Gallery staggered fade-in ──
