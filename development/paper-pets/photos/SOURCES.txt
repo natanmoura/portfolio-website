@@ -1,0 +1,15 @@
+Sample photos. Dogs: Stanford Dogs dataset via dog.ceo. Cats: Wikimedia Commons (CC licensed, check each file page before any public use).
+frenchie-1.jpg  https://images.dog.ceo/breeds/bulldog-french/n02108915_3129.jpg
+frenchie-2.jpg  https://images.dog.ceo/breeds/bulldog-french/n02108915_895.jpg
+lab-1.jpg  https://images.dog.ceo/breeds/labrador/n02099712_8051.jpg
+lab-2.jpg  https://images.dog.ceo/breeds/labrador/n02099712_129.jpg
+golden-1.jpg  https://images.dog.ceo/breeds/retriever-golden/n02099601_2422.jpg
+golden-2.jpg  https://images.dog.ceo/breeds/retriever-golden/n02099601_2691.jpg
+gsd-1.jpg  https://images.dog.ceo/breeds/german-shepherd/n02106662_9481.jpg
+gsd-2.jpg  https://images.dog.ceo/breeds/german-shepherd/n02106662_2058.jpg
+tabby-1.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Black_classic_tabby_cat.jpg/960px-Black_classic_tabby_cat.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
+tabby-2.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Cat_in_%C4%B0zmir_%2804092026%29_02.jpg/960px-Cat_in_%C4%B0zmir_%2804092026%29_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
+siamese-1.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Cat_flehmen_response.jpg/960px-Cat_flehmen_response.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
+siamese-2.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/P%C3%A1li_%28Cat%29.jpg/960px-P%C3%A1li_%28Cat%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
+persian-1.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Ashoo.jpg/960px-Ashoo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
+persian-2.jpg  https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/DSC_0057_%283754805474%29.jpg/960px-DSC_0057_%283754805474%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail
