@@ -1581,6 +1581,12 @@ body.projects #main-content {
     margin-right: 0;
   }
 
+  /* Phone-shaped players stay off the screen edge by one bezel. The black
+     bezel in the footage is about 3.2% of the phone's width, so a 3vw gap
+     each side matches it on the slightly narrower phone that results. */
+  .project-media-grid-item:has(> mux-player.is-phone-frame) {
+    padding-inline: 3vw;
+  }
 }
 
 /* ── Mobile ── */
