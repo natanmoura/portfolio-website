@@ -485,6 +485,7 @@ window.createDrumGL = function (gallery) {
       const cx = l.offsetLeft + lw / 2, cy = l.offsetTop + lh / 2;
       const at = (x, y) => [cx + m[0] * x + m[2] * y + m[4], cy + m[1] * x + m[3] * y + m[5]];
       lab = [at(-lw / 2, -lh / 2), at(lw / 2, -lh / 2), at(-lw / 2, lh / 2), at(lw / 2, lh / 2)];
+      c.tapeCenter = at(0, 0);   // the pop scales about this
       lkey = lab.join();
     }
     const key = iw + 'x' + ih + ' ' + scale + ' ' + dpr;
@@ -575,7 +576,7 @@ window.createDrumGL = function (gallery) {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(bg[0], bg[1], bg[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    list.forEach(({ f, k, phi, alpha, focus }) => {
+    list.forEach(({ f, k, phi, alpha, tape }) => {
       const fw = f.offsetWidth, fh = f.offsetHeight;
       if (f.classList.contains('drum-facet--intro')) {
         const fresh = refreshIntro(f, atRest && k === centerK);
@@ -605,8 +606,12 @@ window.createDrumGL = function (gallery) {
           return [cx + m[0] * qx + m[2] * qy + m[4], cy + m[1] * qx + m[3] * qy + m[5]];
         };
         drawCard(c, phi, op, place);
-        // Titles show only on the row in focus.
-        if (c.tape && c.tape.box && focus > 0.001) drawCard(c.tape, phi, op * focus, place);
+        // Titles show only on the row that has come to rest, popping in
+        // about the tape's own centre (drum.js sets the size).
+        if (c.tape && c.tape.box && tape) {
+          const [tx, ty] = c.tapeCenter, s = tape.scale;
+          drawCard(c.tape, phi, op * tape.alpha, (x, y) => place(tx + (x - tx) * s, ty + (y - ty) * s));
+        }
       });
     });
 

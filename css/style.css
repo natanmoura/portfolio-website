@@ -117,7 +117,11 @@ body.page-leaving > *:not(.site-header):not(.nav-overlay):not(.form-modal):not(.
   --page-leave-ms: 90;
 }
 
-html { scroll-behavior: smooth; }
+/* The page grey behind everything, including the strip beside the phone's
+   camera (the pages run edge to edge, viewport-fit=cover). Safari tints
+   that strip from the page, and with nothing set here it could keep the
+   intro's yellow. The theme-color tag in each page says the same. */
+html { scroll-behavior: smooth; background: #f8f8f8; }
 
 /* ── Hide scrollbars (scrolling still works) ── */
 ::-webkit-scrollbar { display: none; }
@@ -2355,6 +2359,10 @@ html.drum-on body {
 html.drum #gallery {
   position: fixed;
   inset: 0;
+  /* Solid page grey, so the fixed layer at the top of the screen (which
+     newer Safari samples to tint the strip by the camera) is grey once
+     the yellow intro has gone. */
+  background: #f8f8f8;
   display: block;
   z-index: 1;
   overflow: hidden;

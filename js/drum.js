@@ -688,19 +688,54 @@
   // Redrawn every frame while the gallery shows: the focused row's clips
   // are always playing. drum-gl.js only re-runs the blur when something
   // out of focus has changed.
+  // ── Titles pop in as the drum comes to rest ──
+  // The drum's real speed is measured from frame to frame (a finger
+  // dragging moves it without any physics speed). Once it's slow and close
+  // to a row, that row's titles pop: from 70% size straight up past full,
+  // to 105%, then back to 100%. They vanish as soon as it speeds up again
+  // or another row comes to the middle.
+  const POP_SPEED = 0.4;       // rows/s: slower than this near a row counts as settling
+  const POP_NEAR = 0.05;       // rows: how close to a row
+  const POP_HIDE_SPEED = 2.5;  // rows/s: faster than this and the titles go
+  const POP_MS = 240;
+  const POP_FROM = 0.7, POP_PEAK = 1.05;
+  let popRow = -1, popT0 = 0, lastPos = 0, lastFrameT = 0, speed = 0;
+
+  // Size of the titles t ms into the pop. The first part runs out fast
+  // (no ease-in) from POP_FROM to POP_PEAK, the rest settles back to 1.
+  function popScale(t) {
+    const u = Math.min(1, t / POP_MS);
+    if (u < 0.45) { const a = u / 0.45; return POP_FROM + (POP_PEAK - POP_FROM) * (1 - (1 - a) * (1 - a)); }
+    const b = (u - 0.45) / 0.55;
+    return POP_PEAK - (POP_PEAK - 1) * (b * b * (3 - 2 * b));
+  }
+
   let glRaf = 0;
-  function glFrame() {
+  function glFrame(now) {
     glRaf = requestAnimationFrame(glFrame);
+    const dt = Math.max(0.001, (now - lastFrameT) / 1000);
+    if (lastFrameT) speed = speed * 0.5 + (Math.abs(pos - lastPos) / dt) * 0.5;
+    lastFrameT = now; lastPos = pos;
+    const near = Math.round(pos);
+    if (popRow >= 0 && (near - MIN !== popRow || speed > POP_HIDE_SPEED)) popRow = -1;
+    // Not while a finger is still dragging it: that isn't coming to rest.
+    const dragging = drag && drag.moved;
+    if (popRow >= 0 && dragging) popRow = -1;
+    if (popRow < 0 && !revealing && !dragging && speed < POP_SPEED && Math.abs(pos - near) < POP_NEAR) {
+      popRow = near - MIN;
+      popT0 = now;
+    }
+    if (gallery.dataset.pop !== String(popRow)) gallery.dataset.pop = popRow;   // for inspecting
+    const tape = popRow >= 0
+      ? { scale: popScale(now - popT0), alpha: Math.min(1, (now - popT0) / 40) }
+      : null;
     const list = [];
     let centerK = -1;
     facets.forEach((f, k) => {
       if (f.style.display === 'none') return;
       const phi = (pos - (k + MIN)) * theta;
       if (Math.abs(phi) < 1e-4) centerK = k;
-      // Titles: fully in at the middle, gone by halfway to the next row.
-      const d = Math.min(1, Math.abs(pos - (k + MIN)) * 2);
-      const focus = 1 - d * d * (3 - 2 * d);
-      list.push({ f, k, phi, focus, alpha: f.style.opacity === '' ? 1 : +f.style.opacity });
+      list.push({ f, k, phi, tape: k === popRow ? tape : null, alpha: f.style.opacity === '' ? 1 : +f.style.opacity });
     });
     // Furthest first, so nearer sides paint over them.
     list.sort((a, b) => Math.abs(b.phi) - Math.abs(a.phi));
