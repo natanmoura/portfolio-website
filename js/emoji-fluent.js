@@ -8,8 +8,13 @@
 // emoji inserted later (typed tagline, intro sparkles, slay/wave animations)
 // render on the frame they appear.
 //
-// SVGs are self-hosted in assets/emoji/ (optimized with svgo). To add one,
-// drop the Fluent SVG there and add a line to FILES.
+// The Fluent SVGs live in assets/emoji/ as the source artwork, but the page
+// shows the PNGs rendered from them in assets/emoji/png/ (144px, sharp up
+// to the biggest size any emoji is shown on a 3x phone). Fluent's shading is
+// made with SVG filters, and Safari, which every iPhone browser runs on,
+// draws filtered SVG at low resolution, so the SVGs came out blurry there.
+// To add one: drop the Fluent SVG in assets/emoji/, run
+// tools/emoji-png.sh, and add a line to FILES.
 // To revert to native emoji: remove the <script src="js/emoji-fluent.js"> tag.
 (function () {
   const script = document.currentScript;
@@ -55,7 +60,7 @@
   };
 
   const URLS = {};
-  Object.keys(FILES).forEach(function (ch) { URLS[ch] = BASE + FILES[ch] + '.svg'; });
+  Object.keys(FILES).forEach(function (ch) { URLS[ch] = BASE + 'png/' + FILES[ch] + '.png'; });
 
   const keys = Object.keys(URLS).sort(function (a, b) { return b.length - a.length; });
   const escaped = keys.map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });

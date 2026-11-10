@@ -2234,7 +2234,17 @@ mux-player.is-phone-frame::part(control-bar) {
   bottom: calc(var(--dock-lift, 0.9rem) + env(safe-area-inset-bottom, 0px) + var(--vv-cover, 0px));
   transform: translateX(-50%);
   z-index: 150;
-  padding: 0.55rem 0.5rem;
+  /* Extra room on top for the selected icon, which is scaled up 1.45x from
+     its base and so grows 0.45 of an icon upward. A page change captures
+     the dock as a picture cut to this box, and without the room Safari cut
+     the top off the selected icon for those frames. The room is empty, so
+     it lets taps through to the page. */
+  padding: calc(0.55rem + var(--dock-emoji, 2rem) * 0.5) 0.5rem 0.55rem;
+  pointer-events: none;
+}
+
+.dock-link {
+  pointer-events: auto;
 }
 
 /* Every button is the same fixed width, 2.3 icons wide, so neighbouring

@@ -12,9 +12,9 @@
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const here = document.currentScript.src;
-  const WING = new URL('../assets/emoji/wing.svg', here).href;
-  const DEAD_EYE = new URL('../assets/emoji/multiply.svg', here).href;
-  const DEAD_MOUTH = new URL('../assets/emoji/biting-lip.svg', here).href;
+  const WING = new URL('../assets/emoji/png/wing.png', here).href;
+  const DEAD_EYE = new URL('../assets/emoji/png/multiply.png', here).href;
+  const DEAD_MOUTH = new URL('../assets/emoji/png/biting-lip.png', here).href;
   [WING, DEAD_EYE, DEAD_MOUTH].forEach(src => { new Image().src = src; });
 
   const TUNE_KEY = 'eyeCreatureTune';
