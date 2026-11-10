@@ -153,6 +153,12 @@ a[href]:not(.btn):not(.logo):not(.site-header nav a):not(.nav-overlay a):not(.ga
   font-weight: 600;
   letter-spacing: -0.01em;
   flex-shrink: 0;
+  /* No dark box flashing over the name when a finger taps it. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logo:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Nav: always visible on right, white bg covers tagline overflow */
