@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper Pets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/deeplab@0.2.2/dist/deeplab.min.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Paper Pets</h1>
+  <p>Construct prototype. Photo in, breed detected, a foldable one-sheet pet out.</p>
+</header>
+
+<section id="samples" class="samples"></section>
+
+<main class="stage">
+  <aside class="panel">
+    <h2>1 · Photo</h2>
+    <div class="photo-wrap"><img id="photo" alt=""><div id="bbox" hidden></div><canvas id="guide" hidden></canvas></div>
+    <div id="align" class="align" hidden>
+      <span class="muted" id="align-hint">Finding the face…</span>
+      <button id="tap" class="toggle" data-help="Only if detection got it wrong: tap both eyes and the nose on the photo.">Tap eyes + nose</button>
+      <button id="reset-align" data-help="Drop your taps and go back to the automatic detection.">Reset</button>
+    </div>
+    <div id="detect"></div>
+    <label class="field" data-help="Force a construct instead of the detected one. Useful for mixed breeds or a wrong guess.">
+      <span>Construct</span><select id="override"></select>
+    </label>
+    <h3>Mapped traits</h3>
+    <ul id="traits"></ul>
+    <h3>Coat colors</h3>
+    <div id="swatches"></div>
+  </aside>
+
+  <section class="panel">
+    <div class="bar">
+      <h2>2 · Model</h2>
+      <div class="seg" data-help="Photo lifts your pet's eyes, nose, face, ears and fur from the picture and places them on the head. Cartoon draws simple eyes and nose instead.">
+        <button data-face="photo">Photo face</button><button data-face="cartoon">Cartoon face</button>
+      </div>
+      <div class="seg" data-help="Photo pulls the coat colors from the picture. Breed uses the breed's standard colors.">
+        <button data-colors="photo">Photo colors</button><button data-colors="breed">Breed colors</button>
+      </div>
+      <button id="lineup" class="toggle" data-help="Show all seven breed heads side by side at true relative size, in breed colors, to compare shapes.">Lineup</button>
+    </div>
+    <div id="view"><div id="view-status" hidden>Finding the face (about 15 seconds the first time). Showing a placeholder until then.</div></div>
+    <div id="specs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="bar">
+      <h2>3 · Flat pattern</h2>
+      <button id="download" data-help="Save the printable sheet as a PNG at 6 px/mm. Print at 100% on Letter.">Download PNG</button>
+    </div>
+    <div class="sheet-wrap"><canvas id="sheet"></canvas></div>
+  </section>
+</main>
+
+<section class="notes">
+  <h2>What already exists, and what this does differently</h2>
+  <div class="cols">
+    <p>Existing low-poly pet papercraft is big and fiddly. <a href="https://lpobjects.gumroad.com/l/jpblt" target="_blank" rel="noopener">LPObjects</a> cats are 43 to 48 cm with 47+ parts, their beagle is 83 parts on 18 sheets, and <a href="https://shop.turpentinecreek.org/products/sitting-cat-papercraft-model" target="_blank" rel="noopener">Turpentine Creek's sitting cat</a> is 44 cm. Etsy templates sell generic breeds at $8 to $15, not your pet.</p>
+    <p>A head-only ornament in one piece, built the way head construction is taught: a cranium block and a muzzle wedge meeting at the stop, about 40 flat planes in all, proportioned per breed. Ears are flaps on the skull's shoulders, and a folded loop on the back takes a ribbon.</p>
+    <p>The photo is cut into regions, not projected. Eyes, nose, forehead and face are lifted as soft patches at the photo's own scale and placed on the structure's eye and nose spots, leveled and corrected for a turned head. The ears' texture goes on the ear flaps, and a clean fur sample is tiled over the rest so the back of the head matches the coat.</p>
+  </div>
+</section>
+
+<canvas id="art" hidden></canvas>
+<div id="tip" hidden></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
