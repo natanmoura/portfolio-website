@@ -2342,6 +2342,26 @@ mux-player.is-phone-frame::part(control-bar) {
               background-color 0.26s ease, color 0.26s ease;
 }
 
+/* PROJECTS is the longest label and reads a touch right of centre under
+   its icon, so it sits about three quarters of a letter left. Moved by
+   layout, not a transform, so the tilt and its animation are untouched. */
+.dock-link[href="projects.html"] .dock-label {
+  position: relative;
+  left: -0.53em;
+}
+
+/* ABOUT likewise, a quarter of a letter left. */
+.dock-link[href="about.html"] .dock-label {
+  position: relative;
+  left: -0.18em;
+}
+
+/* CONTACT a quarter of a letter right. */
+.dock-link[href="contact.html"] .dock-label {
+  position: relative;
+  left: 0.18em;
+}
+
 .dock-link:nth-child(even) .dock-label {
   --tilt: 3deg;
 }
