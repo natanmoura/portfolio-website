@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>About — Natan Moura</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧙</text></svg>" />
-  <link rel="stylesheet" href="css/style.css?v=106" />
+  <link rel="stylesheet" href="css/style.css?v=121" />
   <script src="js/emoji-fluent.js?v=10"></script>
   <link rel="stylesheet" href="css/theme-2-swiss.css?v=9" />
 </head>
 <body class="page-about">
+  <!-- Built first so the dock is on the page's very first frame. -->
+  <script src="js/bottom-nav.js?v=4"></script>
 
   <!-- NAV -->
   <header class="site-header">
@@ -66,11 +68,6 @@
     </section>
   </main>
 
-  <footer class="site-footer">
-    <p><span class="fea-hammer-spacer" aria-hidden="true">🔨 </span>&copy; <span id="year"></span> Natan Moura <span class="fea-hammer">🔨</span></p>
-  </footer>
-
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
   <script src="js/fade.js?v=3"></script>
   <script src="js/main-nav.js?v=3"></script>
   <script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.49.4/rive.js"></script>

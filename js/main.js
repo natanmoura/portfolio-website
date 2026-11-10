@@ -1,6 +1,3 @@
-// ── Year ──
-document.getElementById('year').textContent = new Date().getFullYear();
-
 // The gallery page this script is running on (projects.html or lab.html), so
 // opening and closing an item keeps the URL on the same page. Each page loads
 // its own data file defining `projects`.
