@@ -1,7 +1,7 @@
 (() => {
   const snippets = [
     "Animator & Creative Technologist ✏️",
-    "Emmy award-winner 🏆",
+    "Emmy winner 🏆",
     "Curious tinkerer 🧠",
     "Boy dad ❤️",
     "Vegetarian 🌱",
