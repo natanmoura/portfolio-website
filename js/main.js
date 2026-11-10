@@ -214,8 +214,10 @@ setInterval(() => {
 }, 1500);
 
 // ── Play thumbnail loops only while on screen ──
+// These play even with Reduce Motion on. The clips are the work being shown,
+// not decoration, and with the setting honoured the whole gallery sat on
+// still frames for anyone who had it switched on.
 const thumbs = (function () {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
   const vids = [...gallery.querySelectorAll('.gallery-item-thumb video')];
 
   function attach(v) {
