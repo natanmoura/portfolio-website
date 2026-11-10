@@ -311,7 +311,17 @@
     // Rows whizzing past in the opening spin don't start their clips.
     if (mode !== 'fling') setActive(Math.round(pos) - MIN);
     updateHint();
+    // A haptic tick each time a row clicks through the middle, turned by
+    // the visitor (not the opening spin). Felt on Android; iPhones only
+    // tick on touch, see endDrag.
+    const r = Math.round(pos);
+    if (r !== hapticRow) {
+      if (hapticRow !== null && window.haptic && haptic.anyTime &&
+          ((moving() && mode !== 'fling') || (drag && drag.moved))) haptic.tick();
+      hapticRow = r;
+    }
   }
+  let hapticRow = null;
 
   // Only the row in the middle plays. The others pause where they are.
   // wantsPlay, thumbs and playVideo belong to main.js.
@@ -587,6 +597,8 @@
     // A drag, or a tap that only caught a moving wheel, is not a click.
     if (drag.moved || drag.wasMoving) swallowClick = true;
     vel = drag.moved ? measuredVel() : 0;
+    // On iPhone (no per-row ticks) the finger lifting off is the tick.
+    if (drag.moved && window.haptic && !haptic.anyTime) haptic.tick();
     drag = null;
     release();
     setTimeout(() => { swallowClick = false; }, 0);
@@ -669,12 +681,26 @@
   // ── On only while the gallery is showing ──
   // An open project hides the gallery and scrolls like a normal page.
   let on = false;
+  // The last project opened (including by its page's previous/next
+  // buttons). Coming back to the gallery lands on that project's row.
+  let lastProject = null;
+  document.addEventListener('projectopen', e => { lastProject = e.detail; });
   function sync() {
     const showing = main.style.display !== 'none';
     if (showing === on) return;
     on = showing;
     root.classList.toggle('drum-on', on);
-    if (on) { layout(); glStart(); }
+    if (on) {
+      layout();
+      if (lastProject != null && cols) {
+        stop();
+        pos = raw = target = clamp(Math.floor(lastProject / cols) + MIN);
+        vel = 0;
+        mode = 'rest';
+        render();
+      }
+      glStart();
+    }
     else {
       stop();
       glStop();

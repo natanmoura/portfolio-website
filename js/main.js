@@ -577,9 +577,25 @@ function teardownProject() {
   currentProject = null;
 }
 
+// ── The dock while a project is open ──
+// An open project isn't the gallery page any more, so this page's dock
+// button goes back to plain (not the selected, magnified one). Tapping it
+// then works like going back: the project closes and the gallery returns
+// on the project you were just looking at (js/drum.js listens for
+// projectopen to know which). bottom-nav.js gives the button its usual tap.
+function setDockSelected(on) {
+  document.querySelectorAll('.dock-link[aria-current="page"]').forEach(a => a.classList.toggle('is-active', on));
+}
+document.addEventListener('click', e => {
+  if (currentProject == null) return;
+  if (e.target.closest && e.target.closest('.dock-link[aria-current="page"]')) closeProject();
+});
+
 function openProject(i, { skipEnter = false, push = true } = {}) {
   const token = ++openToken;
   const p = projects[i];
+  setDockSelected(false);
+  document.dispatchEvent(new CustomEvent('projectopen', { detail: i }));
   if (push) history.pushState({ projectIndex: i }, '', PAGE + '#' + (p.slug || i));
   teardownProject();
   currentProject = i;
@@ -642,6 +658,7 @@ function closeProject(pushHistory = true) {
   teardownProject();
   projectView.style.display = 'none';
   mainContent.style.display = '';
+  setDockSelected(true);
 }
 
 // Handle browser back/forward

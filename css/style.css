@@ -1,6 +1,12 @@
 /* ── Reset & base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* No box flashed over anything tapped (the phone's tap highlight), and no
+   outline left on links and buttons after a tap or click. Keyboard users
+   still get the outline: :focus-visible only matches keyboard focus. */
+* { -webkit-tap-highlight-color: transparent; }
+:focus:not(:focus-visible) { outline: none; }
+
 /* ── Page fade-in (header and dock stay instant, content below fades) ──
    The yellow intro is left out: it has to cover the screen from the very
    first frame, or the page shows before it. */

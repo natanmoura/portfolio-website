@@ -102,6 +102,7 @@
     const link = e.target.closest('.dock-link');
     if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
+    if (window.haptic) haptic.tick();   // js/haptics.js; a tap counts as a touch, so iPhones tick too
     const i = links.indexOf(link);
     // A tap on the current page still gets the kick, just no page change.
     links.forEach(a => a.classList.toggle('is-active', a === link));
