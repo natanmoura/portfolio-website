@@ -9,7 +9,9 @@
 (() => {
   const face = document.getElementById('eyeFace');
   if (!face || !window.EyeFlight) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // It flies even with Reduce Motion on, like the project videos: it's the
+  // Lab's whole point, not decoration, and skipping it left the face
+  // sitting on its line doing nothing.
 
   const here = document.currentScript.src;
   const WING = new URL('../assets/emoji/png/wing.png', here).href;
