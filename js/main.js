@@ -99,6 +99,10 @@ projects.forEach((p, i) => {
   // Opens with the page's own rise-and-fade entrance (.project-page--enter),
   // the same movement the rest of the site uses.
   item.addEventListener('click', () => openProject(i));
+  // Each card tips a slightly different amount, 0.7° to 1°,
+  // alternating left and right.
+  const tilt = (0.7 + Math.random() * 0.3) * (i % 2 ? 1 : -1);
+  item.style.setProperty('--card-tilt', tilt.toFixed(2) + 'deg');
   gallery.appendChild(item);
 });
 
@@ -612,8 +616,15 @@ function openProject(i, { skipEnter = false, push = true } = {}) {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        entry.target.classList.add('gallery-item--visible');
-        observer.unobserve(entry.target);
+        const item = entry.target;
+        item.classList.add('gallery-item--visible');
+        observer.unobserve(item);
+        // The stagger delay is only for the rise-in. Left on, it would
+        // also hold back the hover straighten by up to a second.
+        setTimeout(() => {
+          item.style.transitionDelay = '';
+          item.classList.add('gallery-item--settled');
+        }, parseFloat(item.style.transitionDelay) + 550);
       }
     });
   }, { threshold: 0.1 });

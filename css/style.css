@@ -468,12 +468,6 @@ body.page-contact .btn:not(.form-submit):hover {
   display: block;
   object-fit: cover;
   transform: scale(var(--thumb-scale, 1));
-  transition: transform 0.4s ease;
-}
-
-.gallery-item:hover .gallery-item-thumb img,
-.gallery-item:hover .gallery-item-thumb video {
-  transform: scale(calc(var(--thumb-scale, 1) * 1.06));
 }
 
 .gallery-item-thumb {
@@ -1577,6 +1571,7 @@ body.projects #main-content {
     margin-left: 0;
     margin-right: 0;
   }
+
 }
 
 /* ── Mobile ── */
@@ -1727,6 +1722,45 @@ body.projects .gallery {
 
 body.projects .gallery-item {
   position: relative;
+}
+
+/* Cards tip alternately left and right, clip and tape label together,
+   about the middle of the clip. Folded into the fade-in transforms below so
+   the rise-in keeps working. */
+body.projects .gallery-item { --card-tilt: -1deg; }
+body.projects .gallery-item:nth-child(even) { --card-tilt: 1deg; }
+
+body.projects .gallery-item {
+  transform: translateY(18px) rotate(var(--card-tilt));
+}
+
+body.projects .gallery-item--visible {
+  transform: translateY(0) rotate(var(--card-tilt));
+}
+
+/* Hover: the card straightens and lifts toward you. Only once it has
+   finished rising in, so the two movements never fight. */
+body.projects .gallery-item--settled {
+  transition: opacity 0.5s ease, transform 0.12s ease-out;
+}
+
+/* The curve overshoots by about a tenth of the move, so 1.06 peaks near
+   1.066 before settling. Only on the way in: leaving uses the plain ease
+   above. */
+body.projects .gallery-item--settled:hover {
+  z-index: 3;
+  transform: translateY(0) rotate(0deg) scale(1.06);
+  transition: opacity 0.5s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* A rotated video sits on its own GPU layer, which browsers turn without
+   smoothing its edges, so they come out stair-stepped. A rounded clip
+   (1px, too small to see) is drawn through a smoothed mask instead, and the
+   transparent outline does the same job in Firefox. */
+body.projects .gallery-item-thumb {
+  border-radius: 1px;
+  outline: 1px solid transparent;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 body.projects .gallery-item-label {
