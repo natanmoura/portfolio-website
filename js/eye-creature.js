@@ -2,8 +2,9 @@
 // The face fades in on its line, hops up about two lines, sprouts a wing on
 // each side and hovers there flapping for a moment, then flies off. The
 // flight itself lives in eye-flight.js.
-// Desktop: it trails the cursor and hovers close to it, never on it.
-// Touch: it picks spots on screen and hovers around each for a while.
+// With a mouse or trackpad in use (outside the phone layout): it trails the
+// cursor and hovers close to it, never on it. Otherwise (touch, phones,
+// no pointer yet): it picks spots on screen and hovers around each a while.
 // Add ?tune to the URL for a panel that edits every value live.
 (() => {
   const face = document.getElementById('eyeFace');
@@ -12,7 +13,9 @@
 
   const here = document.currentScript.src;
   const WING = new URL('../assets/emoji/wing.svg', here).href;
-  new Image().src = WING;
+  const DEAD_EYE = new URL('../assets/emoji/multiply.svg', here).href;
+  const DEAD_MOUTH = new URL('../assets/emoji/biting-lip.svg', here).href;
+  [WING, DEAD_EYE, DEAD_MOUTH].forEach(src => { new Image().src = src; });
 
   const TUNE_KEY = 'eyeCreatureTune';
   const tuning = new URLSearchParams(location.search).has('tune');
@@ -24,18 +27,25 @@
     document.body.appendChild(s);
   }
 
-  const FADE_MS = 3000;
-  const followsCursor = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const FADE_MS = 2000;           // must match the eye-face-in fade in style.css
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const ease = (dt, tau) => 1 - Math.exp(-dt / tau);
 
+  // Follow the cursor or wander? Decided live from what is actually in use,
+  // not from what the device claims at load. A mouse or trackpad moving the
+  // pointer turns following on, and a finger touching the screen turns it
+  // off again, so an iPad flips between the two as a trackpad comes and
+  // goes. The phone layout always wanders, mouse or not, the same as phones.
+  const phoneLayout = matchMedia('(max-width: 720px)');
   let mouse = null;
-  if (followsCursor) {
-    addEventListener('pointermove', e => {
-      if (e.pointerType === 'mouse') mouse = { x: e.clientX, y: e.clientY };
-    }, { passive: true });
-  }
+  addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse') mouse = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
+  addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse') mouse = null;
+  }, { passive: true });
+  const following = () => mouse !== null && !phoneLayout.matches;
 
   let bird = null, wingL = null, wingR = null, headEm = { w: 3, emojiTop: 0 };
 
@@ -76,6 +86,7 @@
     bird.setAttribute('aria-hidden', 'true');
     bird.style.fontSize = fs + 'px';
     bird.innerHTML =
+      `<span class="ec-hit"></span>` +
       `<span class="ec-wing ec-wing--l"><img src="${WING}" alt="" draggable="false"></span>` +
       `<span class="ec-head">${face.innerHTML}</span>` +
       `<span class="ec-wing ec-wing--r"><img src="${WING}" alt="" draggable="false"></span>`;
@@ -107,10 +118,120 @@
     let nextOffset = 0, nextSpot = 0, spot = { x: x0, y: hopY };
     let grow = 0, t = 0, last = performance.now();
 
+    // ── Tap it and it dies ──
+    // It freezes where it is, eyes to multiply signs and mouth to a bitten
+    // lip, holds for HOLD seconds, then peels off the page: the lower end stays stuck
+    // like the last corner of a sticker while the raised end swings down
+    // around it, slow at first. At PEEL_RELEASE degrees from horizontal
+    // (45° short of hanging straight down) it comes unstuck and falls,
+    // keeping its spin, until it drops off the bottom of the screen.
+    const HOLD = 0.8;
+    const PEEL_ACCEL = 125;     // deg/s² at full lever
+    const PEEL_RELEASE = 45;
+    let dead = null;
+
+    // The dead face is built off-screen and fully decoded before it replaces
+    // the live one. Changing src on the live images instead left them blank
+    // for a frame, which showed as a flash on the tap.
+    function deadFace() {
+      return [...bird.querySelectorAll('.ec-head img')].map((live, i) => {
+        const img = live.cloneNode();
+        img.src = i === 1 ? DEAD_MOUTH : DEAD_EYE;
+        return img;
+      });
+    }
+
+    bird.addEventListener('pointerdown', e => {
+      if (dead) return;
+      e.preventDefault();
+      e.stopPropagation();
+      bird.classList.add('is-dead');
+      dead = { phase: 'hold', t: 0, tilt: s.tilt };
+      const fresh = deadFace();
+      const live = [...bird.querySelectorAll('.ec-head img')];
+      Promise.all(fresh.map(img => img.decode().catch(() => {})))
+        .then(() => fresh.forEach((img, i) => live[i].replaceWith(img)));
+    });
+
+    // Where a point of the bird box (local px) is on screen, given the box's
+    // top-left translate T, its transform origin O and its rotation φ.
+    const toWorld = (T, O, phi, L) => {
+      const a = phi * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+      const dx = L.x - O.x, dy = L.y - O.y;
+      return { x: T.x + O.x + dx * c - dy * sn, y: T.y + O.y + dx * sn + dy * c };
+    };
+
+    function deathFrame(dt) {
+      const bw = bird.offsetWidth, bh = bird.offsetHeight;
+      const C = { x: bw / 2, y: bh / 2 };
+      dead.t += dt;
+
+      if (dead.phase === 'hold') {
+        if (dead.t < HOLD) return;
+        // Stuck end: whichever end sits lower.
+        const right = dead.tilt > 0.5 ? true : dead.tilt < -0.5 ? false : Math.random() < 0.5;
+        const pivotLocal = { x: right ? bw : 0, y: bh / 2 };
+        const T = { x: s.x - w / 2, y: s.y - h / 2 };
+        dead.pivot = toWorld(T, C, dead.tilt, pivotLocal);
+        dead.pivotLocal = pivotLocal;
+        dead.dir = right ? -1 : 1;     // the free end swings down this way
+        dead.phi = dead.tilt;
+        dead.omega = 0;
+        dead.peelT = 0;
+        dead.phase = 'peel';
+        bird.style.transformOrigin = `${pivotLocal.x}px ${pivotLocal.y}px`;
+      }
+
+      if (dead.phase === 'peel') {
+        dead.peelT += dt;
+        // Torque from the free end's weight: strongest while it sticks out
+        // level, easing as it swings toward hanging. The first second is a
+        // slow creep, like glue letting go.
+        const lever = Math.cos(dead.phi * Math.PI / 180);
+        const creep = Math.min(1, 0.2 + dead.peelT / 1.0);
+        dead.omega += dead.dir * PEEL_ACCEL * lever * creep * dt;
+        dead.phi += dead.omega * dt;
+        const T = { x: dead.pivot.x - dead.pivotLocal.x, y: dead.pivot.y - dead.pivotLocal.y };
+        bird.style.transform = `translate(${T.x}px, ${T.y}px) rotate(${dead.phi}deg)`;
+        if (dead.dir * dead.phi >= PEEL_RELEASE) {
+          // Unstick: carry on as a free body from the middle, moving the way
+          // the swing was already carrying it.
+          const center = toWorld(T, dead.pivotLocal, dead.phi, C);
+          const w_ = dead.omega * Math.PI / 180;
+          const rx = center.x - dead.pivot.x, ry = center.y - dead.pivot.y;
+          dead.fall = { x: center.x, y: center.y, vx: -w_ * ry, vy: w_ * rx };
+          dead.phase = 'fall';
+          // Switch back to turning about the middle and restate the position
+          // for that in the same frame. Changing the origin alone left it
+          // drawn off to one side for a frame, which showed as a flash.
+          bird.style.transformOrigin = '';
+          bird.style.transform = `translate(${center.x - C.x}px, ${center.y - C.y}px) rotate(${dead.phi}deg)`;
+        }
+        return;
+      }
+
+      if (dead.phase === 'fall') {
+        const f = dead.fall;
+        f.vy += P.gravity * dt;
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        dead.omega *= Math.exp(-0.3 * dt);
+        dead.phi += dead.omega * dt;
+        bird.style.transform = `translate(${f.x - C.x}px, ${f.y - C.y}px) rotate(${dead.phi}deg)`;
+        if (f.y - bh > innerHeight + 60) dead.phase = 'gone';
+      }
+    }
+
     function frame(now) {
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
       t += dt;
+      if (dead) {
+        deathFrame(dt);
+        if (dead.phase === 'gone') { bird.remove(); return; }
+        requestAnimationFrame(frame);
+        return;
+      }
       const vw = innerWidth, vh = innerHeight, margin = 30;
       // Ceiling: the bottom of the header bar, plus room for the raised
       // wings, so no part of it ever slips under the bar.
@@ -128,7 +249,7 @@
       } else {
         // ── Anchor: the cursor, or a spot it picked ──
         let anchor;
-        if (followsCursor) anchor = mouse || spot;
+        if (following()) anchor = mouse;
         else {
           if (t > nextSpot) {
             spot = { x: rand(margin + 40, vw - margin - 40), y: rand(top + 60, Math.max(top + 60, Math.min(vh * 0.75, floor - 60))) };
@@ -154,9 +275,28 @@
 
       flight.step(dt, goalX, goalY, t < hopUntil);
 
-      // Soft walls: nudge back in rather than bounce.
-      if (s.x < margin) s.vx += (margin - s.x) * 8 * dt;
-      if (s.x > vw - margin) s.vx -= (s.x - (vw - margin)) * 8 * dt;
+      // Side cushions: within EDGE_ZONE of a side, it is pushed back in,
+      // harder the deeper it goes, and speed carrying it outward is soaked
+      // up, so it eases to a stop rather than hitting a wall. The edge
+      // itself is the backstop: its middle never passes the screen edge, so
+      // at most half of it is ever off screen.
+      const EDGE_ZONE = 90, PUSH = 8, SOAK = 26;
+      const cushion = depth => {
+        const k = Math.min(1, depth / EDGE_ZONE);
+        return { push: depth * PUSH * dt, soak: Math.exp(-SOAK * k * dt) };
+      };
+      if (s.x < EDGE_ZONE) {
+        const c = cushion(EDGE_ZONE - s.x);
+        s.vx += c.push;
+        if (s.vx < 0) s.vx *= c.soak;
+      }
+      if (s.x > vw - EDGE_ZONE) {
+        const c = cushion(s.x - (vw - EDGE_ZONE));
+        s.vx -= c.push;
+        if (s.vx > 0) s.vx *= c.soak;
+      }
+      if (s.x < 0) { s.x = 0; if (s.vx < 0) s.vx = 0; }
+      if (s.x > vw) { s.x = vw; if (s.vx > 0) s.vx = 0; }
       // The ceiling is hard: it bumps its head and drops.
       if (s.y < top) { s.y = top; if (s.vy < 0) s.vy *= -0.2; }
       // So is the floor: it never sinks behind the dock.

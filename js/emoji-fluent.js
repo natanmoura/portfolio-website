@@ -35,6 +35,7 @@
     '🚲': 'bicycle',
     '✊': 'raised-fist',
     '🖐': 'hand-splayed',
+    '👆': 'pointing-up',
     '✌': 'victory-hand',
     '🧝': 'elf',
     '🐉': 'dragon',
