@@ -18,8 +18,20 @@
   const intro = work.querySelector('.page-intro');
   const root = document.documentElement;
 
-  // Feel.
-  const FLICK_TAU = 0.3;       // s of momentum a released flick carries on for
+  // Feel. The drum turns like a heavy faceted wheel on detents. Each row
+  // is a dip and halfway between rows is a bump: climbing a bump slows the
+  // drum, and once over the top the bump shoves it on into the next row,
+  // where it snaps in with a little bounce. Friction is low while it spins
+  // fast, so flicks carry, and rises as it slows, so it settles crisply.
+  // (Tuned in a simulation: one kick moves exactly one row, overshooting
+  // by about a sixth and settling in about a second; a 10 rows/s flick
+  // runs about 7 rows, 16 rows/s about 19.)
+  const DETENT = 30;           // strength of the detents, rows/s² at the steepest
+  const FRICTION = 0.5;        // per second, while spinning freely
+  const SETTLE_FRICTION = 14;  // per second, once slow enough to be caught
+  const SETTLE_SPEED = 3.5;    // rows/s around which friction moves between the two
+  const KICK = 6.4;            // rows/s: the least a flick leaves at, just over one bump
+  const FLICK_MIN = 1.2;       // rows/s: a release faster than this is a flick, and always clears a row
   const SPRING_W = 13;         // spring stiffness, as angular frequency (rad/s)
   const SPRING_ZETA = 0.62;    // under 1 overshoots: the springy settle
   const EDGE_GIVE = 0.6;       // rows you can pull past either end
@@ -49,7 +61,7 @@
   let mode = 'rest';           // rest | hold | spring | coast | fling
   let coastTau = 0.3;
   let raf = 0, lastT = 0;
-  const moving = () => mode === 'spring' || mode === 'coast' || mode === 'fling';
+  const moving = () => mode === 'spring' || mode === 'coast' || mode === 'fling' || mode === 'free';
 
   // ── The "have a scroll" line ──
   // Sits on its own, flat, in the empty space above the first row. It shows
@@ -59,7 +71,9 @@
   hint.className = 'drum-hint';
   hint.setAttribute('aria-hidden', 'true');
   if (intro) hint.appendChild(intro);
-  gallery.appendChild(hint);
+  // Outside the drum's 3D stage on purpose: anything inside it is drawn by
+  // Safari as a cached picture, which made the hand emoji soft.
+  main.appendChild(hint);
   // Testing switch: true forgets the visitor has scrolled on every load,
   // so the line always comes back. Keep it false in anything committed.
   const FORGET_LEARNED = false;
@@ -445,6 +459,23 @@
       pos = (2 * s3 - 3 * s2 + 1) * spin.from + (s3 - 2 * s2 + s) * m0 + (-2 * s3 + 3 * s2) * MIN + (s3 - s2) * m1;
       vel = ((6 * s2 - 6 * s) * spin.from + (3 * s2 - 4 * s + 1) * m0 + (-6 * s2 + 6 * s) * MIN + (3 * s2 - 2 * s) * m1) / T;
       if (s >= 1) { pos = MIN; vel = -SPIN_ARRIVE; mode = 'spring'; target = MIN; hitTop(); }
+    } else if (mode === 'free') {
+      // Spinning on its detents (see Feel at the top).
+      const steps = Math.ceil(dt / (1 / 240));
+      const h = dt / steps;
+      for (let s = 0; s < steps; s++) {
+        let acc;
+        if (pos < MIN) acc = -WALL_K * (pos - MIN) - WALL_DAMP * vel;
+        else if (pos > MAX) acc = -WALL_K * (pos - MAX) - WALL_DAMP * vel;
+        else {
+          const slow = Math.exp(-((vel / SETTLE_SPEED) ** 2));
+          acc = -DETENT * Math.sin(2 * Math.PI * pos) - (FRICTION + (SETTLE_FRICTION - FRICTION) * slow) * vel;
+        }
+        vel += acc * h;
+        pos += vel * h;
+      }
+      const near = clamp(Math.round(pos));
+      if (Math.abs(vel) < 0.02 && Math.abs(pos - near) < 0.003) { pos = target = near; vel = 0; mode = 'rest'; }
     } else if (mode === 'spring') {
       const steps = Math.ceil(dt / (1 / 240));
       const h = dt / steps;
@@ -483,10 +514,27 @@
     run();
   }
 
-  // Let go: the wheel carries on for a moment in the direction it was
-  // thrown, then settles on the nearest row from there.
-  function release(tau) {
-    goTo(pos + vel * tau);
+  // Let go: the drum spins on freely with whatever speed it was thrown at
+  // and clicks to a stop on its detents. Any real flick clears at least
+  // one bump; a slow let-go just drops into the nearest row.
+  const WALL_K = 150, WALL_DAMP = 10;   // the springy stops past either end
+  function release() {
+    if (Math.abs(vel) > FLICK_MIN) vel = Math.sign(vel) * Math.max(Math.abs(vel), KICK);
+    mode = 'free';
+    run();
+  }
+
+  // One click round: a wheel notch or an arrow key moves exactly one row,
+  // springing in with a small overshoot, however fast the clicks come.
+  // (Free-spinning kicks added up: three quick notches ran a dozen rows.)
+  function kick(dir) {
+    let base;
+    if (mode === 'spring' || mode === 'coast') base = target;
+    else if (mode === 'free' && Math.sign(vel) === dir) base = dir > 0 ? Math.ceil(pos) : Math.floor(pos);
+    else base = Math.round(pos);
+    target = clamp(base + dir);
+    mode = 'spring';
+    run();
   }
 
   // Velocity from the last tenth of a second of movement.
@@ -539,7 +587,7 @@
     if (drag.moved || drag.wasMoving) swallowClick = true;
     vel = drag.moved ? measuredVel() : 0;
     drag = null;
-    release(FLICK_TAU);
+    release();
     setTimeout(() => { swallowClick = false; }, 0);
   }
   gallery.addEventListener('pointerup', endDrag);
@@ -581,9 +629,7 @@
     }
     lastWheel = now;
     if (gesture === 'notch') {
-      const from = moving() ? target : Math.round(pos);
-      const next = from + Math.sign(dy);
-      if (Math.abs(next - pos) <= 3) { vel = vel || 0; target = clamp(next); mode = 'spring'; run(); }
+      kick(Math.sign(dy));
       return;
     }
     raw += dy / pitch;
@@ -594,7 +640,7 @@
     wheelTimer = setTimeout(() => {
       gesture = null;
       vel = measuredVel();
-      release(0.12);
+      release();
     }, 110);
   }, { passive: false });
 
@@ -602,15 +648,18 @@
   addEventListener('keydown', e => {
     if (!on || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
-    const from = moving() ? target : Math.round(pos);
-    let to = null;
-    if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) to = from + 1;
-    else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) to = from - 1;
+    let dir = 0, to = null;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) dir = 1;
+    else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) dir = -1;
     else if (e.key === 'Home') to = MIN;
     else if (e.key === 'End') to = MAX;
-    if (to == null) return;
+    if (!dir && to == null) return;
     e.preventDefault();
     userInput();
+    // Arrows click it round a row, like the wheel. Home and End spring
+    // straight to the ends.
+    if (dir) { kick(dir); return; }
+    vel = 0;
     target = clamp(to);
     mode = 'spring';
     run();

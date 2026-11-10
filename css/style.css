@@ -2446,7 +2446,7 @@ body.page-lab #work {
    above the first row. js/drum.js shows it on the first row until you've
    scrolled once, then never again. */
 .drum-hint {
-  position: absolute;
+  position: fixed;
   left: 50%;
   width: min(640px, calc(100vw - 4rem));
   transform: translate(-50%, -50%);
@@ -2478,11 +2478,19 @@ body.page-lab #work {
 
 /* The dock waits out of sight during the projects' opening, then each
    button surfaces in turn: up past its spot, back, and a bob or two
-   before it floats still. Uses `translate` so it adds to the buttons'
-   own transforms rather than replacing them. */
+   before it floats still. Moved with `top`, not a transform: Safari draws
+   a transform-animated element as a cached picture and can go on showing
+   that picture afterwards, which left the dock's emoji soft on this page
+   only. Moving by layout keeps them drawn at full sharpness. Opacity is
+   left alone for the same reason; the buttons rise in from below the
+   screen edge instead of fading. */
+.dock-link {
+  position: relative;
+}
+
 body.dock-await .dock-link {
-  opacity: 0;
-  translate: 0 70px;
+  visibility: hidden;
+  top: 120px;
 }
 
 .dock-link.is-bobbing {
@@ -2490,12 +2498,12 @@ body.dock-await .dock-link {
 }
 
 @keyframes dock-bob {
-  0%   { opacity: 0; translate: 0 70px; animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
-  30%  { opacity: 1; translate: 0 -14px; animation-timing-function: ease-in-out; }
-  50%  { translate: 0 6px; animation-timing-function: ease-in-out; }
-  68%  { translate: 0 -3px; animation-timing-function: ease-in-out; }
-  84%  { translate: 0 1px; animation-timing-function: ease-in-out; }
-  100% { opacity: 1; translate: 0 0; }
+  0%   { visibility: visible; top: 120px; animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  30%  { top: -14px; animation-timing-function: ease-in-out; }
+  50%  { top: 6px; animation-timing-function: ease-in-out; }
+  68%  { top: -3px; animation-timing-function: ease-in-out; }
+  84%  { top: 1px; animation-timing-function: ease-in-out; }
+  100% { visibility: visible; top: 0; }
 }
 
 /* Titles show only on the row in focus. (The WebGL picture fades them
