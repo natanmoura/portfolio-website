@@ -531,17 +531,30 @@ body.page-contact main > section > .contact {
   margin-right: auto;
 }
 
-/* Contact centres its block in the space you can actually see: below the
-   fixed header and above the footer. The slay stage keeps empty headroom
-   above the heroes for the monster's flight, so the bottom padding is larger
-   by that much to centre what is actually drawn, not the stage box. */
+/* Contact centres its text and links in the space you can actually see:
+   below the fixed header and above the footer. The slay animation floats
+   above the text, out of the flow, so it takes no part in the centring.
+   Equal padding top and bottom keeps it centred while leaving the stage
+   (4rem tall + 2rem gap) room above. */
 body.page-contact main {
   padding-top: var(--header-h, 81px);
 }
 
 body.page-contact main > section {
-  padding-top: 3rem;
-  padding-bottom: calc(3rem + 66px);
+  padding-top: 9rem;
+  padding-bottom: 9rem;
+}
+
+body.page-contact .contact {
+  position: relative;
+}
+
+body.page-contact .slay-stage {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin: 0 auto 2rem;
 }
 
 body.page-about > .site-footer,

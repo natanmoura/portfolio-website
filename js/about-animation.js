@@ -43,9 +43,14 @@
         word.appendChild(s);
       }
     });
+    const lastWord = word;
     flushWord();                                         // flush the final word
-    frag.appendChild(document.createTextNode(' ')); // gap before hand span
     textNode.replaceWith(frag);
+    // The hand joins the last word's no-wrap group, so it never drops onto a
+    // line of its own. It fades out at the end, which would leave an empty
+    // line under the heading. (A no-break space alone isn't enough: browsers
+    // may still break before an inline-block.)
+    if (lastWord) lastWord.append(' ', hand);
 
     // Fire all letter bounces at once — delay handles the stagger
     letterEls.forEach(({ el, idx }) => {
