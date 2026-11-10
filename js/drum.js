@@ -60,9 +60,9 @@
   hint.setAttribute('aria-hidden', 'true');
   if (intro) hint.appendChild(intro);
   gallery.appendChild(hint);
-  // TEMP while testing the opening: forget it on every load, so the line
-  // always comes back. Set to false before this goes live.
-  const FORGET_LEARNED = true;
+  // Testing switch: true forgets the visitor has scrolled on every load,
+  // so the line always comes back. Keep it false in anything committed.
+  const FORGET_LEARNED = false;
   let learned = false;
   try {
     if (FORGET_LEARNED) localStorage.removeItem('drumScrollLearned');

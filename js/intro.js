@@ -13,9 +13,9 @@
   const LINE1 = "Hi, I'm Natan!";
   const LINE2 = 'Welcome to my corner\nof the internet...';
 
-  // TEMP while testing the projects opening: play on every load. Set back
-  // to false before this goes live.
-  const ALWAYS_PLAY = true;
+  // Testing switch: true plays the intro on every load. Keep it false in
+  // anything committed (?intro on the URL replays it once instead).
+  const ALWAYS_PLAY = false;
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!ALWAYS_PLAY && !/[?&]intro\b/.test(location.search) && (reduceMotion || document.hidden || window.location.hash || sessionStorage.getItem('introPlayed'))) {
