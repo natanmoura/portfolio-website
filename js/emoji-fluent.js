@@ -46,7 +46,10 @@
     '💥': 'collision',
     '✨': 'sparkles',
     '⭐': 'star',
-    '❗': 'exclamation'
+    '❗': 'exclamation',
+    '🧪': 'test-tube',
+    '👁': 'eye',
+    '👄': 'mouth'
   };
 
   const URLS = {};

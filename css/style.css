@@ -1749,6 +1749,39 @@ body.projects .site-footer {
   background: var(--bg);
 }
 
+/* A short gallery page still fills the screen, so the footer sits at the
+   bottom rather than mid-page with blank white below it. */
+body.projects #main-content {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body.projects #main-content > .section {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* Lab: one line of welcome above the experiments. */
+.lab-intro {
+  text-align: center;
+  color: #333;
+  font-size: 1rem;
+  line-height: 1.75;
+  margin: 0 auto 3rem;
+  max-width: 640px;
+}
+
+.nowrap { white-space: nowrap; }
+
+/* Shown in place of the grid while a gallery page has no items yet. */
+.gallery-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 4rem 0;
+}
+
 /* The card used to morph into the project's hero via a View Transition.
    Opening now uses .project-page--enter instead, so none of that is left. */
 

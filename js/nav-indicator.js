@@ -8,6 +8,7 @@
   const path = window.location.pathname;
   let activeIndex = -1;
   if      (path.includes('projects')) activeIndex = links.findIndex(l => l.href.includes('projects'));
+  else if (path.includes('lab'))      activeIndex = links.findIndex(l => l.href.includes('lab'));
   else if (path.includes('about'))    activeIndex = links.findIndex(l => l.href.includes('about'));
   else if (path.includes('contact'))  activeIndex = links.findIndex(l => l.href.includes('contact'));
 
