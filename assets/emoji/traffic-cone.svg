@@ -1,0 +1,30 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Custom traffic cone in the Fluent "Color" style (there is no Unicode
+     traffic-cone emoji). Drawn for the Lab page's caution tape. -->
+<defs>
+<linearGradient id="cone" x1="8" y1="16" x2="24" y2="16" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFA24A"/>
+<stop offset="0.45" stop-color="#FF7A1A"/>
+<stop offset="1" stop-color="#E5530A"/>
+</linearGradient>
+<linearGradient id="stripe" x1="8" y1="16" x2="24" y2="16" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFFFFF"/>
+<stop offset="1" stop-color="#D9D6DE"/>
+</linearGradient>
+<linearGradient id="base" x1="16" y1="24.5" x2="16" y2="29.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="#6A6670"/>
+<stop offset="1" stop-color="#3F3B45"/>
+</linearGradient>
+<clipPath id="body">
+<path d="M14.2 3.6C14.4 2.7 15.1 2.2 16 2.2C16.9 2.2 17.6 2.7 17.8 3.6L23.6 26H8.4L14.2 3.6Z"/>
+</clipPath>
+</defs>
+<rect x="3" y="24.5" width="26" height="5" rx="1.6" fill="url(#base)"/>
+<rect x="3" y="24.5" width="26" height="1.2" rx="0.6" fill="#857F8C"/>
+<path d="M14.2 3.6C14.4 2.7 15.1 2.2 16 2.2C16.9 2.2 17.6 2.7 17.8 3.6L23.6 26H8.4L14.2 3.6Z" fill="url(#cone)"/>
+<g clip-path="url(#body)">
+<rect x="6" y="9.6" width="20" height="3.6" fill="url(#stripe)"/>
+<rect x="6" y="17" width="20" height="3.9" fill="url(#stripe)"/>
+<path d="M15.2 2L9.6 26H11.2L16.2 2Z" fill="#FFFFFF" fill-opacity="0.28"/>
+</g>
+</svg>

@@ -224,10 +224,13 @@ const thumbs = (function () {
     v.load();
   }
 
-  // In view: loaded and playing.
+  // In view: loaded and playing. On the Projects drum only the middle row
+  // plays. The rest are marked idle and hold still on their current frame,
+  // and js/drum.js starts and stops them as rows turn through the middle.
   const playing = new IntersectionObserver(entries => {
     entries.forEach(({ target: v, isIntersecting }) => {
-      if (isIntersecting) { wantsPlay.add(v); attach(v); playVideo(v); }
+      if (isIntersecting && !v.closest('.drum-facet--idle')) { wantsPlay.add(v); attach(v); playVideo(v); }
+      else if (isIntersecting) { wantsPlay.delete(v); attach(v); v.pause(); }
       else { wantsPlay.delete(v); v.pause(); }
     });
   }, { threshold: 0.25 });

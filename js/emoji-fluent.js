@@ -49,6 +49,7 @@
     '⭐': 'star',
     '❗': 'exclamation',
     '🧪': 'test-tube',
+    '🚧': 'construction',
     '👁': 'eye',
     '👄': 'mouth'
   };

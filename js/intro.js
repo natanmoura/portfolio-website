@@ -13,8 +13,12 @@
   const LINE1 = "Hi, I'm Natan!";
   const LINE2 = 'Welcome to my corner\nof the internet...';
 
+  // TEMP while testing the projects opening: play on every load. Set back
+  // to false before this goes live.
+  const ALWAYS_PLAY = true;
+
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!/[?&]intro\b/.test(location.search) && (reduceMotion || document.hidden || window.location.hash || sessionStorage.getItem('introPlayed'))) {
+  if (!ALWAYS_PLAY && !/[?&]intro\b/.test(location.search) && (reduceMotion || document.hidden || window.location.hash || sessionStorage.getItem('introPlayed'))) {
     overlay.remove();
     document.dispatchEvent(new CustomEvent('introDone'));
     return;
@@ -167,6 +171,8 @@
     const trailDone = spawnSparkleTrail(850);
     await sleep(400);
     overlay.style.pointerEvents = 'none';
+    // The page underneath can start its entrance as the yellow lifts.
+    document.dispatchEvent(new CustomEvent('introFading'));
     const fadeDone = fadeOut(overlay, 500);
     await Promise.all([trailDone, fadeDone]);
     finish();
