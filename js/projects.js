@@ -115,7 +115,7 @@ const projects = [
     page: {
       content: [
         { type: "mux", src: "https://player.mux.com/PxWrjrutGz3QAbnkeHFoYgOPJreOCQk1b6Qluy02pzDg?thumbnail-time=0&autoplay&muted" },
-        { type: "text", html: `<em>Mall Stories</em> is a slice-of-life short film directed by Elizabeth Ito about staff at a mall eatery. Produced at <a href="http://chromosphere-la.com">Chromosphere</a> with an Epic MegaGrant, exploring animation production in Unreal Engine.` },
+        { type: "text", html: `<em>Mall Stories</em> is a slice-of-life short film directed by <a href="https://www.elizabethito.com/">Elizabeth Ito</a> about staff at a mall eatery. Produced at <a href="http://chromosphere-la.com">Chromosphere</a> with an Epic MegaGrant, exploring animation production in Unreal Engine.` },
         { type: "text", html: `I created character animations in Maya that were brought into Unreal Engine for the final render.` },
       ],
       links: [],
