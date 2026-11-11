@@ -320,9 +320,34 @@ function muxPlayerFromSrc(src, inlineStyle) {
   // A corner radius means a phone-shaped frame, whose curve clips the control
   // bar. Flag those so the stylesheet can lift the bar on them alone.
   const rounded = /border-radius/.test(inlineStyle || '');
-  return '<mux-player ' + attrs.join(' ') +
+  const radius = (/border-radius:([^;]+)/.exec(inlineStyle || '') || [])[1];
+  // An autoplaying video's still is its first frame, so the still turns
+  // into the video without a jump. Otherwise the frame the player shows.
+  const stillTime = q.has('autoplay') ? 0 : q.get('thumbnail-time');
+  const poster = 'https://image.mux.com/' + url.pathname.replace(/^\//, '') + '/thumbnail.webp' +
+    (stillTime != null ? '?time=' + (stillTime || 0) : '');
+  // Without a shape the player is drawn 150px tall until the video loads,
+  // then jumps to its real size. Every one without a set shape is 16:9.
+  const shape = /aspect-ratio/.test(inlineStyle || '') ? '' : 'aspect-ratio:16/9;';
+  return '<div class="mux-cover-wrap"><mux-player ' + attrs.join(' ') +
     (rounded ? ' class="is-phone-frame"' : '') +
-    ' style="width:100%;overflow:hidden;' + (inlineStyle || '') + '"></mux-player>';
+    ' style="width:100%;overflow:hidden;' + shape + (inlineStyle || '') + '"></mux-player>' +
+    muxCover(poster, radius) + '</div>';
+}
+
+// The still laid over a player until its video is actually moving. Without
+// it you see the player arrive, draw its own still, then a spinner while it
+// buffers. With it there is one still frame that starts to move. Taken
+// away on the first frame of playback, or on a tap so the controls show.
+function muxCover(poster, radius) {
+  return `<img class="mux-cover" src="${poster}" alt="" aria-hidden="true" decoding="async"${radius ? ` style="border-radius:${radius}"` : ''} />`;
+}
+function uncoverWhenPlaying(player) {
+  const cover = player.parentElement && player.parentElement.querySelector(':scope > .mux-cover');
+  if (!cover) return;
+  const off = () => { cover.classList.add('is-gone'); };
+  player.addEventListener('playing', () => setTimeout(off, 120));
+  player.parentElement.addEventListener('pointerdown', off, { once: true });
 }
 
 // ── Project page: only play what is on screen ──
@@ -330,8 +355,12 @@ function muxPlayerFromSrc(src, inlineStyle) {
 // autoplay every player on them, so a page with several of them stalls them
 // all a few seconds in. Same treatment the gallery thumbnails already get.
 let projectMediaObserver = null;
+let loopObservers = [];
 function observeProjectMedia(root) {
   if (projectMediaObserver) projectMediaObserver.disconnect();
+  loopObservers.forEach(o => o.disconnect());
+  loopObservers = [];
+  observeLoops(root);
   const players = root.querySelectorAll('mux-player');
   if (!players.length) return;
   projectMediaObserver = new IntersectionObserver(entries => {
@@ -344,6 +373,7 @@ function observeProjectMedia(root) {
   }, { threshold: 0.2 });
   players.forEach(p => {
     projectMediaObserver.observe(p);
+    uncoverWhenPlaying(p);
     // The autoplay attribute starts every player, on screen or not.
     p.addEventListener('playing', () => { if (!wantsPlay.has(p)) p.pause(); });
     // One audio source at a time: unmuting any player mutes the rest, so two
@@ -356,6 +386,43 @@ function observeProjectMedia(root) {
       });
     });
   });
+}
+
+// An image on a project page. A GIF that tools/gif-to-mp4.sh has converted
+// becomes a muted looping video with its first frame as the poster, about a
+// twentieth of the download. It loads only near the screen (see
+// observeProjectMedia), which also keeps iOS under its decoder cap.
+function stillOrLoop(src, alt) {
+  const size = window.GIF_SIZES && window.GIF_SIZES[src];
+  if (!size) return `<img src="${src}" alt="${alt}" loading="lazy" decoding="async" />`;
+  const base = src.replace(/\.gif$/, '');
+  return `<video class="gif-loop" data-src="${base}.mp4" poster="${base}.jpg" width="${size[0]}" height="${size[1]}" style="aspect-ratio:${size[0]}/${size[1]};height:auto" muted loop playsinline preload="none" disablepictureinpicture aria-label="${alt}"></video>`;
+}
+
+// The GIF loops: loaded a screen ahead, played while on screen, unloaded
+// once well away, the way the gallery thumbnails are.
+function observeLoops(root) {
+  const loops = root.querySelectorAll('video.gif-loop');
+  if (!loops.length) return;
+  const load = v => {
+    if (v.getAttribute('src')) return;
+    v.preload = 'auto';
+    v.setAttribute('src', v.dataset.src);
+    v.load();
+  };
+  const playing = new IntersectionObserver(entries => {
+    entries.forEach(({ target: v, isIntersecting }) => {
+      if (isIntersecting) { wantsPlay.add(v); load(v); playVideo(v); }
+      else { wantsPlay.delete(v); v.pause(); }
+    });
+  }, { threshold: 0.1 });
+  const near = new IntersectionObserver(entries => {
+    entries.forEach(({ target: v, isIntersecting }) => {
+      if (isIntersecting) load(v); else { wantsPlay.delete(v); releaseVideo(v); }
+    });
+  }, { rootMargin: '100% 0px' });
+  loops.forEach(v => { playing.observe(v); near.observe(v); });
+  loopObservers.push(playing, near);
 }
 
 // ── Project page ──
@@ -400,17 +467,17 @@ function buildProjectHTML(i) {
           // broken-image icon. Hand it a correctly ordered URL instead.
           const poster = `https://image.mux.com/${baseId}/thumbnail.webp?time=${item.startTime || 0}` +
             (clipQS ? `&${clipQS}` : '');
-          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player></div>`;
+          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player>${muxCover(poster)}</div>`;
         }
         return `<div class="project-page-media-item${narrowClass} fade-in-item">${muxPlayerFromSrc(item.src, item.aspectRatio ? `aspect-ratio:${item.aspectRatio};` : '')}</div>`;
       }
       if (item.type === 'video')
         return `<div class="project-page-media-item fade-in-item"><video src="${item.src}"${item.poster ? ` poster="${item.poster}"` : ''} controls playsinline></video></div>`;
       if (item.type === 'image' || item.type === 'gif')
-        return `<div class="project-page-media-item${item.narrow ? ' project-page-media-item--narrow' : ''} fade-in-item"><img src="${item.src}" alt="${p.title}" /></div>`;
+        return `<div class="project-page-media-item${item.narrow ? ' project-page-media-item--narrow' : ''} fade-in-item">${stillOrLoop(item.src, p.title)}</div>`;
       if (item.type === 'beforeafter-group')
         return `<div class="ba-grid fade-in-item">${item.items.map(it =>
-          `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" /><img class="ba-before" src="${it.before}" alt="${p.title} before" /><span class="ba-label">Before</span></div>`
+          `<div class="ba-compare"><img class="ba-after" src="${it.after}" alt="${p.title}" loading="lazy" decoding="async" /><img class="ba-before" src="${it.before}" alt="${p.title} before" loading="lazy" decoding="async" /><span class="ba-label">Before</span></div>`
         ).join('')}</div>`;
       if (item.type === 'text-media-row') {
         const rowStyle = item.gridCols ? ` style="--tmr-cols:${item.gridCols}"` : '';
@@ -424,7 +491,7 @@ function buildProjectHTML(i) {
           else if (it.type === 'video')
             el = `<video src="${it.src}"${it.poster ? ` poster="${it.poster}"` : ''} controls playsinline></video>`;
           else if (it.type === 'image' || it.type === 'gif')
-            el = `<img src="${it.src}" alt="${p.title}" />`;
+            el = stillOrLoop(it.src, p.title);
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
           return el + cap;
         }).join('');
@@ -461,7 +528,7 @@ function buildProjectHTML(i) {
             media = `<video src="${it.src}"${it.poster ? ` poster="${it.poster}"` : ''} controls playsinline${arStyle}></video>`;
           }
           else if (it.type === 'image' || it.type === 'gif')
-            media = `<img src="${it.src}" alt="${p.title}" />`;
+            media = stillOrLoop(it.src, p.title);
           const cap = it.caption ? `<p class="project-page-caption">${it.caption}</p>` : '';
           const spanStyle = it.span ? ` style="grid-column:span ${it.span}"` : '';
           return `<div class="project-media-grid-item"${spanStyle}>${media}${cap}</div>`;
@@ -479,7 +546,7 @@ function buildProjectHTML(i) {
       if (m.type === 'mux' || m.type === 'video-embed')
         return muxPlayerFromSrc(m.src, '');
       if (m.type === 'video') return `<video src="${m.src}" controls playsinline></video>`;
-      return `<img src="${m.src}" alt="${p.title}" />`;
+      return stillOrLoop(m.src, p.title);
     }).join('');
     const descHTML = pg.description
       ? pg.description.trim().split(/\n\n+/).map(b => `<p class="project-page-description">${b.trim()}</p>`).join('')
@@ -534,24 +601,21 @@ function setupMuxEndTimes(container) {
 }
 
 
-// Resolves once the media in the first screenful can show a frame, so the page
-// never rises in with players still black or resizing. Capped so a slow
-// network can't leave the page blank.
-function waitForVisibleMedia(root, timeout = 2500) {
+// Resolves once the first screenful has something to show: its images and
+// the stills on its GIF loops. It no longer waits for any video to buffer a
+// frame. On a phone that took seconds, and the page sat blank the whole time.
+// Every video has a still laid over it (the img wait below covers the Mux
+// ones), so it rises in showing that and starts moving when it can. Capped
+// short.
+function waitForVisibleMedia(root, timeout = 700) {
   const vh = window.innerHeight;
   const inView = el => { const r = el.getBoundingClientRect(); return r.top < vh && r.bottom > 0; };
   const waits = [];
-  root.querySelectorAll('mux-player, video').forEach(v => {
-    if (!inView(v)) return;
-    waits.push(new Promise(res => {
-      if (v.readyState >= 2) return res();
-      ['loadeddata', 'canplay', 'error'].forEach(e => v.addEventListener(e, res, { once: true }));
-    }));
-  });
+  const decode = src => { const im = new Image(); im.src = src; return im.decode().catch(() => {}); };
+  root.querySelectorAll('video.gif-loop').forEach(v => { if (inView(v) && v.poster) waits.push(decode(v.poster)); });
   root.querySelectorAll('img').forEach(img => {
     if (inView(img) && img.decode) waits.push(img.decode().catch(() => {}));
-  });
-  if (!waits.length) return Promise.resolve();
+  });  if (!waits.length) return Promise.resolve();
   return Promise.race([Promise.all(waits), new Promise(r => setTimeout(r, timeout))]);
 }
 
@@ -572,6 +636,8 @@ function teardownProject() {
     if (w._muxCleanup) { w._muxCleanup(); delete w._muxCleanup; }
   });
   if (projectMediaObserver) { projectMediaObserver.disconnect(); projectMediaObserver = null; }
+  loopObservers.forEach(o => o.disconnect());
+  loopObservers = [];
   releaseProjectMedia();
   projectContent.innerHTML = '';
   currentProject = null;

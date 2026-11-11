@@ -55,6 +55,12 @@
     '❗': 'exclamation',
     '🧪': 'test-tube',
     '🚧': 'construction',
+    '🔴': 'red-circle',
+    '🟠': 'orange-circle',
+    '🟡': 'yellow-circle',
+    '🟢': 'green-circle',
+    '🔵': 'blue-circle',
+    '🟣': 'purple-circle',
     '👁': 'eye',
     '👄': 'mouth'
   };

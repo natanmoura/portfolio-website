@@ -65,8 +65,8 @@
 
   // ── The "have a scroll" line ──
   // Sits on its own, flat, in the empty space above the first row. It shows
-  // while you're on the first row and goes for good the moment you scroll:
-  // after that you know how.
+  // while you're on the first row and goes the moment you scroll, for the
+  // rest of the visit: by then you know how. A new visit shows it again.
   const hint = document.createElement('div');
   hint.className = 'drum-hint';
   hint.setAttribute('aria-hidden', 'true');
@@ -79,14 +79,17 @@
   const FORGET_LEARNED = false;
   let learned = false;
   try {
-    if (FORGET_LEARNED) localStorage.removeItem('drumScrollLearned');
-    learned = localStorage.getItem('drumScrollLearned') === '1';
+    // Remembered for the visit only (session storage). It used to be kept
+    // for good, which hid the line on every later visit; this clears that.
+    localStorage.removeItem('drumScrollLearned');
+    if (FORGET_LEARNED) sessionStorage.removeItem('drumScrollLearned');
+    learned = sessionStorage.getItem('drumScrollLearned') === '1';
   } catch (e) {}
   let touched = false;         // the visitor has turned the drum themselves
   function updateHint() {
     if (!learned && touched && Math.abs(pos - MIN) > 0.15) {
       learned = true;
-      try { localStorage.setItem('drumScrollLearned', '1'); } catch (e) {}
+      try { sessionStorage.setItem('drumScrollLearned', '1'); } catch (e) {}
       afterLearned();
     }
     hint.classList.toggle('is-shown', !!intro && !learned && !revealing && Math.abs(pos - MIN) < 0.5);
@@ -97,11 +100,10 @@
   }
 
   // ── The opening ──
-  // When the wizard intro plays, the projects arrive as the yellow fades:
-  // the drum is already spinning up from the second-last row, runs all the
-  // way to the top and bounces off it. That's when the scroll line appears.
-  // A beat later the dock's buttons bob up one at a time, like floats
-  // surfacing.
+  // On a fresh visit the drum spins up from the second-last row, runs all
+  // the way to the top and bounces off it. That's when the greeting
+  // appears. Arriving from outside the site, a beat later the dock's
+  // buttons bob up one at a time, like floats surfacing.
   // The opening spin rolls off gently, picks up speed through the middle
   // rows and eases in at the top. Its length grows with the number of rows
   // it covers, within these limits.
@@ -113,9 +115,16 @@
   const DOCK_AFTER_BOUNCE = 700; // ms after the bounce off the top
   // Only when it's actually playing this time (see projects.html's head).
   const introOverlay = document.documentElement.classList.contains('no-intro') ? null : document.getElementById('introOverlay');
+  // A fresh visit: the spin happens on its own as the page appears. Not on
+  // a reload or coming back from another page (projects.html's head decides).
+  const freshSpin = !introOverlay && root.classList.contains('drum-spin');
+  const FRESH_SPIN_DELAY = 350;  // ms after the page appears
   let revealing = false, revealStarted = false;
-  let dockWaiting = !!introOverlay, dockDue = Infinity, dockTimer = 0;
+  let dockWaiting = !!introOverlay || (freshSpin && root.classList.contains('dock-intro'));
+  let dockDue = Infinity, dockTimer = 0;
   if (dockWaiting) document.body.classList.add('dock-await');
+  // The head's mark held the dock back until now; dock-await takes over.
+  root.classList.remove('dock-intro');
 
   function scheduleDock(ms) {
     if (!dockWaiting) return;
@@ -166,19 +175,22 @@
 
   // No intro this time (already seen, or skipped): just be there.
   function skipReveal() {
+    // Only undo the spin's parked start, if it was parked there. A drum
+    // left alone (no intro, maybe opened on a remembered row) stays put.
+    const parked = revealing || mode === 'fling';
     revealStarted = true;
     revealing = false;
     dockWaiting = false;
     clearTimeout(dockTimer);
     document.body.classList.remove('dock-await');
-    if (mode === 'fling' || pos !== MIN) { stop(); pos = raw = target = MIN; vel = 0; mode = 'rest'; }
+    if (parked) { stop(); pos = raw = target = MIN; vel = 0; mode = 'rest'; }
     if (on) render();
   }
 
   // The spin starts as the yellow starts to lift, gently enough that the
   // second-last row is still where it begins while the yellow clears.
   document.addEventListener('introFading', startReveal);
-  document.addEventListener('introDone', () => { if (!revealStarted) skipReveal(); });
+  document.addEventListener('introDone', () => { if (!revealStarted && !freshSpin) skipReveal(); });
 
   function colsFor() {
     if (matchMedia('(max-width: 720px)').matches) return 1;
@@ -500,7 +512,28 @@
     raw = pos;
     render();
     raf = moving() ? requestAnimationFrame(tick) : 0;
+    if (mode === 'rest') savePlace();
   }
+
+  // ── Remembering the place ──
+  // Where the drum was left is kept for the rest of the visit (session
+  // storage), saved each time it comes to rest and again on leaving the
+  // page, so coming back to Projects from anywhere lands on the same row.
+  // Stored as the first project on that row, not the row number, so it
+  // still lands right if the row length differs (phone vs desktop).
+  const PLACE_KEY = 'drumPlace';
+  function savePlace() {
+    if (!cols || revealing) return;
+    const firstOnRow = (clamp(Math.round(pos)) - MIN) * cols;
+    try { sessionStorage.setItem(PLACE_KEY, String(firstOnRow)); } catch (e) {}
+  }
+  function savedPlace() {
+    try {
+      const v = sessionStorage.getItem(PLACE_KEY);
+      return v == null ? null : Math.max(0, parseInt(v, 10) || 0);
+    } catch (e) { return null; }
+  }
+  addEventListener('pagehide', () => { if (on) savePlace(); });
 
   function run() {
     if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(tick); }
@@ -684,7 +717,12 @@
   // The last project opened (including by its page's previous/next
   // buttons). Coming back to the gallery lands on that project's row.
   let lastProject = null;
-  document.addEventListener('projectopen', e => { lastProject = e.detail; });
+  document.addEventListener('projectopen', e => {
+    lastProject = e.detail;
+    // Remembered too, so leaving from a project page for another page
+    // still comes back to that project's row.
+    if (cols) { try { sessionStorage.setItem(PLACE_KEY, String(Math.floor(lastProject / cols) * cols)); } catch (err) {} }
+  });
   function sync() {
     const showing = main.style.display !== 'none';
     if (showing === on) return;
@@ -781,8 +819,20 @@
 
   sync();
   if (!on) build();
-  // Under the yellow, already parked where the opening spin starts from.
-  if (introOverlay && on && MAX >= 1) { pos = raw = target = MAX - 1; revealing = true; render(); }
+  // Under the yellow (or, on a fresh visit, from the first frame), already
+  // parked where the opening spin starts from.
+  if ((introOverlay || freshSpin) && on && MAX >= 1) {
+    pos = raw = target = MAX - 1; revealing = true; render();
+    if (freshSpin) setTimeout(startReveal, FRESH_SPIN_DELAY);
+  }
+  // Back again this visit: open on the row it was left on.
+  else {
+    const place = savedPlace();
+    if (place != null && on && cols) {
+      pos = raw = target = clamp(Math.floor(place / cols) + MIN);
+      render();
+    }
+  }
   // The tape labels were fitted to the grid's card widths. Refit them.
   dispatchEvent(new Event('resize'));
   if (document.fonts) document.fonts.ready.then(() => { if (glr) glr.invalidate(); if (on) layout(); });

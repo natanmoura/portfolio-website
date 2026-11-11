@@ -5,6 +5,8 @@
 // With a mouse or trackpad in use (outside the phone layout): it trails the
 // cursor and hovers close to it, never on it. Otherwise (touch, phones,
 // no pointer yet): it picks spots on screen and hovers around each a while.
+// Tap it and it dies and falls off the screen, then a new one fades in on
+// the line and takes off again.
 // Add ?tune to the URL for a panel that edits every value live.
 (() => {
   const face = document.getElementById('eyeFace');
@@ -30,6 +32,7 @@
   }
 
   const FADE_MS = 2000;           // must match the eye-face-in fade in style.css
+  const RESPAWN_MS = 700;         // after a dead one falls off screen, before the face fades back in
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const ease = (dt, tau) => 1 - Math.exp(-dt / tau);
@@ -78,6 +81,21 @@
 
   const header = document.querySelector('.site-header');
   setTimeout(takeOff, FADE_MS);
+
+  // It always comes back: once a dead one has fallen off the screen, the
+  // face fades in on its line again just like the first time, then hops up
+  // and flies off again.
+  function respawn() {
+    setTimeout(() => {
+      // Restart the fade while still hidden, so it never shows at full
+      // strength for a frame first.
+      face.style.animation = 'none';
+      void face.offsetWidth;
+      face.style.animation = '';
+      face.style.visibility = '';
+      setTimeout(takeOff, FADE_MS);
+    }, RESPAWN_MS);
+  }
 
   function takeOff() {
     const r = face.getBoundingClientRect();
@@ -230,7 +248,7 @@
       t += dt;
       if (dead) {
         deathFrame(dt);
-        if (dead.phase === 'gone') { bird.remove(); return; }
+        if (dead.phase === 'gone') { bird.remove(); bird = null; respawn(); return; }
         requestAnimationFrame(frame);
         return;
       }

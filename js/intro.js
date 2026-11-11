@@ -23,7 +23,8 @@
     document.dispatchEvent(new CustomEvent('introDone'));
     return;
   }
-  sessionStorage.setItem('introPlayed', '1');
+  // Once ever: remembered for good, not just this visit.
+  try { localStorage.setItem('introPlayed', '1'); } catch (e) {}
 
   document.body.style.overflow = 'hidden';
 

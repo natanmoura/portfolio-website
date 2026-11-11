@@ -69,19 +69,26 @@ body.page-loaded > *:not(.site-header):not(.nav-overlay):not(.form-modal):not(.d
    up while the new one loads (its icons and font take a few frames, and
    showing it early made them pop in). The tapped button is already marked
    active on the old page (bottom-nav.js), so the two match.
-   They hand over with a short dissolve over the last 80 ms rather than a
-   cut: the held snapshot and the live dock can sit half a pixel apart, and
-   a cut showed that as a one-frame flicker across the icons. */
+   They hand over with a short fade over the last 80 ms rather than a cut:
+   the held snapshot and the live dock can sit half a pixel apart, and a cut
+   showed that as a one-frame flicker across the icons.
+   Only the new one fades. The old one stays fully drawn underneath until
+   the end. Fading both at once (one out, one in) left them each at half
+   strength midway, which only covers three quarters: the page showed
+   through the icons as a light flash. */
 ::view-transition-old(dock) {
-  animation: vt-dock-out 0.33s linear both;
+  animation: vt-dock-hold 0.33s linear both;
 }
 ::view-transition-new(dock) {
   animation: vt-dock-in 0.33s linear both;
 }
+::view-transition-old(dock),
+::view-transition-new(dock) {
+  mix-blend-mode: normal;
+}
 
-@keyframes vt-dock-out {
-  0%, 75% { opacity: 1; }
-  100%    { opacity: 0; }
+@keyframes vt-dock-hold {
+  0%, 100% { opacity: 1; }
 }
 @keyframes vt-dock-in {
   0%, 75% { opacity: 0; }
@@ -1682,7 +1689,7 @@ body.projects #main-content {
   /* Phone-shaped players stay off the screen edge by one bezel. The black
      bezel in the footage is about 3.2% of the phone's width, so a 3vw gap
      each side matches it on the slightly narrower phone that results. */
-  .project-media-grid-item:has(> mux-player.is-phone-frame) {
+  .project-media-grid-item:has(mux-player.is-phone-frame) {
     padding-inline: 3vw;
   }
 }
@@ -2482,13 +2489,25 @@ body.page-lab #work {
   .lab-tape-text { font-size: 0.8125rem; padding: 0.45rem 0; }
 }
 
+/* Lab: the rainbow inchworm walking the tape (js/inchworm.js). Each ball
+   is placed by the script; they only need to sit on top of the tape. */
+.inchworm img {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 21;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 /* "Have a scroll through my projects", on its own flat line in the space
    above the first row. js/drum.js shows it on the first row until you've
    scrolled once, then never again. */
 .drum-hint {
   position: fixed;
   left: 50%;
-  width: min(640px, calc(100vw - 4rem));
+  width: min(640px, calc(100vw - 2rem));
   transform: translate(-50%, -50%);
   z-index: 600;
   text-align: center;
@@ -2503,6 +2522,15 @@ body.page-lab #work {
 
 .drum-hint .page-intro {
   margin: 0;
+  /* On a phone the scroll line is too long for one line, so it wraps into
+     two even ones rather than leaving a word or two on the last. */
+  text-wrap: balance;
+}
+
+/* The greeting, on its own line with a little air under it. */
+.page-intro-hi {
+  display: block;
+  margin-bottom: 0.4em;
 }
 
 /* The hand turned to point down at the projects, nudging downward. */
@@ -2528,6 +2556,7 @@ body.page-lab #work {
   position: relative;
 }
 
+html.dock-intro .dock-link,
 body.dock-await .dock-link {
   visibility: hidden;
   top: 120px;
@@ -2577,4 +2606,45 @@ canvas.drum-gl {
 
 .drum-facet--intro .page-intro {
   margin: 0;
+}
+
+/* ── Still over each Mux player until it plays (main.js muxCover) ── */
+.mux-cover-wrap,
+.project-page-media-item[data-end-time] {
+  position: relative;
+}
+.mux-cover-wrap {
+  display: block;
+  width: 100%;
+}
+/* Browsers can draw a thin dark line down a video's edge where it meets its
+   box at a fractional width (seen on Airbnb Japan, though the video itself
+   is clean there). The player is drawn 0.4% oversize inside a box that
+   clips it, which trims a couple of pixels off every edge, line included. */
+.mux-cover-wrap,
+.project-page-media-item[data-end-time] {
+  overflow: hidden;
+}
+.mux-cover-wrap > mux-player,
+.project-page-media-item[data-end-time] > mux-player,
+img.mux-cover {
+  transform: scale(1.004);
+}
+mux-player {
+  display: block;
+  --media-background-color: transparent;
+  background: transparent;
+}
+.mux-cover-wrap > img.mux-cover,
+.project-page-media-item > img.mux-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+img.mux-cover.is-gone {
+  opacity: 0;
 }
