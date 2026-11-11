@@ -2,7 +2,9 @@
    Tilt Warp headings, DM Mono everything else
    Feeling: modern, structured, Bauhaus poster */
 
-@import url('https://fonts.googleapis.com/css2?family=Tilt+Warp&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+/* The fonts (Tilt Warp, DM Mono) are linked from each page's <head>, not
+   @imported here. An @import can't start until this file has arrived, which
+   put an extra round trip in front of every page's first paint. */
 
 :root {
   --bg: #ffffff;

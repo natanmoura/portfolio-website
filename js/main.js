@@ -129,8 +129,16 @@ window.addEventListener('resize', fitLabelTilt);
 // it freezes, across reloads too, until the tab is closed. So nothing is left
 // loaded that isn't on or next to the screen, and anything removed, hidden
 // or left behind on navigation is unloaded first, which hands its decoder back.
+// The page's own pauses (off screen, unloading, restarting a frozen one).
+// Marked so a project player can tell them from you pressing pause.
+function quietPause(v) {
+  if (typeof v.pause !== 'function' || v.paused) return;
+  v._quietPause = true;
+  v.pause();
+}
+
 function releaseVideo(v) {
-  if (typeof v.pause === 'function') v.pause();
+  quietPause(v);
   if (v.tagName === 'MUX-PLAYER') {
     const native = v.media && v.media.nativeEl;
     v.removeAttribute('playback-id');
@@ -200,7 +208,7 @@ setInterval(() => {
     v._watch = null;
     mediaLog(v, 'frozen at ' + t.toFixed(1) + 's, restarting');
     if (isMux) {
-      v.pause();
+      quietPause(v);
       playVideo(v);
     } else if (thumbs) {
       releaseVideo(v);
@@ -255,9 +263,13 @@ const thumbs = (function () {
   };
 }());
 
-function resumeVideos() {
+function resumeVideos(fromTap) {
   wantsPlay.forEach(v => {
     if (!v.isConnected) { wantsPlay.delete(v); return; }
+    // A tap is only here to unblock video the phone wouldn't autoplay. A
+    // project player that has already played and is paused was paused by
+    // that tap (the pause button): leave it.
+    if (fromTap === true && v.tagName === 'MUX-PLAYER' && v._everPlayed) return;
     if (thumbs && v.dataset.src) thumbs.attach(v);
     playVideo(v);
   });
@@ -275,7 +287,7 @@ if (mediaDebug) {
     get blocked() { return autoplayBlocked; },
   };
 }
-['touchend', 'click'].forEach(t => document.addEventListener(t, resumeVideos, { passive: true }));
+['touchend', 'click'].forEach(t => document.addEventListener(t, () => resumeVideos(true), { passive: true }));
 
 // Leaving or reloading the page: give every decoder back now rather than
 // whenever the old page is garbage collected.
@@ -365,17 +377,36 @@ function observeProjectMedia(root) {
   if (!players.length) return;
   projectMediaObserver = new IntersectionObserver(entries => {
     entries.forEach(({ target, isIntersecting }) => {
-      if (isIntersecting) wantsPlay.add(target); else wantsPlay.delete(target);
+      target._inView = isIntersecting;
+      // One you paused yourself stays paused, scrolled away and back or not.
+      if (isIntersecting && !target._heldByYou) wantsPlay.add(target); else wantsPlay.delete(target);
       // <mux-player> has no play() until its module has loaded and upgraded it.
       if (typeof target.play !== 'function') return;
-      if (isIntersecting) playVideo(target); else target.pause();
+      if (wantsPlay.has(target)) playVideo(target); else if (!isIntersecting) quietPause(target);
     });
   }, { threshold: 0.2 });
   players.forEach(p => {
     projectMediaObserver.observe(p);
     uncoverWhenPlaying(p);
+    // Pausing it yourself sticks: nothing on the page restarts it (taps
+    // anywhere, coming back to the tab, scrolling back to it) until you
+    // press play again.
+    p.addEventListener('pause', () => {
+      if (p._quietPause) { p._quietPause = false; return; }
+      // The phone pausing it while the tab is in the background isn't you.
+      if (document.hidden) return;
+      p._heldByYou = true;
+      wantsPlay.delete(p);
+    });
+    p.addEventListener('play', () => {
+      p._heldByYou = false;
+      if (p._inView) wantsPlay.add(p);
+    });
     // The autoplay attribute starts every player, on screen or not.
-    p.addEventListener('playing', () => { if (!wantsPlay.has(p)) p.pause(); });
+    p.addEventListener('playing', () => {
+      p._everPlayed = true;
+      if (!wantsPlay.has(p)) quietPause(p);
+    });
     // One audio source at a time: unmuting any player mutes the rest, so two
     // clips can never talk over each other. Muting rather than pausing keeps
     // the other videos moving.

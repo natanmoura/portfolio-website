@@ -80,7 +80,10 @@
   };
 
   const header = document.querySelector('.site-header');
-  setTimeout(takeOff, FADE_MS);
+  // On opening the page it waits on its line a while after fading in, so the
+  // flipper's balls raining down have the screen to themselves first.
+  const FIRST_FLIGHT_MS = 3000;
+  setTimeout(takeOff, FIRST_FLIGHT_MS);
 
   // It always comes back: once a dead one has fallen off the screen, the
   // face fades in on its line again just like the first time, then hops up

@@ -5,7 +5,8 @@
 // starts heavy and lands at full speed with a wobble, the pauses between
 // vary, and now and then it stops for a moment.
 //
-// Tap it and it bursts. The balls fly apart and fall to the floor, and the
+// The page opens with its pieces raining down from above the screen, and it
+// builds itself from there. Tap it and it bursts. The balls fly apart and fall to the floor, and the
 // eye rolls off to fetch the nearest one. Close enough, a ball is drawn in
 // and joins on, and the two flip off together after the next. Short bodies
 // take short quick flips, long ones slow far-reaching ones. Once it has
@@ -32,15 +33,21 @@
   // A flip starts from a standstill, heavy, and is still moving when it
   // lands: this many times its average speed. Higher hits harder.
   const LAND_SPEED = 1.3;
-  const STRIDE_MIN = 0.72;  // stride, as a fraction of the body length
-  const STRIDE_MAX = 0.9;
-  const GAP = 0.82;         // ball spacing, in ball sizes (a little overlap)
+  const REACH_FLIP = 1.35;  // the flip easing in beside a ball takes this much longer
+  const ROLL_EASE = 2.5;    // ball sizes out, the eye alone starts slowing for a ball
+  // The body's length never changes (only how it bends), so a shorter
+  // stride stands it up in a taller hump.
+  const STRIDE_MIN = 0.6;   // stride, as a fraction of the body length
+  const STRIDE_MAX = 0.78;
+  const GAP = 0.9;          // ball spacing, in ball sizes: overlapping just a touch
   // Between flips
   const REST_MIN = 0.05, REST_MAX = 0.35;   // s, the usual breather
   const PAUSE_CHANCE = 0.1;                  // now and then it stops a while
   const PAUSE_MIN = 0.8, PAUSE_MAX = 1.8;
-  // The landing: the body wobbles like it hit something.
-  const THUD = 0.05, THUD_HZ = 5, THUD_DECAY = 0.15;
+  // The landing is taken in the body: its hump squashes toward the surface,
+  // comes back up past where it was by a little, and settles. Both ends stay
+  // put. THUD is how far the middle sinks, in ball sizes.
+  const THUD = 0.45, THUD_HZ = 2.6, THUD_DECAY = 0.16;
   const ROLL_SPEED = 120;   // px/s, the eye on its own
   // Rebuilding after a burst it's in a hurry: no stops, barely a breath
   // between flips, flips this much quicker. Whole again, it goes back to
@@ -180,10 +187,11 @@
   let mode = 'walk';          // walk (two or more joined) | roll (the eye alone) | air (just burst)
   let sEye = 0, sTail = 0, dir = 1;
   let phase = 'rest', t = 0, restFor = 0;
-  let flipT = 1, pivotS = 0, fromS = 0, landS = 0, moverIsEye = false;
+  let flipT = 1, pivotS = 0, fromS = 0, landS = 0, moverIsEye = false, reaching = false;
   let sinceLand = 9, blend = 0;
   let bodyL = 0, up = { x: 0, y: -1 };
   let pulling = null, slotS = 0;
+  let aim = null;             // the ball it's going for
 
   const L = () => (body.length - 1) * gapPx;
 
@@ -195,14 +203,27 @@
   }
   const complete = () => body.length === parts.length;
 
+  // The page opens with every piece raining in from above the top of the
+  // screen, at random spots and heights so they land one after another.
+  // Then the eye builds itself the same way it does after a burst.
+  const DROP_ABOVE_MIN = 1, DROP_ABOVE_MAX = 70;   // ball sizes above the top edge
   function start() {
     measure();
     path();
-    // On the floor, a little left of the middle, heading left (clockwise).
-    sTail = box.w + box.q + box.h + box.q + box.w * 0.4;
-    sEye = sTail + rand(STRIDE_MIN, STRIDE_MAX) * L();
+    const { x0, x1, R } = box;
+    parts.forEach(p => {
+      p.state = 'loose';
+      p.entering = true;
+      p.x = rand(x0 + R, x1 - R);
+      p.y = box.y0 - size * rand(DROP_ABOVE_MIN, DROP_ABOVE_MAX);
+      p.vx = rand(-40, 40); p.vy = 0;
+      p.still = 0; p.sx = NaN;
+      p.spin = p === eye ? rand(-SPIN, SPIN) / 3 : 0;
+      p.rx = p.x; p.ry = p.y;
+    });
+    body = [0];
+    mode = 'air';
     dir = 1;
-    rest();
   }
 
   // 1 at full length, smaller as the body gets shorter.
@@ -232,24 +253,57 @@
     phase = 'pull'; t = 0;
   }
 
+  // The spot ahead of the planted end that's `chord` away in a straight line.
+  function landAt(chord) {
+    const P = onPath(pivotS);
+    for (let d = 1; d < chord * 3; d += 1) {
+      const Q = onPath(pivotS + dir * d);
+      if (Math.hypot(Q.x - P.x, Q.y - P.y) >= chord) return pivotS + dir * d;
+    }
+    return pivotS + dir * chord;
+  }
+
   // The next flip: the end behind swings over the one in front.
   function startFlip(target) {
     const eyeFront = dir * (sEye - sTail) > 0;
     moverIsEye = !eyeFront;
     pivotS = eyeFront ? sEye : sTail;
     fromS = eyeFront ? sTail : sEye;
-    const len = L();
+    const len = L(), maxStride = len * STRIDE_MAX, minStride = size * 0.3;
     let stride = len * rand(STRIDE_MIN, STRIDE_MAX);
-    // Heading for a ball: land just short of it, so the tail ends up beside it.
+    let planned = false;
+    reaching = false;
+    // Heading for a ball, the last steps are planned so the tail sets down
+    // right beside it, one ball-gap short, where the ball joins on without
+    // having to move much. Within two strides the eye's step and then the
+    // tail's step split what's left evenly. The tail's step is the one that
+    // eases in deliberately.
     if (target) {
       const tS = sOf(target, pivotS);
-      const room = dir * (tS - pivotS) - gapPx;
-      stride = Math.min(stride, Math.max(size * 0.3, room));
+      const tailTo = tS - dir * gapPx;           // where the tail should end up
+      const left = dir * (tailTo - pivotS);      // from the planted end to there
+      if (!moverIsEye && left <= maxStride) {
+        stride = Math.max(minStride, left);
+        reaching = planned = true;
+      } else if (moverIsEye && left <= 2 * maxStride) {
+        stride = Math.min(maxStride, Math.max(minStride, left / 2));
+        planned = true;
+      }
     }
-    landS = pivotS + dir * stride;
+    if (planned) landS = pivotS + dir * stride;
+    else {
+      // A stride is the straight-line distance to where it lands, not the
+      // distance round the edge. Round a corner that carries it further, so
+      // it spans the corner in one wide arc. If a corner is anywhere in the
+      // next step it takes its longest one, for the widest bend over it.
+      const far = landAt(maxStride), P = onPath(pivotS), Q = onPath(far);
+      landS = P.nx * Q.nx + P.ny * Q.ny < 0.98 ? far : landAt(stride);
+    }
     flipT = (complete()
       ? Math.max(FLIP_MIN_S, FLIP_S * quickness())
       : Math.max(HURRY_FLIP_MIN_S, FLIP_S * quickness() * HURRY_FLIP)) * rand(0.9, 1.12);
+    // The flip that sets the tail beside a ball takes a touch longer.
+    if (reaching) flipT *= REACH_FLIP;
     phase = 'flip';
     t = 0;
   }
@@ -267,8 +321,10 @@
     // heading clockwise, up when heading back.
     const twoPi = 2 * Math.PI, d = ((a1 - a0) % twoPi + twoPi) % twoPi;
     const sweep = dir > 0 ? d - twoPi : d;
-    // Progress: no speed at the start, LAND_SPEED times the average at the end.
-    const e = (LAND_SPEED - 2) * k * k * k + (3 - LAND_SPEED) * k * k;
+    // Progress: no speed at the start, and at the end LAND_SPEED times the
+    // average, or none when it's easing in beside a ball.
+    const land = reaching ? 0 : LAND_SPEED;
+    const e = (land - 2) * k * k * k + (3 - land) * k * k;
     const lift = Math.pow(Math.sin(Math.PI * e), 1.5);
     const len = L();
     const base = Math.hypot(from.x - P.x, from.y - P.y) * (1 - e) + Math.hypot(to.x - P.x, to.y - P.y) * e;
@@ -288,16 +344,21 @@
         startFlip(null);
         return;
       }
-      const mid = (sEye + sTail) / 2;
-      const target = nearestLoose(mid);
+      // Pick a ball and stick with it until it's on.
+      if (!aim || aim.state !== 'loose') aim = nearestLoose((sEye + sTail) / 2);
+      const target = aim;
       if (!target) { restFor = t + 0.25; return; }
       const tS = sOf(target, sTail);
-      if (Math.abs(sTail - tS) <= REACH * size) {
-        const out = Math.sign(sTail - sEye) || dir;
+      const fromTail = toward(sTail, tS), fromEye = toward(sEye, tS);
+      // Lying under the body (between the two ends): just draw it in.
+      const under = Math.sign(fromTail) !== Math.sign(fromEye);
+      if (under || Math.abs(fromTail) <= REACH * size) {
+        const out = under ? (Math.sign(sTail - sEye) || dir) : (Math.sign(fromTail) || dir);
         startPull(target, sTail + out * gapPx);
         return;
       }
-      dir = Math.sign(toward(mid, tS)) || 1;
+      // Head the way that brings the tail to it.
+      dir = Math.sign(fromTail) || 1;
       startFlip(target);
     } else if (phase === 'flip') {
       if (t >= flipT) {
@@ -341,15 +402,18 @@
       });
       return;
     }
-    const target = nearestLoose(sEye);
+    if (!aim || aim.state !== 'loose') aim = nearestLoose(sEye);
+    const target = aim;
     if (!target) return;
     const tS = sOf(target, sEye), d = toward(sEye, tS);
     if (Math.abs(d) <= REACH * size) {
       startPull(target, sEye + Math.sign(d) * gapPx);
       return;
     }
-    // Gets going from a standstill rather than shooting off.
-    const v = Math.sign(d) * ROLL_SPEED * Math.min(1, 0.3 + t);
+    // Gets going from a standstill rather than shooting off, and slows as it
+    // comes up on the ball.
+    const near = Math.min(1, 0.25 + (Math.abs(d) - REACH * size) / (ROLL_EASE * size));
+    const v = Math.sign(d) * ROLL_SPEED * Math.min(1, 0.3 + t) * near;
     sEye += v * dt;
     eye.rot -= (v * dt) / (size / 2) * 180 / Math.PI;
   }
@@ -364,6 +428,11 @@
       p.vy += GRAVITY * dt;
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.rot += p.spin * dt;
+      // Still falling in from above the screen: nothing to hit yet.
+      if (p.entering) {
+        if (p.y < y0 + R) { p.still = 0; return; }
+        p.entering = false;
+      }
       const cx = Math.min(Math.max(p.x, x0 + R), x1 - R), cy = Math.min(Math.max(p.y, y0 + R), y1 - R);
       let dx = p.x - cx, dy = p.y - cy;
       const len = Math.hypot(dx, dy);
@@ -467,12 +536,22 @@
     if (phase === 'flip') {
       const f = flipPoint(Math.min(1, t / flipT));
       if (moverIsEye) A = f; else B = f;
-    } else if (sinceLand < 0.6) {
-      // The landing: the body flattens with the hit and springs back.
-      bodyL *= 1 - THUD * Math.cos(2 * Math.PI * THUD_HZ * sinceLand) * Math.exp(-sinceLand / THUD_DECAY);
     }
     const fracs = body.map((_, i) => i / (n - 1));
-    return arc(A, B, up.x, up.y, fracs, bodyL);
+    const pts = arc(A, B, up.x, up.y, fracs, bodyL);
+    // The landing: the middle of the body gives with the hit and springs
+    // back, most in the middle and none at the ends. Starts from nothing, so
+    // there's no jump. (Not after easing in beside a ball: that one sets down
+    // softly.)
+    if (phase !== 'flip' && !reaching && sinceLand < 1) {
+      const give = THUD * size * Math.sqrt(L() / LFULL) * Math.sin(2 * Math.PI * THUD_HZ * sinceLand) * Math.exp(-sinceLand / THUD_DECAY);
+      pts.forEach((p, i) => {
+        const w = Math.sin(Math.PI * fracs[i]);
+        p.x -= up.x * give * w;
+        p.y -= up.y * give * w;
+      });
+    }
+    return pts;
   }
 
   function draw(dt) {
@@ -518,8 +597,6 @@
 
   start();
   restack();
-  // Drawn in place from the first frame.
-  const first = bodyPoints();
-  body.forEach((i, j) => { parts[i].rx = first[j].x; parts[i].ry = first[j].y; });
+  draw(0);
   requestAnimationFrame(frame);
 })();
