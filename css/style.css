@@ -2268,9 +2268,13 @@ mux-player.is-phone-frame::part(control-bar) {
   /* Extra room on top for the selected icon, which is scaled up 1.45x from
      its base and so grows 0.45 of an icon upward. A page change captures
      the dock as a picture cut to this box, and without the room Safari cut
-     the top off the selected icon for those frames. The room is empty, so
-     it lets taps through to the page. */
-  padding: calc(0.55rem + var(--dock-emoji, 2rem) * 0.5) 0.5rem 0.55rem;
+     the top off the selected icon for those frames. The sides need room
+     too: the selected label grows 1.25x and PROJECTS also sits a little
+     left, so it reaches about 16px past its button. With only 8px, the
+     held picture lost the label's left end, and it filled in grey as the
+     new page's dock faded in. The room is empty, so it lets taps through
+     to the page. */
+  padding: calc(0.55rem + var(--dock-emoji, 2rem) * 0.5) 1.5rem 0.55rem;
   pointer-events: none;
 }
 
