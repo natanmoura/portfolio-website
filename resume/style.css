@@ -35,7 +35,7 @@ body {
   /* Wide enough that PDF text extractors cut the page horizontally here and
      emit the name before the sidebar column, rather than reading the sidebar
      first. Below ~40px they treat the whole page as two columns. */
-  margin-bottom: 44px;
+  margin-bottom: 40px;
 }
 
 /* Name: the one dominant element on the page, but regular weight (not bold) per direction */
@@ -131,7 +131,7 @@ body {
    shifts .main on page 1 — keeps the rail in the same horizontal spot on both pages */
 .main-full { padding-left: 24px; margin-left: 152px; }
 
-.sec { margin-bottom: 14px; }
+.sec { margin-bottom: 11px; }
 
 .sec-head {
   position: relative;
@@ -173,7 +173,7 @@ body {
 /* entries with timeline node */
 .entry {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .entry:last-child { margin-bottom: 0; }
@@ -185,7 +185,7 @@ body {
 
 /* dot centered on the rail: left = railCenter(7) - mainPadding(24) - dot/2(3);
    top aligned to the vertical center of the role/profile line's cap-height */
-.entry::before, .award::before, .profile::before {
+.timeline .entry::before {
   content: "";
   position: absolute;
   left: -20px;
@@ -199,24 +199,19 @@ body {
   z-index: 1;
 }
 
-/* connector: a segment from THIS item's dot down through its own text. By default
-   (last item in a section, or a standalone item like Profile) it runs to the bottom
-   of its own content so the line never ends bare right after the dot. When there is
-   a next item in the same section, it's extended further through the margin gap to
-   reach that next dot instead. Either way, nothing is ever drawn above a dot, so a
-   section's first dot always starts clean. */
-.entry::after, .award::after, .profile::after {
+/* One continuous rail from the first dot to the last. Its ends are set by the
+   script in index.html so it always starts and stops exactly on a dot. */
+.timeline { position: relative; }
+
+.timeline::before {
   content: "";
   position: absolute;
   left: -18px;
-  top: 9px;
   width: 2px;
   background: var(--ink);
-  bottom: 0;
+  top: var(--rail-top, 0);
+  bottom: var(--rail-bottom, 0);
 }
-
-.entry:not(:last-child)::after { bottom: -21px; }
-.award:not(:last-child)::after { bottom: -11px; }
 
 .role {
   font-family: var(--sans);
@@ -236,7 +231,7 @@ body {
 .desc {
   margin: 0 0 2px 0;
   font-size: 12.5px;
-  line-height: 1.28;
+  line-height: 1.24;
   color: var(--ink);
 }
 
@@ -259,6 +254,8 @@ body {
 }
 
 .award strong { font-weight: 600; }
+
+.org { font-weight: 600; }
 
 .award .year {
   color: var(--slate);
