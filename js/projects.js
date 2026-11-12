@@ -21,7 +21,7 @@ const projects = [
       content: [
         { type: "mux", src: "https://player.mux.com/vUhx00foLioYArf3rli01oDuPdaNNIaKcNYlwZa8cn93Y?metadata-video-title=Playdate+Intro+Sequence+-+Device&video-title=Playdate+Intro+Sequence+-+Device&autoplay&muted" },
         { type: "caption", html: `Video courtesy of <a href="https://www.youtube.com/@RetroDodo">Retro Dodo</a>.` },
-        { type: "text", html: `Collaborating with <a href="http://chromosphere-la.com">Chromosphere</a>, I animated and composited the interactive first time user experience for the Playdate — a quirky little handheld device from <a href="https://panic.com">Panic</a>.` },
+        { type: "text", html: `Collaborating with <a href="http://chromosphere-la.com">Chromosphere</a>, I animated the interactive first time user experience for the Playdate, a quirky little handheld device from <a href="https://panic.com">Panic</a>.` },
         { type: "text", html: `To make it all work I broke down my animations into many layers and loops and defined how to put it all together on the engineering side for the final interaction. We also made a video version in color for promotional purposes.` },
         { type: "media-grid", cols: 2, items: [
           { type: "mux", src: "https://player.mux.com/z3KERXS100cJcyzQnSeQjHM8WZY02TFxPjZDo2nDhzzNU?thumbnail-time=0&autoplay&muted", caption: "Interactive Playdate version — 400×240 pixels", aspectRatio: "5/3" },
@@ -72,11 +72,11 @@ const projects = [
         { type: "mux", src: "https://player.mux.com/ApOY01Rt01w6fLUAuVpxij4enRfrt6xXDL02wgK02dldbx00?metadata-video-title=Ursula+Demo+at+Betaworks&video-title=Ursula+Demo+at+Betaworks", clip: [205, 421], startTime: 1, endTime: 216 },
         { type: "caption", html: `Founder Pedro Lucca presenting our demo at Betaworks AI Camp.` },
         { type: "text", html: `I helped build the <em>Ursula</em> prototype at <a href="https://www.betaworks.com/">Betaworks</a> AI Camp that helped secure initial seed funding. This allowed us to grow the team into Company Picnic and continue developing other conversation-first character experiences.` },
-        { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
         { type: "image", src: "assets/images/company-picnic/ursula-poses.jpg" },
+        { type: "text", html: `I designed Ursula, a little star character built in Rive and driven live by our custom LLM brain architecture.` },
         { type: "media-grid", cols: 2, items: [
-          { type: "image", src: "assets/images/company-picnic/ursula-expressions.jpg" },
           { type: "image", src: "assets/images/company-picnic/ursula-rotation-eyes.jpg" },
+          { type: "image", src: "assets/images/company-picnic/ursula-expressions.jpg" },
         ]},
         { type: "text", html: `I also designed a cast of friends for Ursula's world.` },
         { type: "media-grid", cols: 2, items: [
@@ -104,6 +104,19 @@ const projects = [
           { type: "mux", src: "https://player.mux.com/XyLBEjIlVgMXNiyCHF75c2V5BeSf4g3oEUoaRwjr7Eg?thumbnail-time=0&autoplay&muted", aspectRatio: "4/3" },
         ]},
         { type: "text", html: `We also collaborated with the team at Epic Games to define animation workflow tools that we tested and are now implemented in the core engine.` },
+      ],
+      links: [],
+    },
+  },
+  {
+    title: "Sinclair Snake",
+    slug: "sinclair-snake",
+    thumbnail: "assets/videos/thumbs/sinclair-snake.mp4",
+    page: {
+      content: [
+        { type: "mux", src: "https://player.mux.com/8Bi6AQe9cv02XdnW35B879ae7QVkNw1GqFZ7mWcpwZH00?thumbnail-time=0&autoplay&muted" },
+        { type: "text", html: `This project for the <a href="https://wonderscope.com">Wonderscope</a> iOS app is an augmented reality experience for kids in which they explore a museum in search of a snake while learning about history along the way.` },
+        { type: "text", html: `I worked with <a href="http://chromosphere-la.com">Chromosphere</a> creating looping 3D animations in Maya for the snake character which I brought into the Unity game engine and sequenced for the interactions.` },
       ],
       links: [],
     },
@@ -202,19 +215,6 @@ const projects = [
           { type: "gif", src: "assets/gifs/airbnb-japan-05.gif" },
           { type: "gif", src: "assets/gifs/airbnb-japan-06.gif" },
         ]},
-      ],
-      links: [],
-    },
-  },
-  {
-    title: "Sinclair Snake",
-    slug: "sinclair-snake",
-    thumbnail: "assets/videos/thumbs/sinclair-snake.mp4",
-    page: {
-      content: [
-        { type: "mux", src: "https://player.mux.com/8Bi6AQe9cv02XdnW35B879ae7QVkNw1GqFZ7mWcpwZH00?thumbnail-time=0&autoplay&muted" },
-        { type: "text", html: `This project for the <a href="https://wonderscope.com">Wonderscope</a> iOS app is an augmented reality experience for kids in which they explore a museum in search of a snake while learning about history along the way.` },
-        { type: "text", html: `I worked with <a href="http://chromosphere-la.com">Chromosphere</a> creating looping 3D animations in Maya for the snake character which I brought into the Unity game engine and sequenced for the interactions.` },
       ],
       links: [],
     },

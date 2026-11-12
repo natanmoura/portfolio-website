@@ -321,7 +321,7 @@ function muxPlayerFromSrc(src, inlineStyle) {
   let url;
   try { url = new URL(src, location.href); } catch { return ''; }
   const q = url.searchParams;
-  const attrs = ['playback-id="' + url.pathname.replace(/^\//, '') + '"'];
+  const attrs = ['playback-id="' + url.pathname.replace(/^\//, '') + '"', 'default-hidden-captions'];
   // metadata-video-title goes to Mux Data only. video-title would draw the
   // title over the video, which we never want on any player here.
   const title = q.get('metadata-video-title') || q.get('video-title');
@@ -498,7 +498,7 @@ function buildProjectHTML(i) {
           // broken-image icon. Hand it a correctly ordered URL instead.
           const poster = `https://image.mux.com/${baseId}/thumbnail.webp?time=${item.startTime || 0}` +
             (clipQS ? `&${clipQS}` : '');
-          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player>${muxCover(poster)}</div>`;
+          return `<div class="project-page-media-item${narrowClass} fade-in-item" data-end-time="${item.endTime}" data-start-time="${item.startTime || 0}" style="aspect-ratio:16/9${item.aspectRatio ? ';aspect-ratio:' + item.aspectRatio : ''}"><mux-player playback-id="${playbackId}" default-hidden-captions poster="${poster}" end-time="${item.endTime}"${item.startTime != null ? ` start-time="${item.startTime}"` : ''} thumbnail-time="${item.startTime || 0}" ${item.autoplay === 'any' ? 'autoplay="any"' : 'autoplay muted'} style="width:100%;height:100%"></mux-player>${muxCover(poster)}</div>`;
         }
         return `<div class="project-page-media-item${narrowClass} fade-in-item">${muxPlayerFromSrc(item.src, item.aspectRatio ? `aspect-ratio:${item.aspectRatio};` : '')}</div>`;
       }
@@ -567,7 +567,7 @@ function buildProjectHTML(i) {
         // maxWidth narrows the band for tall portrait media, which would
         // otherwise be sized by the full 1290px grid and tower over the page.
         const gridWidth = item.maxWidth ? `;max-width:${item.maxWidth}` : '';
-        const gridGap = item.gap ? `;gap:${item.gap}` : '';
+        const gridGap = item.gap ? `;--grid-gap:${item.gap}` : '';
         return `<div class="project-media-grid fade-in-item" style="--cols:${cols}${gridWidth}${gridGap}">${cells}</div>`;
       }
       return '';
