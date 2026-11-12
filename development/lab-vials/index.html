@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Lab Vials</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tilt+Warp&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
+<link rel="stylesheet" href="style.css" />
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+  <main class="lab">
+    <p class="intro">You stumbled into the lab... beware of funky experiments</p>
+    <div class="shelf" id="shelf">
+      <canvas id="vials"></canvas>
+      <div class="labels" id="labels"></div>
+    </div>
+  </main>
+
+  <!-- Stand-in for the project page a vial opens into. -->
+  <section class="project" id="project" hidden>
+    <button class="back" id="back">&larr; Back to the lab</button>
+    <h1 id="projectName"></h1>
+    <p id="projectTag"></p>
+  </section>
+
+  <div class="flash" id="flash"></div>
+
+  <button class="tune-toggle" id="tuneToggle" aria-expanded="false">Glass</button>
+  <div class="tune" id="tune" hidden></div>
+  <div class="help" id="help" hidden></div>
+
+  <script type="module" src="vials.js"></script>
+</body>
+</html>

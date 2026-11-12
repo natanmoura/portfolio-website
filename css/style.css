@@ -2452,57 +2452,8 @@ html.drum #gallery {
   background-position: center;
 }
 
-/* Lab: a strip of caution tape slapped diagonally across the section,
-   UNDER CONSTRUCTION over and over. Clicks pass straight through it. The
-   strip runs well past both screen edges, so the page clips sideways
-   overflow rather than scrolling to it. */
-body.page-lab #main-content {
-  overflow-x: clip;
-}
-
-body.page-lab #work {
-  position: relative;
-}
-
-/* Pinned to the screen, a little above the middle. */
-.lab-tape {
-  position: fixed;
-  left: 50%;
-  top: 44%;
-  width: max(220vw, 2400px);
-  transform: translate(-50%, -50%) rotate(-9deg);
-  z-index: 20;
-  pointer-events: none;
-  overflow: hidden;
-  background: #fde104;
-  color: #0a0a0a;
-}
-
-.lab-tape-text {
-  display: flex;
-  justify-content: center;
-  white-space: nowrap;
-  padding: 0.55rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-/* One space after the cone, the same as the one before it (a monospace
-   space plus the letter spacing). */
-.lab-tape-text span {
-  flex: none;
-  padding-right: calc(1ch + 0.08em);
-}
-
-@media (max-width: 720px) {
-  .lab-tape-text { font-size: 0.8125rem; padding: 0.45rem 0; }
-}
-
-/* Lab: the rainbow inchworm walking the tape (js/inchworm.js). Each ball
-   is placed by the script; they only need to sit on top of the tape. */
+/* Lab: the rainbow inchworm (js/inchworm.js). Each ball
+   is placed by the script. */
 .inchworm img {
   position: fixed;
   left: 0;
