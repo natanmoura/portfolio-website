@@ -18,15 +18,17 @@ const EXPERIMENTS = [
 
 // Glass settings. The tuning panel edits these live.
 const GLASS = {
-  roughness: 0.07,
-  thickness: 0.4,
-  ior: 1.5,
-  dispersion: 0.25,
+  roughness: 0,
+  thickness: 1.01,
+  ior: 1.26,
+  dispersion: 0.51,
   clearcoat: 1,
-  envIntensity: 1.8,
-  attenuation: 2.5,
-  contentInset: 0.72,
-  edgeShade: 0.5,
+  envIntensity: 0.43,
+  attenuation: 6,
+  contentInset: 0.66,
+  edgeShade: 1,
+  innerShine: 0.5,
+  waviness: 0.6,
 };
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -83,7 +85,7 @@ function buildEnvironment() {
     env.add(m);
     return m;
   };
-  panel(4, 3.2, 30, [-5, 5, 6], '#ffffff', soft);       // key window, up left in front
+  panel(4, 3.2, 30, [-7, 6.5, 3], '#ffffff', soft);       // key window, up left, off to the side so its highlight sits near the rim, clear of the contents
   panel(0.8, 12, 14, [-8, 1, 1]);       // left strip
   panel(0.8, 12, 10, [8, 1, 0]);        // right strip
   panel(10, 4, 2.5, [0, 9, 0], '#ffffff', soft);     // overhead softbox
@@ -144,6 +146,25 @@ const corkTex = canvasTexture(512, (g, s) => {
   }
 });
 
+// Slow, soft unevenness for the glass surface. Tiles seamlessly: each blob
+// is also drawn wrapped round the edges.
+const waveTex = canvasTexture(256, (g, s) => {
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, s, s);
+  g.filter = 'blur(14px)';
+  for (let i = 0; i < 40; i++) {
+    const x = Math.random() * s, y = Math.random() * s, r = 20 + Math.random() * 40;
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)';
+    for (const dx of [-s, 0, s]) for (const dy of [-s, 0, s]) {
+      g.beginPath();
+      g.arc(x + dx, y + dy, r, 0, 7);
+      g.fill();
+    }
+  }
+}, false);
+waveTex.wrapS = waveTex.wrapT = THREE.RepeatWrapping;
+waveTex.repeat.set(3, 2);
+
 // ── Geometry ──
 // The flask is a lathe: a sphere of radius 1 centred at y = 1, flattened a
 // touch at the bottom so it stands, then a short narrow neck and a rolled
@@ -187,7 +208,29 @@ const glassMat = new THREE.MeshPhysicalMaterial({
   transmission: 1,
   specularIntensity: 1,
   attenuationColor: new THREE.Color('#d6e9f7'),
+  // Both faces, so the far wall refracts too and the glass reads as a
+  // shell with depth, not a single skin.
+  side: THREE.DoubleSide,
+  // A faint, slow waviness, like hand-blown glass. It wobbles the
+  // reflections and the view through just enough to feel made, not modelled.
+  bumpMap: waveTex,
+  bumpScale: GLASS.waviness,
 });
+
+// Highlights off the inside of the wall. Thick glass shows two sets: the
+// outer surface's and, smaller and shifted, the inner surface's. This is a
+// mirror sphere just inside the wall that keeps only the bright studio
+// lights (everything dimmer is subtracted away) and adds them on top.
+const innerShineMat = new THREE.MeshStandardMaterial({
+  color: '#ffffff', metalness: 1, roughness: 0.05,
+  transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending,
+  depthTest: false, depthWrite: false,
+});
+innerShineMat.onBeforeCompile = sh => {
+  sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>',
+    'outgoingLight = max(outgoingLight - vec3(1.2), 0.0);\n#include <opaque_fragment>');
+};
+const innerShineGeo = new THREE.SphereGeometry(1, 64, 48);
 const corkMat = new THREE.MeshStandardMaterial({ map: corkTex, bumpMap: corkTex, bumpScale: 1.5, roughness: 0.9 });
 
 function applyGlass() {
@@ -199,6 +242,9 @@ function applyGlass() {
   glassMat.clearcoatRoughness = 0.02;
   glassMat.envMapIntensity = GLASS.envIntensity;
   glassMat.attenuationDistance = GLASS.attenuation;
+  innerShineMat.opacity = GLASS.innerShine;
+  glassMat.bumpScale = GLASS.waviness;
+  innerShineMat.envMapIntensity = GLASS.envIntensity;
   for (const v of vials) {
     v.content.scale.setScalar(GLASS.contentInset);
     v.contentMat.uniforms.edgeShade.value = GLASS.edgeShade;
@@ -212,8 +258,12 @@ function applyGlass() {
 const contentVert = `
   varying vec3 vObj; varying vec3 vN; varying vec3 vV;
   void main() {
-    vObj = position;
+    // The picture is laid on from the camera's side, upright, whatever
+    // way the vial leans, so it always reads straight on.
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec4 centre = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    float r = length((modelViewMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
+    vObj = vec3((mv.xy - centre.xy) / r, 0.0);
     vN = normalize(normalMatrix * normal);
     vV = normalize(-mv.xyz);
     gl_Position = projectionMatrix * mv;
@@ -294,8 +344,22 @@ EXPERIMENTS.forEach((exp, i) => {
   root.add(body);
   world.add(root);
 
+  // Tilts pivot on the bulb's centre, so the round bottom stays on the shelf.
+  const tilt = new THREE.Group();
+  tilt.position.y = BULB_Y;
+  body.add(tilt);
+  const inner = new THREE.Group();
+  inner.position.y = -BULB_Y;
+  tilt.add(inner);
+
   const glass = new THREE.Mesh(flaskGeo, glassMat);
-  body.add(glass);
+  inner.add(glass);
+
+  const shine = new THREE.Mesh(innerShineGeo, innerShineMat);
+  shine.position.y = BULB_Y;
+  shine.scale.setScalar(0.9);
+  shine.renderOrder = 10;
+  inner.add(shine);
 
   const preview = exp.preview.video ? videoPreview(exp.preview.video) : imagePreview(exp.preview.image, exp.tint);
   const contentMat = new THREE.ShaderMaterial({
@@ -310,25 +374,29 @@ EXPERIMENTS.forEach((exp, i) => {
   });
   const content = new THREE.Mesh(contentGeo, contentMat);
   content.position.y = BULB_Y;
-  body.add(content);
+  inner.add(content);
 
   const cork = new THREE.Mesh(corkGeo, corkMat);
   cork.position.y = 2.34;
-  body.add(cork);
+  inner.add(cork);
 
-  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.2), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.004;
-  root.add(shadow);
-
-  // Light through the glass, thrown onto the shelf in front.
-  const glow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 1.1),
-    new THREE.MeshBasicMaterial({ map: glowTex, color: new THREE.Color(exp.tint), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  glow.rotation.x = -Math.PI / 2;
-  glow.position.set(0.15, 0.006, 0.55);
-  root.add(glow);
+  // On the shelf: a tight dark contact where the bulb touches, a broad soft
+  // shadow thrown forward and right, and inside it the light the bulb
+  // focuses, coloured by what's inside.
+  const decal = (w, d, map, color, opacity, x, z, order) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, depthWrite: false, toneMapped: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.003 + order * 0.001, z);
+    m.renderOrder = order;
+    root.add(m);
+    return m;
+  };
+  decal(2.6, 1.7, shadowTex, '#ffffff', 0.55, 0.3, 0.35, 1);
+  decal(0.95, 0.55, shadowTex, '#ffffff', 0.9, 0.02, 0.02, 2);
+  const tintCol = new THREE.Color(exp.tint);
+  decal(1.1, 0.75, glowTex, tintCol.clone().lerp(new THREE.Color('#ffffff'), 0.15), 0.55, 0.42, 0.62, 3);
+  decal(0.35, 0.22, glowTex, '#ffffff', 0.7, 0.44, 0.64, 4);
 
   const label = document.createElement('button');
   label.className = 'vial-label';
@@ -337,7 +405,10 @@ EXPERIMENTS.forEach((exp, i) => {
   labelsEl.appendChild(label);
 
   vials.push({
-    exp, root, body, glass, content, contentMat, cork, label, video: preview.video,
+    exp, root, body, tilt, glass, content, contentMat, cork, label, video: preview.video,
+    // Each leans its own way: to either side, or toward the camera, never away.
+    leanZ: (Math.random() * 2 - 1) * 0.2,
+    leanX: 0.03 + Math.random() * 0.14,
     phase: Math.random() * Math.PI * 2,
     press: 0, pressV: 0, pressTarget: 0,
     hover: 0, hoverTarget: 0,
@@ -349,7 +420,7 @@ window.__vials = vials;
 
 // ── Layout ──
 const SPACING = 2.7;
-const ROW_H = 3.7;
+const ROW_H = 4.1;
 const VIAL_TOP_PAD = 0.55;
 const SHELF_SPACE = 0.75;
 let cols = 3, rows = 2, worldW = 0, worldH = 0;
@@ -371,8 +442,8 @@ function layout() {
   // Far enough back that the whole grid fits, raised a little so we look
   // slightly down onto the shelves.
   const dist = worldH / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  camHome.set(0, 0.9, dist);
-  lookHome.set(0, 0.2, 0);
+  camHome.set(0, dist * 0.3, dist);
+  lookHome.set(0, -0.1, 0);
   camera.position.copy(camHome);
   camera.lookAt(lookHome);
   camera.updateProjectionMatrix();
@@ -381,8 +452,8 @@ function layout() {
   shelves.length = 0;
   for (let r = 0; r < rows; r++) {
     const baseY = worldH / 2 - r * ROW_H - VIAL_TOP_PAD - 2.56;
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(worldW - 0.3, 0.12, 1.6), shelfMat);
-    shelf.position.set(0, baseY - 0.06, 0.1);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(worldW - 0.3, 0.12, 2.4), shelfMat);
+    shelf.position.set(0, baseY - 0.06, 0.3);
     world.add(shelf);
     shelves.push(shelf);
   }
@@ -393,7 +464,7 @@ function layout() {
     const x = (c - (inRow - 1) / 2) * SPACING;
     const baseY = worldH / 2 - r * ROW_H - VIAL_TOP_PAD - 2.56;
     v.root.position.set(x, baseY, 0);
-    v.labelAnchor = new THREE.Vector3(x, baseY - 0.12, 0.9);
+    v.labelAnchor = new THREE.Vector3(x, baseY - 0.12, 1.5);
   });
   placeLabels();
 }
@@ -536,8 +607,8 @@ function frame() {
 
     const sway = reduceMotion ? 0 : Math.sin(t * 0.7 + v.phase) * 0.012;
     const lean = v.hover * pointer.x * 0.05;
-    v.body.rotation.z = sway - lean;
-    v.body.rotation.x = v.hover * -pointer.y * 0.04;
+    v.tilt.rotation.z = v.leanZ + sway - lean;
+    v.tilt.rotation.x = v.leanX + v.hover * -pointer.y * 0.04;
     const s = 1 - 0.06 * v.press;
     v.body.scale.setScalar(s);
     v.body.position.z = -0.35 * v.press;
@@ -602,6 +673,8 @@ const CONTROLS = [
   { key: 'attenuation', label: 'Tint depth', min: 0.2, max: 6, step: 0.05, help: 'How far light travels before the glass tints it. Lower gives a heavier, greener-blue glass.' },
   { key: 'contentInset', label: 'Contents size', min: 0.6, max: 0.95, step: 0.005, help: 'How much of the bulb the project preview fills. Lower leaves a thicker clear wall around it.' },
   { key: 'edgeShade', label: 'Contents shading', min: 0, max: 1, step: 0.01, help: 'Darkens the edge of the preview so it reads as a round thing inside the glass, not a flat picture.' },
+  { key: 'innerShine', label: 'Inner highlights', min: 0, max: 1.5, step: 0.01, help: 'The second, smaller set of highlights off the inside of the glass wall. This is what makes thick glass look thick.' },
+  { key: 'waviness', label: 'Hand-blown wobble', min: 0, max: 3, step: 0.05, help: 'A slow unevenness in the glass surface. Wobbles reflections and the view through, like real blown glass.' },
 ];
 
 const tune = document.getElementById('tune');
