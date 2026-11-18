@@ -62,6 +62,30 @@
       "port": 5186
     },
     {
+      "name": "edff",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Dropbox/Projects/exquisite-doodle-friends-forever", "--", "--port", "5188"],
+      "port": 5188
+    },
+    {
+      "name": "edff-check",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Dropbox/Projects/exquisite-doodle-friends-forever", "--", "--port", "5189", "--strictPort"],
+      "port": 5189
+    },
+    {
+      "name": "edff-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "--prefix", "D:/Dropbox/Projects/exquisite-doodle-friends-forever", "--", "wrangler", "dev", "--port", "8787", "--cwd", "D:/Dropbox/Projects/exquisite-doodle-friends-forever"],
+      "port": 8787
+    },
+    {
+      "name": "splat-fur",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Dropbox/Projects/tools/threejs/splat-fur/tools/serve.js", "5191"],
+      "port": 5191
+    },
+    {
       "name": "resume",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/NATAN/Downloads/resume_build"],
