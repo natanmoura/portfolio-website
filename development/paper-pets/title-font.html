@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutout Title Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root { --paper: #f4efe6; --card: #fbf8f2; --ink: #221d1a; --muted: #7a6e65; --line: #e2d9cc; --accent: #d0643b; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.4 "DM Sans", system-ui, sans-serif; display: grid; grid-template-columns: 320px 1fr; }
+aside { background: var(--card); border-right: 1px solid var(--line); overflow-y: auto; height: 100vh; padding: 14px 16px 40px; }
+aside h1 { font: 26px/1 "DM Serif Display", serif; margin: 0 0 4px; }
+aside > p { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; padding: 2px 0 6px; }
+.row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+.row label { color: var(--muted); }
+.row input[type=range] { width: 100%; accent-color: var(--accent); }
+.row output { text-align: right; font-variant-numeric: tabular-nums; }
+.row input[type=color] { width: 100%; height: 24px; border: 1px solid var(--line); border-radius: 6px; padding: 0; background: none; }
+.row input[type=text], .row select { width: 100%; font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; background: #fff; }
+.row.wide { grid-template-columns: 96px 1fr; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+button { font: inherit; font-size: 12px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { position: relative; }
+.presets button .x { margin-left: 6px; color: var(--muted); }
+main { height: 100vh; overflow-y: auto; padding: 32px 40px; display: flex; flex-direction: column; gap: 28px; }
+main > * { flex-shrink: 0; }
+.stage { border-radius: 18px; padding: 60px 40px; min-height: 300px; display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
+#hero { font-size: 120px; line-height: 1.15; margin: 0; font-weight: 400; outline: none; }
+.stage .hint { position: absolute; left: 14px; top: 10px; font-size: 11px; color: var(--muted); }
+.edit { display: flex; gap: 8px; align-items: center; }
+.edit input { flex: 1; font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.usage { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 28px; }
+.usage .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 18px 0 4px; }
+.usage .lbl:first-child { margin-top: 0; }
+#u1 { font-size: 40px; line-height: 1.1; margin: 0; font-weight: 400; }
+#u2 { font-size: 64px; line-height: 1.1; margin: 0; font-weight: 400; }
+#u3 { font-size: 24px; line-height: 1.2; margin: 0; font-weight: 400; }
+#u3-body { margin: 4px 0 0; color: var(--muted); max-width: 520px; }
+#json { width: 100%; height: 140px; font: 11px/1.4 ui-monospace, monospace; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #fff; resize: vertical; }
+#tip { position: fixed; z-index: 50; max-width: 260px; background: var(--ink); color: #fff; font-size: 12px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; pointer-events: none; display: none; }
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; }
+  aside { height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  main { height: auto; padding: 16px; }
+  #hero { font-size: 64px; }
+}
+</style>
+</head>
+<body>
+<aside id="panel">
+  <h1>Cutout Title Lab</h1>
+  <p>Paper Pets title lettering. Hover any control for what it does.</p>
+  <div class="btns">
+    <button id="reseed" data-help="Rolls a new random arrangement. Every letter gets a fresh tilt, offset and color pick, but the amounts stay the same.">Reseed</button>
+    <button id="reset" data-help="Puts every setting back to the built-in default.">Reset</button>
+    <button id="copy" class="primary" data-help="Copies the current settings as JSON. Paste it back to me and I will make it the app's title style.">Copy settings</button>
+  </div>
+  <div id="controls"></div>
+  <details open>
+    <summary>Saved presets</summary>
+    <div class="btns">
+      <button id="save" data-help="Saves the current settings under a name in this browser so you can flip between candidates.">Save current…</button>
+    </div>
+    <div class="presets" id="presets"></div>
+  </details>
+  <details>
+    <summary>Settings JSON</summary>
+    <textarea id="json" spellcheck="false" data-help="The live settings. Edit or paste JSON here and press Apply to load it."></textarea>
+    <div class="btns"><button id="apply">Apply JSON</button></div>
+  </details>
+</aside>
+
+<main>
+  <div class="edit">
+    <input id="text" value="Paper Pets" data-help="The words shown in the big preview. The smaller samples below keep their own text.">
+  </div>
+  <section class="stage" id="stage">
+    <span class="hint">Preview</span>
+    <h2 id="hero">Paper Pets</h2>
+  </section>
+  <section class="usage">
+    <div class="lbl">App header, 40px</div>
+    <h2 id="u1">Paper Pets</h2>
+    <div class="lbl">Splash, 64px</div>
+    <h2 id="u2">Meet your Corgi</h2>
+    <div class="lbl">Section title, 24px</div>
+    <h3 id="u3">Flat pattern</h3>
+    <p id="u3-body">Titles are traced from Troika. Body copy stays in DM Sans. This line is here to judge how the cutout title sits next to normal text.</p>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script type="module">
+import { cutout, injectCSS, DEFAULTS } from './js/cutout-title.js';
+
+const CONTROLS = [
+  { group: 'Page', open: true, items: [
+    { key: 'size', label: 'Preview size', min: 32, max: 220, step: 1, unit: 'px', local: true, help: 'Font size of the big preview only. Every other setting scales with size, so a look you like here holds at 24px too.' },
+    { key: 'bg', label: 'Background', type: 'color', local: true, help: 'Color of the preview card. Try the app paper tone and a darker one to check the shadow reads on both.' },
+  ]},
+  { group: 'Wonk', open: true, items: [
+    { key: 'rot', label: 'Rotation', min: 0, max: 30, step: 0.5, unit: '°', help: 'Most each letter tilts left or right at rest. Zero sits upright like type. Past 15 it reads as a ransom note.' },
+    { key: 'baseline', label: 'Baseline', min: 0, max: 30, step: 0.5, unit: '%', help: 'How far letters bob up or down off the line, as a percent of letter height. Low is a careful cut, high is glued in a hurry.' },
+    { key: 'shiftX', label: 'Side shift', min: 0, max: 20, step: 0.5, unit: '%', help: 'Random nudge left or right per letter. Makes spacing uneven so it stops looking typeset.' },
+    { key: 'scaleJit', label: 'Size jitter', min: 0, max: 30, step: 0.5, unit: '%', help: 'Letters come out a little bigger or smaller than each other. High values feel cut freehand from different scraps.' },
+    { key: 'skew', label: 'Slant', min: 0, max: 20, step: 0.5, unit: '°', help: 'Random horizontal shear per letter, like scissors drifting off vertical. Small amounts go a long way.' },
+    { key: 'arc', label: 'Arc', min: -30, max: 30, step: 0.5, unit: '%', help: 'Bends the whole line into a smile or a frown. Positive lifts the middle letters, negative drops them.' },
+    { key: 'spacing', label: 'Spacing', min: -10, max: 30, step: 0.5, unit: '%', help: 'Extra gap after each letter. Negative lets pieces overlap like they were glued on top of each other.' },
+  ]},
+  { group: 'Paper', open: true, items: [
+    { key: 'heft', label: 'Heft', min: 0, max: 8, step: 0.1, unit: '%', help: 'Fattens the traced Troika outlines by stroking them in the paper color. Zero is the font exactly as drawn.' },
+    { key: 'colorMode', label: 'Color mode', type: 'select', options: ['single', 'palette', 'text'], help: 'Single uses one paper color. Palette picks each letter from the swatch list for a scrapbook mix. Text uses whatever color the title already has in its section, which is what the app uses.' },
+    { key: 'face', label: 'Paper color', type: 'color', help: 'Color of the letter paper in single mode.' },
+    { key: 'palette', label: 'Palette', type: 'text', help: 'Comma separated hex colors used in palette mode. Reseed shuffles which letter gets which.' },
+    { key: 'backing', label: 'Backing border', min: 0, max: 15, step: 0.1, unit: '%', help: 'A second paper layer behind each letter, like it was cut out with a margin. Zero is a bare letter. High is a fat sticker outline.' },
+    { key: 'backingColor', label: 'Backing color', type: 'color', help: 'Color of the backing border paper. Off white looks like card stock.' },
+  ]},
+  { group: 'Thickness', open: true, items: [
+    { key: 'depth', label: 'Thickness', min: 0, max: 15, step: 0.1, unit: '%', help: 'Visible paper edge under each letter. Low is thin printer paper, high is chunky foam board.' },
+    { key: 'depthAngle', label: 'Edge angle', min: 0, max: 360, step: 1, unit: '°', help: 'Which side the thick edge shows on. 90 is straight down, 120 is down and to the right.' },
+    { key: 'edgeDarken', label: 'Edge shade', min: 0, max: 70, step: 1, unit: '%', help: 'How much darker the edge is than the face. Low reads as flat color, high reads as a lit solid block.' },
+  ]},
+  { group: 'In the air', open: true, items: [
+    { key: 'lift', label: 'Float height', min: 0, max: 30, step: 0.5, unit: '%', help: 'How far letters hover above the page. Pushes the shadow away and raises the letter a touch. Zero is glued flat.' },
+    { key: 'shadowBlur', label: 'Shadow blur', min: 0, max: 25, step: 0.5, unit: '%', help: 'Softness of the cast shadow. Sharp looks like hard sunlight, soft looks like a cloudy window.' },
+    { key: 'shadowOpacity', label: 'Shadow dark', min: 0, max: 0.8, step: 0.01, unit: '', help: 'Strength of the cast shadow. Turn it down on dark backgrounds.' },
+    { key: 'lightAngle', label: 'Shadow angle', min: 0, max: 360, step: 1, unit: '°', help: 'Direction the shadow falls. Keep it near the edge angle so the thickness and shadow agree on where the light is.' },
+  ]},
+  { group: 'Motion', open: true, items: [
+    { key: 'fps', label: 'Frame rate', min: 0, max: 24, step: 1, unit: 'fps', help: 'How often letters update. 4 to 8 is the stop motion zone. 24 is smooth. Zero freezes everything.' },
+    { key: 'motion', label: 'Style', type: 'select', options: ['drift', 'boil'], help: 'Drift moves each letter on a slow wave, sampled at the frame rate. Boil picks a new random pose every frame, like hand redrawn animation.' },
+    { key: 'speed', label: 'Drift speed', min: 0.05, max: 2, step: 0.05, unit: 'Hz', help: 'Cycles per second of the drift wave. Only used in drift style.' },
+    { key: 'animRot', label: 'Wobble', min: 0, max: 15, step: 0.1, unit: '°', help: 'How much each letter rocks while animating, on top of its resting tilt.' },
+    { key: 'animY', label: 'Bob', min: 0, max: 15, step: 0.1, unit: '%', help: 'How far each letter moves up and down while animating.' },
+    { key: 'animLift', label: 'Breathe', min: 0, max: 100, step: 1, unit: '%', help: 'How much the float height pulses. The shadow grows and shrinks so letters seem to drift toward and away from the page.' },
+  ]},
+  { group: 'Cut edges', open: false, items: [
+    { key: 'rough', label: 'Roughness', min: 0, max: 8, step: 0.1, unit: '%', help: 'Wobble pushed into the traced outline, as if cut with scissors. Zero is the clean Troika vector edge. High is torn paper.' },
+    { key: 'roughScale', label: 'Grain', min: 0.01, max: 0.3, step: 0.005, unit: '', help: 'Size of the bumps along the edge. Low gives long lazy waves, high gives fine jagged nicks.' },
+    { key: 'edgeBoil', label: 'Edge boil', type: 'check', help: 'Re-rolls the rough edge every few frames so the outline crawls slightly, like stop motion paper being handled.' },
+  ]},
+];
+
+injectCSS();
+const STORE = 'paperpets.cutoutTitle.v1';
+const PRESETS = 'paperpets.cutoutTitle.presets.v1';
+const LOCAL_DEFAULTS = { size: 120, bg: '#f4efe6' };
+
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let state = { ...DEFAULTS, ...LOCAL_DEFAULTS, ...load(STORE, {}) };
+const fontParams = () => Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, state[k]]));
+
+const hero = document.getElementById('hero');
+const stage = document.getElementById('stage');
+const titles = ['hero', 'u1', 'u2', 'u3'].map((id) => cutout(document.getElementById(id), fontParams()));
+
+const inputs = {};
+const controlsEl = document.getElementById('controls');
+for (const g of CONTROLS) {
+  const d = document.createElement('details');
+  d.open = g.open;
+  d.innerHTML = `<summary>${g.group}</summary>`;
+  for (const c of g.items) {
+    const row = document.createElement('div');
+    row.className = 'row' + (c.type && c.type !== 'range' ? ' wide' : '');
+    row.dataset.help = c.help;
+    const lab = document.createElement('label');
+    lab.textContent = c.label;
+    row.appendChild(lab);
+    let inp;
+    if (c.type === 'select') {
+      inp = document.createElement('select');
+      for (const o of c.options) inp.add(new Option(o, o));
+    } else if (c.type === 'color' || c.type === 'text') {
+      inp = document.createElement('input');
+      inp.type = c.type;
+    } else if (c.type === 'check') {
+      inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.style.justifySelf = 'start';
+    } else {
+      inp = document.createElement('input');
+      inp.type = 'range';
+      inp.min = c.min; inp.max = c.max; inp.step = c.step;
+    }
+    row.appendChild(inp);
+    let out;
+    if (!c.type) { out = document.createElement('output'); row.appendChild(out); }
+    inputs[c.key] = { inp, out, c };
+    inp.addEventListener('input', () => {
+      const v = c.type === 'check' ? inp.checked : c.type ? inp.value : parseFloat(inp.value);
+      state[c.key] = v;
+      if (out) out.textContent = fmt(v, c);
+      apply();
+    });
+    d.appendChild(row);
+  }
+  controlsEl.appendChild(d);
+}
+
+function fmt(v, c) {
+  const dec = c.step < 0.1 ? 2 : c.step < 1 ? 1 : 0;
+  return Number(v).toFixed(dec) + (c.unit === '°' ? '°' : '');
+}
+
+function syncInputs() {
+  for (const [k, { inp, out, c }] of Object.entries(inputs)) {
+    if (c.type === 'check') inp.checked = !!state[k];
+    else inp.value = state[k];
+    if (out) out.textContent = fmt(state[k], c);
+  }
+}
+
+const json = document.getElementById('json');
+function apply() {
+  hero.style.fontSize = state.size + 'px';
+  stage.style.background = state.bg;
+  const fp = fontParams();
+  for (const t of titles) t.set(fp);
+  json.value = JSON.stringify(fp, null, 2);
+  save(STORE, state);
+}
+
+document.getElementById('text').addEventListener('input', (e) => titles[0].setText(e.target.value || ' '));
+document.getElementById('reseed').onclick = () => { state.seed = Math.floor(Math.random() * 1e6); apply(); };
+document.getElementById('reset').onclick = () => { state = { ...DEFAULTS, ...LOCAL_DEFAULTS }; syncInputs(); apply(); };
+document.getElementById('copy').onclick = async (e) => {
+  try { await navigator.clipboard.writeText(JSON.stringify(fontParams(), null, 2)); e.target.textContent = 'Copied'; }
+  catch { json.closest('details').open = true; json.select(); e.target.textContent = 'Select + copy below'; }
+  setTimeout(() => (e.target.textContent = 'Copy settings'), 1400);
+};
+document.getElementById('apply').onclick = () => {
+  try { state = { ...state, ...JSON.parse(json.value) }; syncInputs(); apply(); }
+  catch { json.style.borderColor = 'crimson'; setTimeout(() => (json.style.borderColor = ''), 1200); }
+};
+
+const presetsEl = document.getElementById('presets');
+function renderPresets() {
+  const list = load(PRESETS, {});
+  presetsEl.innerHTML = '';
+  for (const name of Object.keys(list)) {
+    const b = document.createElement('button');
+    b.dataset.help = 'Loads this saved preset. The × deletes it.';
+    b.innerHTML = `${name}<span class="x">×</span>`;
+    b.onclick = (e) => {
+      const all = load(PRESETS, {});
+      if (e.target.classList.contains('x')) { delete all[name]; save(PRESETS, all); renderPresets(); return; }
+      state = { ...state, ...all[name] }; syncInputs(); apply();
+    };
+    presetsEl.appendChild(b);
+  }
+}
+document.getElementById('save').onclick = () => {
+  const name = prompt('Preset name');
+  if (!name) return;
+  const all = load(PRESETS, {});
+  all[name] = fontParams();
+  save(PRESETS, all);
+  renderPresets();
+};
+
+const tip = document.getElementById('tip');
+document.addEventListener('mouseover', (e) => {
+  const h = e.target.closest('[data-help]');
+  if (!h) { tip.style.display = 'none'; return; }
+  tip.textContent = h.dataset.help;
+  tip.style.display = 'block';
+  const r = h.getBoundingClientRect();
+  const x = Math.min(r.right + 10, innerWidth - 270);
+  const y = Math.min(Math.max(8, r.top), innerHeight - tip.offsetHeight - 8);
+  tip.style.left = (r.right + 270 > innerWidth ? Math.max(8, r.left) : x) + 'px';
+  tip.style.top = (r.right + 270 > innerWidth ? r.bottom + 6 : y) + 'px';
+});
+
+syncInputs();
+renderPresets();
+document.fonts.ready.then(apply);
+apply();
+</script>
+</body>
+</html>
