@@ -83,7 +83,6 @@ const projects = [
           { type: "image", src: "assets/images/company-picnic/ursula-ghost.jpg" },
           { type: "image", src: "assets/images/company-picnic/ursula-gnome.jpg" },
           { type: "image", src: "assets/images/company-picnic/ursula-porcupine.jpg" },
-          { type: "image", src: "assets/images/company-picnic/ursula-flower.jpg" },
         ]},
       ],
       links: [],
